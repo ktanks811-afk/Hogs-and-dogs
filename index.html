@@ -99,6 +99,10 @@ select,input[type=text],input[type=number],input[type=password]{background:var(-
 .cmpbar i.pot{opacity:.28}
 .mine{background:var(--pine2)}.theirs{background:var(--mud)}
 .key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.landwrap{position:relative;height:56vh;min-height:280px;max-height:640px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#26331f;touch-action:none}
+.landwrap canvas{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.landbar{position:absolute;left:8px;right:8px;bottom:8px}.landbar .panel{background:var(--panel);box-shadow:0 4px 14px rgba(0,0,0,.35);padding:8px 10px}
+.landzoom{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px}.landzoom .btn{background:rgba(255,255,255,.9);color:#222;min-width:38px}
 .meter{height:16px;border-radius:8px;background:var(--panel2);overflow:hidden;position:relative}
 .meter i{position:absolute;inset:0 auto 0 0;transition:width .12s linear}
 
@@ -224,11 +228,11 @@ const AREAS=[
  {id:'thicket',name:'Big Thicket',land:4,size:7,hogs:[['spotted',35],['russian',50],['ghost',15]],desc:'Brutal cover, trophy hogs.'}
 ];
 const UPGRADES={
- kennel:{name:'Kennel',base:1500,desc:l=>`Houses ${cap(l)} dogs`},
+ kennel:{name:'Kennel',base:1500,desc:l=>`+${3*(l-1)} dogs in every kennel building`},
  yard:{name:'Training yard',base:1200,desc:l=>`Training gains +${(l-1)*20}%, energy cost ${40-(l-1)*5}`},
  barn:{name:'Whelping barn',base:2000,desc:l=>`${l} litter${l>1?'s':''} at once, up to ${Math.min(8,3+l)} pups`},
  gear:{name:'Hunting gear',base:1000,desc:l=>`+${l-1} search turns, ${(l-1)*10}% fewer injuries`},
- land:{name:'Land',base:5000,desc:l=>['','Creek Bottom','Pine Flats + stable','Cypress Swamp + cattle','Big Thicket','All land'][l]},
+ land:{name:'Land',base:5000,desc:l=>['','Creek Bottom','Pine Flats','Cypress Swamp','Big Thicket','All land'][l]+' (set by your property tier)'},
  storage:{name:'Feed storage',base:800,desc:l=>`Holds ${50*l} feed`}
 };
 const ITEMS={
@@ -259,6 +263,7 @@ function freshState(){
     horses:[],horseMarket:[],cattle:0,lastCattleShow:0,preg:[],ach:{},log:[],sound:true,theme:'',
     st:{hogs:0,best:0,bestName:'',litters:0,pups:0,sold:0,earned:0,races:0,raceWins:0,shows:0,showWins:0,hunts:0},
     rivals:RIVALS.map(n=>({name:n,score:ri(9000,42000)})),welcomed:false,dogoWhite:true,rep:50,repLog:[],found:[],research:{}};
+  S.land=starterProperty();
   S.dogs.push(makeDog({breed:'Black Mouth Cur',sex:'F',age:22,name:'Dixie'}));
   S.dogs.push(makeDog({breed:'Mountain Cur',sex:'M',age:30,name:'Boone'}));
   S.dogs.push(makeDog({breed:'American Bulldog',sex:'M',age:26,name:'Tank'}));
@@ -1095,6 +1100,8 @@ function migrate(){
   if(!S.dogoWhite){[...S.dogs,...S.market,...S.featured,...S.preg.map(p=>p.sireSnap)].forEach(whitenDogo);
     const L=Coat.LINEUPS['Dogo Argentino'];if(S.lineups&&(S.lineups['Dogo Argentino']||[]).some(d=>!L[d.lineup]))S.lineups['Dogo Argentino']=Object.keys(L).map(n=>makeLineupDog('Dogo Argentino',n));
     S.dogoWhite=true}
+  if(!S.land){legacyProperty();addLog(`Your ranch now sits on the ${S.land.name} (${LAND_TIERS[S.land.tier].name}). Visit Land & property to build.`)}
+  syncLandLevel();
   save();
 }
 function whitenDogo(d){if(!d||d.breed!=='Dogo Argentino'||d.cross||!d.genes)return;const g=d.genes;
@@ -1412,6 +1419,7 @@ async function publishRanch(silent){
   try{const bestLine=S.dogs.map(d=>[tierIdx(blOf(d)),d]).sort((a,b)=>b[0]-a[0])[0];
     await sbRpc('hd_publish_ranch',{...(await A2()),p_name:S.name,p_level:S.level,p_net:Math.round(netWorth()),p_hogs:S.st.hogs,p_dogs:S.dogs.length,
       p_line:bestLine&&bestLine[0]>=1?`${blOf(bestLine[1]).line} (${BL_TIERS[bestLine[0]]})`:null,p_snapshot:S.dogs.filter(d=>!d.guest).slice(0,16).map(leanDog)});
+    if(S.land)sbRpc('hd_save_property',{...(await A2()),p_property:landPublic(),p_perms:S.land.perms}).catch(e=>console.warn('property',e));
     S.onlinePublished=S.day;save();if(!silent)toast('Your ranch is published online.')}catch(e){if(!silent)toast('Could not publish: '+e.message)}
 }
 async function syncOnline(){
@@ -1489,7 +1497,7 @@ const ONLINE_VIEWS={
 async function visitRanch(pid){
   try{const [x]=await sbGet(`hd_ranches?select=*&player_id=eq.${pid}`);if(!x)return toast('That ranch has not been published.');
     UI.visit=x;const dogs=(x.snapshot||[]).map((o,i)=>viewDog(o,'R'+pid.slice(0,8)+'-'+i,x.name));
-    openSheet(`<h2>${esc(x.name)}</h2><p class="sub">Level ${x.level} · ${x.hogs} hogs caught · ${x.dog_count} dogs${x.best_line?'<br>Best line: '+esc(x.best_line):''}</p>
+    openSheet(`<h2>${esc(x.name)}</h2><p class="sub">Level ${x.level} · ${x.hogs} hogs caught · ${x.dog_count} dogs${x.best_line?'<br>Best line: '+esc(x.best_line):''}</p><button class="btn sm alt" data-act="onVisitProp" data-id="${x.player_id}" style="margin-bottom:8px">🏡 Visit their property</button>
       <div class="grid">${dogs.map(d=>dogCard(d,'onVisitDog')).join('')||'<p class="small muted">No dogs to show.</p>'}</div>`);
   }catch(e){toast(e.message)}
 }
@@ -1535,14 +1543,14 @@ const ONLINE_ACTIONS=({
       S.dogs=S.dogs.filter(z=>!ids.includes(z.id));S.money-=money;save();closeSheet();toast('Offer sent. You’ll hear back when they play.');UI.od={};render()}catch(e){toast(e.message)}},
   onAccept:async d=>{const t=(UI.od.trades.d.t||[]).find(x=>x.id==d.id);if(!t)return;const mineDog=S.dogs.find(z=>z.id===t.want_dog_id)||S.dogs.find(z=>z.origId===t.want_dog_id);
     if(!mineDog)return toast('You no longer have that dog — decline this offer instead.');
-    if(S.dogs.length-1+(t.offer||[]).length>cap(S.up.kennel))return toast('Not enough kennel space for the dogs offered.');
+    if(S.dogs.length-1+(t.offer||[]).length>dogCap())return toast('Not enough kennel space for the dogs offered.');
     try{const r=await sbRpc('hd_respond_trade',{...(await A2()),p_id:t.id,p_accept:true});S.dogs=S.dogs.filter(z=>z!==mineDog);for(const o of r.offer||[])S.dogs.push(importDog(o,t.from_ranch));if(r.money)earn(r.money);
       addLog(`Traded ${mineDog.name} to ${t.from_ranch}.`);save();toast('Trade complete!');UI.od={};await publishRanch(true);render()}catch(e){toast(e.message)}},
   onDecline:async d=>{try{await sbRpc('hd_respond_trade',{...(await A2()),p_id:+d.id,p_accept:false});UI.od={};onlineFill(true)}catch(e){toast(e.message)}},
   onCancelTrade:async d=>{try{await sbRpc('hd_cancel_trade',{...(await A2()),p_id:+d.id});await syncOnline();UI.od={};render()}catch(e){toast(e.message)}},
   onListing:d=>{const x=UI.remote[d.id];if(!x)return;const L=(UI.od.market.d.l||[]).find(y=>'L'+y.id===x.viewKey);if(!L)return;
     if(L.seller===myPid())return remoteDogSheet(x,`<div class="panel"><b>Your ${L.kind==='stud'?'stud listing':'listing'} — ${fmt(L.price)}</b>${L.kind==='stud'?`<div class="small muted">Used ${L.uses} time${L.uses!==1?'s':''}.</div>`:''}<button class="btn sm ghost" data-act="onCancelListing" data-id="${L.id}" style="margin-top:6px">Take it down</button></div>`);
-    if(L.kind==='sale')return remoteDogSheet(x,`<div class="panel"><b>${fmt(L.price)}</b> from ${esc(L.seller_ranch||'')}<div style="margin-top:6px"><button class="btn" data-act="onBuy" data-id="${L.id}" ${S.money>=L.price&&S.dogs.length<cap(S.up.kennel)?'':'disabled'}>Buy</button></div></div>`);
+    if(L.kind==='sale')return remoteDogSheet(x,`<div class="panel"><b>${fmt(L.price)}</b> from ${esc(L.seller_ranch||'')}<div style="margin-top:6px"><button class="btn" data-act="onBuy" data-id="${L.id}" ${S.money>=L.price&&S.dogs.length<dogCap()?'':'disabled'}>Buy</button></div></div>`);
     const dams=S.dogs.filter(z=>z.sex==='F'&&isAdult(z)&&z.health>=40&&!z.cool&&!S.preg.some(p=>p.dam===z.id)&&!z.guest);
     remoteDogSheet(x,`<div class="panel"><b>Stud fee ${fmt(L.price)}</b> — ${esc(L.seller_ranch||'')}<div class="small muted">Breed one of your females to ${esc(x.name)}. Pups arrive in 2 days, just like a home breeding.</div>
       <div class="row" style="margin-top:6px"><select id="studDam">${dams.map(z=>`<option value="${z.id}">${esc(z.name)} — ${esc(breedName(z))}</option>`).join('')}</select><button class="btn sm" data-act="onStud" data-id="${L.id}" ${dams.length&&S.money>=L.price&&S.preg.length<S.up.barn?'':'disabled'}>Breed</button></div>
@@ -1642,17 +1650,17 @@ const ACCOUNT_ACTIONS={
 function endDay(){
   if(UI.hunt&&UI.hunt.phase!=='done'){toast('Finish the hunt first.');return}
   S.day++;const msgs=[];
-  const need=S.dogs.length;
+  const need=Math.max(0,S.dogs.length-(S.land?landStats().feedSave:0));
   if(S.inv.feed>=need)S.inv.feed-=need;else{const short=need-S.inv.feed;S.inv.feed=0;msgs.push(`Ran out of feed — ${short} dog${short>1?'s':''} went hungry.`);
     S.dogs.slice(0,short).forEach(d=>d.health=Math.max(10,d.health-12))}
-  for(const d of S.dogs){d.age++;d.energy=100;d.health=Math.min(d.hcap,d.health+8);if(d.cool>0)d.cool--;
+  const regen=S.land?landStats().regen:0;for(const d of S.dogs){d.age++;d.energy=100;d.health=Math.min(d.hcap,d.health+8+regen);if(d.cool>0)d.cool--;
     const gf=growFactor(d.age);if(d.age<=36)STATS.forEach(([k])=>d.stats[k]=Math.max(d.stats[k],Math.min(d.pot[k],Math.round(d.pot[k]*gf))));
     if(d.age>96)STATS.forEach(([k])=>{if(R()<.3)d.stats[k]=Math.max(10,d.stats[k]-1)});
     if(d.age===12)msgs.push(`${d.name} is grown and ready to work.`)}
   const due=S.preg.filter(p=>p.due<=S.day);S.preg=S.preg.filter(p=>p.due>S.day);
   for(const p of due){const dam=S.dogs.find(d=>d.id===p.dam);const sire=p.sireSnap;
     if(!dam){msgs.push('A litter was lost when the dam left the kennel.');continue}
-    const room=cap(S.up.kennel)-S.dogs.length;
+    const room=dogCap()-S.dogs.length;
     const n=Math.max(1,Math.min(ri(2,Math.min(8,3+S.up.barn)),Math.round(ri(2,8)*dam.health/100)||1));
     const pups=[];for(let i=0;i<n;i++)pups.push(makePuppy(sire,dam));
     const keep=pups.slice(0,Math.max(0,room)),extra=pups.slice(keep.length);
@@ -1664,6 +1672,7 @@ function endDay(){
     litterResearch(pups);
     {const rv=litterRep(pups,sire,dam);if(Math.abs(rv)>=1)msgs.push(`Reputation ${rv>0?'+':''}${Math.round(rv*10)/10}: ${repTier(repOf()).toLowerCase()}.`)}
     if(sameLine(sire,dam))S.st.sameLitters=(S.st.sameLitters||0)+1;const lh=litterHint(pups,sire,dam);if(lh)msgs.push(lh)}
+  landDaily(msgs);
   if(S.cattle){const inc=S.cattle*35;earn(inc);msgs.push(`Cattle brought in ${fmt(inc)}.`)}
   for(const h of S.horses)h.age++;
   S.rivals.forEach(r=>r.score=Math.round(r.score*(1.01+R()*.035)));
@@ -1681,7 +1690,7 @@ const TABS=[['home','🏠','Ranch'],['kennel','🐕','Kennel'],['pits','🐶','B
 function renderChrome(){
   document.getElementById('ranchName').innerHTML=esc(S.name)+'<br><span class="num">Day '+S.day+'</span>';
   const pct=Math.round(S.xp/xpNeed(S.level)*100);
-  document.getElementById('chips').innerHTML=`<span class="chip num">💵 <b>${fmt(S.money)}</b></span><span class="chip">Lv <b>${S.level}</b><span class="xpbar"><i style="width:${pct}%"></i></span></span><span class="chip num">🐕 ${S.dogs.length}/${cap(S.up.kennel)}</span><span class="chip num">🌾 ${S.inv.feed}</span>`;
+  document.getElementById('chips').innerHTML=`<span class="chip num">💵 <b>${fmt(S.money)}</b></span><span class="chip">Lv <b>${S.level}</b><span class="xpbar"><i style="width:${pct}%"></i></span></span><span class="chip num">🐕 ${S.dogs.length}/${dogCap()}</span><span class="chip num">🌾 ${S.inv.feed}</span>`;
   const main=['home','kennel','pits','breed','market','hunt'];
   document.getElementById('tabs').innerHTML=TABS.map(([id,ic,l])=>`<button data-act="tab" data-t="${id}" class="${UI.tab===id||(id==='more'&&!main.includes(UI.tab))?'on':''}" aria-label="${l}"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
@@ -1691,6 +1700,7 @@ function render(){
   m.innerHTML=(SCREENS[UI.tab]||SCREENS.home)();
   if(UI.tab==='hunt'&&UI.hunt&&UI.hunt.phase==='bay')startBayTimer();
   hydrateCoats();
+  if(UI.tab==='land'&&S.land)landAttach(S.land,false);
 }
 function openSheet(html){document.getElementById('sheetInner').innerHTML='<button class="close" data-act="closeSheet" aria-label="Close">×</button>'+html;document.getElementById('sheet').classList.remove('hidden');hydrateCoats()}
 function closeSheet(){document.getElementById('sheet').classList.add('hidden')}
@@ -1717,6 +1727,7 @@ SCREENS.home=()=>{
   ${repPanel(false)}
   <div class="panel"><div class="spread"><div><b>End the day</b><div class="small muted">Dogs eat ${S.dogs.length} feed, rest to full energy, pups grow, the market restocks.</div></div></div>
   <div style="margin-top:10px"><button class="btn big" data-act="endDay">End day ${S.day}</button></div></div>
+  <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="land"><b>🏡 ${esc(S.land.name)}</b><div class="small muted">${LAND_TIERS[S.land.tier].name} · ${TERRAINS[S.land.terrain].name} · room for ${dogCap()} dogs · value ${fmt(landValue())}</div></button>
   <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="online"><b>🌐 Online ranches</b><div class="small muted">Visit other players, trade dogs, rent studs, enter daily shows and races, and join a hunting group.</div></button>
   <button class="panel" style="text-align:left;width:100%;margin-top:10px;border:2px solid var(--blaze)" data-act="tab" data-t="market"><b>New breed: Gordon Setter</b><div class="small muted">Long-coated setters with inheritable feathering — now in the Market.</div></button>
   <div class="grid" style="margin-top:10px">
@@ -1729,7 +1740,7 @@ SCREENS.home=()=>{
 };
 SCREENS.kennel=()=>{
   const f=UI.kf,list=S.dogs.filter(d=>f==='all'||(f==='bay'&&bayScore(d)>=catchScore(d))||(f==='catch'&&catchScore(d)>bayScore(d))||(f==='pups'&&!isAdult(d))||(f==='M'&&d.sex==='M')||(f==='F'&&d.sex==='F')||(f==='pit'&&d.breed==='American Pit Bull Terrier')||(f==='cur'&&/Cur$/.test(d.breed))||(f==='bd'&&d.breed==='American Bulldog')||(f==='cat'&&d.breed==='Catahoula Leopard Dog')||(f==='tw'&&d.breed==='Treeing Walker')||(f==='gs'&&d.breed==='Gordon Setter')||(f==='dogo'&&d.breed==='Dogo Argentino')||(f==='bandog'&&isBandog(d)));
-  return `<h2>Kennel</h2><p class="sub">${S.dogs.length} of ${cap(S.up.kennel)} runs filled. Tap a dog for its full profile.</p>
+  return `<h2>Kennel</h2><p class="sub">${S.dogs.length} of ${dogCap()} runs filled. Tap a dog for its full profile.</p>
   <div class="seg">${[['all','All'],['bay','Bay dogs'],['catch','Catch dogs'],['pups','Pups'],['pit','Pit Bulls'],['bd','Bulldogs'],['cat','Catahoulas'],['tw','Walkers'],['gs','Setters'],['dogo','Dogos'],['bandog','Bandogs'],['cur','Curs'],['M','Males'],['F','Females']].map(([k,l])=>`<button class="${f===k?'on':''}" data-act="kf" data-k="${k}">${l}</button>`).join('')}</div>
   ${list.length?`<div class="grid">${list.map(d=>dogCard(d)).join('')}</div>`:`<div class="panel">No dogs match. <button class="btn sm" data-act="tab" data-t="market">Visit the market</button></div>`}`;
 };
@@ -1812,13 +1823,13 @@ function marketView(id){
   <div class="row" style="margin:8px 0">${rarTag(d)}${d.mut?'<span class="tag" style="background:var(--gold);color:#fff">✦ Mutation</span>':''}<span class="tag">${esc(breedName(d))}</span><span class="tag">${ageStr(d.age)}</span><span class="tag">${d.kg} kg</span><span class="tag">${esc(d.temp)}</span></div>
   <p class="small"><b>Coat:</b> ${esc(coatName(d))} <span class="gt muted">${Object.keys(LOCI).map(L=>genoText(d,L,'')).join(' ')}</span></p>
   ${statBars(d)}
-  <div style="margin-top:12px"><button class="btn big" data-act="buy" data-id="${d.id}" ${S.money>=d.price&&S.dogs.length<cap(S.up.kennel)?'':'disabled'}>Buy for ${fmt(d.price)}</button>
-  ${S.dogs.length>=cap(S.up.kennel)?'<p class="small muted">Your kennel is full. Sell a dog or upgrade the kennel.</p>':S.money<d.price?'<p class="small muted">Not enough cash.</p>':''}</div>`);
+  <div style="margin-top:12px"><button class="btn big" data-act="buy" data-id="${d.id}" ${S.money>=d.price&&S.dogs.length<dogCap()?'':'disabled'}>Buy for ${fmt(d.price)}</button>
+  ${S.dogs.length>=dogCap()?'<p class="small muted">Your kennel is full. Sell a dog or upgrade the kennel.</p>':S.money<d.price?'<p class="small muted">Not enough cash.</p>':''}</div>`);
 }
 SCREENS.train=()=>{
   const d=S.dogs.find(x=>x.id===UI.trainDog)||S.dogs.find(isAdult)||S.dogs[0];
   if(!d)return '<h2>Training center</h2><p>No dogs to train yet.</p>';
-  UI.trainDog=d.id;const cost=40-(S.up.yard-1)*5,price=40+S.level*10;
+  UI.trainDog=d.id;const cost=trainEnergy(),price=40+S.level*10;
   return `<h2>Training center</h2><p class="sub">Each session costs ${cost} energy and ${fmt(price)}. Gains shrink as a dog nears its genetic potential; intelligence and temperament change how fast dogs learn.</p>
   <label>Dog <select data-f="trainDog">${S.dogs.map(x=>`<option value="${x.id}" ${x.id===d.id?'selected':''}>${esc(x.name)} — ${esc(breedName(x))}${isAdult(x)?'':' (pup)'}</option>`).join('')}</select></label>
   <div class="panel" style="margin-top:10px"><div class="spread"><div style="flex:0 0 130px">${dogArt(d,130)}</div><div style="flex:1"><b>${esc(d.name)}</b><div class="small muted">Energy ${d.energy} · Health ${d.health}</div><div class="meter" style="height:8px;margin-top:4px"><i style="width:${d.energy}%;background:var(--gold)"></i></div></div></div>
@@ -1835,7 +1846,7 @@ function TRAINABLE_ROWS(d,cost,price){
 function trainGain(d,k){
   const gap=d.pot[k]-d.stats[k];if(gap<=0)return 0;
   let g=(gap*.16+1.2)*(1+(S.up.yard-1)*.2)*(.8+d.stats.int/250);
-  if(d.temp==='Eager')g*=1.2;if(d.temp==='Stubborn')g*=.8;
+  g*=landTrainMult(k);if(d.temp==='Eager')g*=1.2;if(d.temp==='Stubborn')g*=.8;
   return Math.max(1,Math.min(gap,Math.round(g)));
 }
 
@@ -1848,8 +1859,8 @@ SCREENS.hunt=()=>{
     return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
   const byBay=[...elig].sort((a,b)=>bayScore(b)-bayScore(a)),byCatch=[...elig].sort((a,b)=>catchScore(b)-catchScore(a));
   return `<h2>Hog hunt</h2><p class="sub">Bay dogs cast out and find the hog. Once it’s bayed up, you choose the moment to turn loose the catch dogs.</p>
-  <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const lock=S.up.land<a.land;return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
-   <b>${a.name}</b>${lock?` <span class="tag">Land level ${a.land}</span>`:''}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div></button>`}).join('')}</div>
+  <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const acc=S.land&&accessArea(S.land)===a.id,lock=S.up.land<a.land&&!acc;return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
+   <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div></button>`}).join('')}</div>
   <h3>Bay dogs <span class="small muted">${sel.bay.length}/${maxBay} — track and hold the hog</span></h3><div class="dogpick">${byBay.map(d=>card(d,'bay')).join('')||'<p class="small muted">No adult dogs.</p>'}</div>
   <h3>Catch dogs <span class="small muted">${sel.catch.length}/${maxCatch} — take the hog down</span></h3><div class="dogpick">${byCatch.map(d=>card(d,'catch')).join('')}</div>
   <h3>Hunting group guest <span class="small muted">optional</span></h3>${UI.guest?`<div class="panel"><div class="spread"><div><b>${esc(UI.guest.name)}</b> from ${esc(UI.guest.guest.ranch)}<div class="small muted">${esc(breedName(UI.guest))} · Bay ${Math.round(bayScore(UI.guest))} · Catch ${Math.round(catchScore(UI.guest))}</div></div><button class="btn sm ghost" data-act="dropGuest">Remove</button></div>
@@ -1864,9 +1875,9 @@ function huntStart(){
   if(!bay.length||!ctch.length)return;
   [...bay,...ctch].forEach(d=>d.energy-=35);
   let tot=a.hogs.reduce((s,h)=>s+h[1],0),r=R()*tot,key=a.hogs[0][0];for(const[h,w]of a.hogs){r-=w;if(r<=0){key=h;break}}
-  const hog=HOGS[key],w=ri(hog.w[0],hog.w[1]);
-  UI.hunt={area:a,size:a.size,hogCell:ri(0,a.size*a.size-1),cells:{},turns:6+S.up.gear-1+(S.inv.collar?1:0)+(a.size>5?1:0),phase:'track',
-    bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hogKey:key,hog:{...hog,w},hold:100,calm:50,t:0,log:[`${bay.map(d=>d.name).join(' and ')} strike off into the ${a.name.toLowerCase()}.`],result:null};
+  const hog=HOGS[key],lh=landHunt(a.id),w=Math.round(ri(hog.w[0],hog.w[1])*(1+lh.hogW));
+  UI.hunt={area:a,size:a.size,hogCell:ri(0,a.size*a.size-1),cells:{},turns:6+S.up.gear-1+(S.inv.collar?1:0)+(a.size>5?1:0)+lh.turns,phase:'track',
+    bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hogKey:key,hog:{...hog,w},hold:100,calm:50,t:0,log:[`${bay.map(d=>d.name).join(' and ')} strike off into the ${a.name.toLowerCase()}.`,...(lh.note?[lh.note]:[])],result:null};
   S.st.hunts++;save();sfx.bark();render();
 }
 // a borrowed dog lives on the hunt, never in S.dogs, so it can't be sold, bred or listed mid-hunt
@@ -1900,7 +1911,7 @@ function huntCell(i){
     h.cells[i]={cls:'hot',icon:'!'};h.log.unshift('Fresh sign everywhere, but the dogs overran the track. Try here again.');
   }else{
     const cls=dist===1?'hot':dist===2?'warm':'cold';let icon=dist===1?'🔥':dist===2?'•':'';
-    if((R()<bays.reduce((s,d)=>s+d.stats.trk,0)/(sharp?250:400))&&dist>1){const dx=hx-x,dy=hy-y;icon=Math.abs(dx)>Math.abs(dy)?(dx>0?'→':'←'):(dy>0?'↓':'↑');h.log.unshift(`${pick(bays).name} catches a scent line ${({'→':'east','←':'west','↓':'south','↑':'north'})[icon]}.`)}
+    if((R()<bays.reduce((s,d)=>s+d.stats.trk,0)/(sharp?250:400)*(1+landHunt(h.area.id).clue))&&dist>1){const dx=hx-x,dy=hy-y;icon=Math.abs(dx)>Math.abs(dy)?(dx>0?'→':'←'):(dy>0?'↓':'↑');h.log.unshift(`${pick(bays).name} catches a scent line ${({'→':'east','←':'west','↓':'south','↑':'north'})[icon]}.`)}
     else h.log.unshift(cls==='hot'?'Fresh rooting — the hog is close.':cls==='warm'?'Tracks crossing the trail.':'Nothing but old sign.');
     h.cells[i]={cls,icon};
   }
@@ -1937,12 +1948,12 @@ function finishHunt(win,lines){
   bays.forEach(d=>{d.hunt.n++;if(found)d.hunt.bays++;d.stats.trk=Math.min(d.pot.trk,d.stats.trk+1);if(d.hunt.n%5===0){d.pot.trk=Math.min(99,d.pot.trk+1)}});
   let vests=S.inv.vest;
   if(found)cd.forEach(d=>{d.hunt.n++;if(win)d.hunt.catches++;d.stats.grip=Math.min(d.pot.grip,d.stats.grip+1);if(d.hunt.n%5===0)d.pot.grip=Math.min(99,d.pot.grip+1);
-    let risk=(win?.12:.32)*(1-(S.up.gear-1)*.1)*(d.temp==='Hot-headed'?1.5:1)*(h.hog.w/180)*(1-blOf(d).hardy*.04);
+    let risk=(win?.12:.32)*(1-(S.up.gear-1)*.1)*(1+landHunt(h.area.id).injury)*(d.temp==='Hot-headed'?1.5:1)*(h.hog.w/180)*(1-blOf(d).hardy*.04);
     if(vests>0){risk*=.4;vests--}
     if(R()<risk){const dmg=ri(10,28);d.health=Math.max(5,d.health-dmg);lines.push(`${d.name} got cut by a tusk (−${dmg} health).`)}});
   if(win){
-    const pay=Math.round(h.hog.w*4*h.hog.mult);earn(pay);h.lastPay=pay;S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}if(h.hogKey==='ghost'){S.ach._ghost=1;S.st.bestName='Ghost boar'}
-    lines.push(`${cd[0].name} catches the ${h.hog.w} lb ${h.hog.name.toLowerCase()}. Sold for ${fmt(pay)}.`);gainXP(15+h.hog.w/5);addLog(`Caught a ${h.hog.w} lb ${h.hog.name.toLowerCase()} in ${h.area.name} for ${fmt(pay)}.`);
+    const pay=Math.round(h.hog.w*4*h.hog.mult),pen=S.land&&S.land.penHogs&&(S.land.hogs||[]).length<hogCap();if(pen)S.land.hogs.push({w:h.hog.w,pay});else earn(pay);h.lastPay=pay;S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}if(h.hogKey==='ghost'){S.ach._ghost=1;S.st.bestName='Ghost boar'}
+    lines.push(`${cd[0].name} catches the ${h.hog.w} lb ${h.hog.name.toLowerCase()}. ${pen?`Penned to fatten; it sells tomorrow for ${fmt(Math.round(pay*1.25))}.`:`Sold for ${fmt(pay)}.`}`);gainXP(15+h.hog.w/5);addLog(`Caught a ${h.hog.w} lb ${h.hog.name.toLowerCase()} in ${h.area.name} for ${fmt(pay)}.`);
   }else{gainXP(8);if(found)addLog(`A ${h.hog.name.toLowerCase()} escaped in ${h.area.name}.`)}
   lines.push('Dogs gained hunting experience.');
   if(h.guestId){const g=h.guestDog;
@@ -1952,16 +1963,519 @@ function finishHunt(win,lines){
   h.result={win,found,lines};h.log.unshift(win?'Hog caught.':'Hunt over.');checkAch();save();
 }
 
+// =========================================================
+// LAND & PROPERTY
+// One owned property per ranch (S.land). Terrain is generated from a template + seed and never
+// stored tile by tile; only what the player changes is saved (buildings, fences, gates, pens,
+// cleared ground, upgrades). Buildings and pens drive the ranch's real capacities and bonuses:
+// dogCap, horseCap, cowCap, hogCap, feedCap, training, hunting access and upkeep.
+// =========================================================
+const TILE_YD=5,LAND_CHUNK=32;
+const T_GRASS=0,T_DIRT=1,T_MUD=2,T_ROCK=3,T_WATER=4,T_TREE=5,T_ROAD=6,T_TRAIL=7;
+const TILE_NAME=['Grass','Dirt','Mud','Rock','Water','Trees','Road','Trail'];
+const LAND_TIERS=[null,
+ {name:'Starter Lot',size:20,price:5000,req:{}},
+ {name:'Small Ranch',size:40,price:15000,req:{level:3,rep:40,litters:1}},
+ {name:'Working Ranch',size:80,price:55000,req:{level:6,rep:50,hogs:10,litters:3}},
+ {name:'Large Ranch',size:160,price:160000,req:{level:10,rep:60,hogs:30,litters:8}},
+ {name:'Estate',size:240,price:420000,req:{level:14,rep:70,hogs:60,litters:15}},
+ {name:'Massive Ranch',size:400,price:1000000,req:{level:18,rep:80,hogs:120,litters:25}}];
+// terrain templates: tile mix, value multiplier, the hunting area its trails lead to, and gameplay effects
+const TERRAINS={
+ pine:{name:'Pine Forest',tree:.42,water:.02,rock:.02,mud:.03,elev:.5,mult:1.1,area:'pine',fx:{clue:.25},blurb:'Dogs pick up scent faster in the pines: better tracking clues on the Pine Flats hunt.'},
+ field:{name:'Open Field',tree:.04,water:.01,rock:.01,mud:.02,elev:.2,mult:1,area:null,fx:{train:.1},blurb:'Wide open ground: +10% training gains.'},
+ swamp:{name:'Swamp',tree:.22,water:.2,rock:0,mud:.22,elev:.1,mult:.8,area:'swamp',fx:{hogW:.1},blurb:'Wet and cheap. Boars on the Cypress Swamp hunt run 10% heavier.'},
+ mountain:{name:'Mountain',tree:.18,water:.02,rock:.2,mud:0,elev:1,mult:.9,area:'thicket',fx:{hogW:.12,injury:.1,stamina:.15},blurb:'Steep and rocky. Heavier Big Thicket hogs, more cuts, +15% stamina training.'},
+ creek:{name:'Creekside',tree:.16,water:.05,rock:.02,mud:.06,elev:.35,mult:1.2,area:'creek',fx:{regen:4},stream:true,blurb:'Running water: dogs heal 4 more health a day.'},
+ hills:{name:'Hilly Terrain',tree:.14,water:.02,rock:.06,mud:.02,elev:.8,mult:1,area:'pine',fx:{stamina:.2},blurb:'Rolling hills: +20% stamina training.'},
+ farm:{name:'Farm Land',tree:.03,water:.03,rock:0,mud:.04,elev:.15,mult:1.05,area:null,fx:{feedDaily:3},blurb:'Old cropland: grows 3 bags of feed a day.'},
+ woods:{name:'Woodland',tree:.32,water:.03,rock:.03,mud:.04,elev:.45,mult:1.05,area:'creek',fx:{clue:.2,regen:1},blurb:'Mixed hardwoods: better tracking clues on the Creek Bottom hunt.'},
+ plains:{name:'Ranch Plains',tree:.02,water:.02,rock:.01,mud:.01,elev:.25,mult:1.1,area:null,fx:{train:.05,horse:5},blurb:'Grassland built for stock: horses bond faster, +5% training.'}};
+// buildings: footprint in tiles (1 tile = 5 yd), cost, minimum property tier, what they add
+const BLD={
+ house:{name:'Ranch house',w:4,h:4,cost:0,tier:1,max:1,icon:'🏠',color:'#8e5b3a',desc:'Your home. Every property has one.'},
+ kennel:{name:'Kennel',w:3,h:2,cost:1500,tier:1,cap:{dogs:6},kennel:true,icon:'🐕',color:'#7a5a3a',desc:'6 dogs, +3 per Kennel upgrade level.'},
+ bigkennel:{name:'Large kennel',w:5,h:3,cost:5000,tier:2,cap:{dogs:14},kennel:true,icon:'🏘️',color:'#6d4c32',desc:'14 dogs, +3 per Kennel upgrade level.'},
+ puppen:{name:'Puppy pen',w:2,h:2,cost:600,tier:1,cap:{dogs:3},icon:'🐶',color:'#b58a5a',desc:'Room for 3 more dogs.'},
+ dogrun:{name:'Dog run',w:2,h:5,cost:400,tier:1,cap:{dogs:1},fx:{train:.03},icon:'🦮',color:'#a88f62',desc:'1 dog, +3% training.'},
+ training:{name:'Training area',w:6,h:6,cost:2500,tier:1,max:3,fx:{train:.1},icon:'🏋️',color:'#8aa35f',desc:'+10% training gains.'},
+ horsebarn:{name:'Horse barn',w:5,h:4,cost:4000,tier:2,cap:{horses:4},icon:'🐎',color:'#8b3a2e',desc:'Stalls for 4 horses.'},
+ cowbarn:{name:'Cow barn',w:6,h:4,cost:5000,tier:3,cap:{cows:10},icon:'🐄',color:'#9a4232',desc:'Room for 10 head of cattle.'},
+ pigpen:{name:'Pig pen',w:3,h:3,cost:1500,tier:2,cap:{hogs:3},icon:'🐗',color:'#7d6a4a',desc:'Holds 3 caught hogs to fatten.'},
+ feedstore:{name:'Feed storage',w:2,h:2,cost:800,tier:1,cap:{feed:60},icon:'🌾',color:'#b8923e',desc:'Stores 60 more feed.'},
+ storage:{name:'Storage building',w:3,h:3,cost:1500,tier:2,cap:{feed:40},fx:{maint:-.05},icon:'📦',color:'#7b7f86',desc:'40 more feed, 5% less upkeep.'},
+ workshop:{name:'Workshop',w:3,h:3,cost:3000,tier:2,need:'power',fx:{maint:-.15},icon:'🔧',color:'#5f6b75',desc:'Repairs cut upkeep 15%. Needs electricity.'},
+ gearshed:{name:'Hunting gear shed',w:3,h:2,cost:2000,tier:1,max:2,fx:{injury:-.1},icon:'🎯',color:'#6b6f3f',desc:'10% fewer hunting injuries.'},
+ garage:{name:'Garage',w:3,h:3,cost:2500,tier:2,max:1,fx:{truck:1},icon:'🛻',color:'#707070',desc:'A truck: +1 search turn when you drive out to your hunting access.'},
+ shed:{name:'Vehicle shed',w:3,h:4,cost:2000,tier:3,max:1,fx:{truck:1},icon:'🚜',color:'#6a6258',desc:'Same truck bonus as a garage (they do not stack).'},
+ tank:{name:'Water tank',w:2,h:2,cost:900,tier:1,max:3,fx:{regen:2},icon:'💧',color:'#4f7fa8',desc:'Dogs heal 2 more health a day.'},
+ feeder:{name:'Feeder',w:1,h:1,cost:150,tier:1,max:3,fx:{feedSave:1},icon:'🥣',color:'#a07c45',desc:'Saves 1 bag of feed a day.'},
+ bench:{name:'Bench',w:1,h:1,cost:100,tier:1,decor:true,icon:'🪑',color:'#8a6a45',desc:'Decoration. Adds land value.'},
+ flowers:{name:'Flower bed',w:2,h:1,cost:200,tier:1,decor:true,icon:'🌼',color:'#c9a33c',desc:'Decoration. Adds land value.'},
+ lamp:{name:'Lamp post',w:1,h:1,cost:250,tier:1,decor:true,need:'power',icon:'💡',color:'#c8b560',desc:'Decoration. Needs electricity.'},
+ statue:{name:'Statue',w:2,h:2,cost:800,tier:3,decor:true,icon:'🗿',color:'#9a968d',desc:'Decoration. Adds land value.'}};
+const FENCES={wood:{name:'Wood fence',cost:12,str:2,color:'#8a5a2b'},chain:{name:'Chain-link fence',cost:18,str:2,color:'#9aa3aa'},
+ livestock:{name:'Livestock fence',cost:15,str:3,color:'#a07a3a'},heavy:{name:'Heavy-duty fence',cost:30,str:4,color:'#4a4f55'},decor:{name:'Decorative fence',cost:20,str:1,color:'#e8e2d0'}};
+const GATE_COST=150;
+// fenced pens: tiles of open ground per animal; the fence type that suits the pen gives 25% more room
+const PENS={dogyard:{name:'Dog yard',per:12,cap:'dogs',str:2,best:'chain'},pasture:{name:'Horse pasture',per:16,cap:'horses',str:2,best:'livestock'},
+ cowpasture:{name:'Cow pasture',per:10,cap:'cows',str:2,best:'livestock'},hogpen:{name:'Hog pen',per:4,cap:'hogs',str:3,best:'heavy'},trainpen:{name:'Training pen',per:0,str:1}};
+const LAND_UP={
+ clearing:{name:'Clearing crew',base:1500,desc:l=>`Clearing trees and mud costs ${30*l}% less`},
+ acreage:{name:'Additional acreage',base:6000,max:2,desc:l=>`Property ${15*l}% wider on each side`},
+ roads:{name:'Better roads',base:2500,desc:l=>`${l?'+1 search turn from your gate; ':''}building costs ${5*l}% less`},
+ water:{name:'Water access',base:2000,desc:l=>`Dogs heal ${2*l} more health a day`},
+ power:{name:'Electricity',base:3000,max:1,desc:l=>l?'Powers workshops, lamps and lighting':'No power yet'},
+ lighting:{name:'Lighting',base:1800,need:'power',desc:l=>`Training costs ${3*l} less energy`},
+ security:{name:'Security',base:2200,desc:l=>`Upkeep ${10*l}% lower, land value +${3*l}%`},
+ storage:{name:'Storage',base:1200,desc:l=>`${50*l} more feed storage`},
+ fencing:{name:'Fencing crew',base:1500,desc:l=>`Fences cost ${15*l}% less`},
+ gates:{name:'Gate upgrades',base:1000,desc:l=>`Gates cost ${20*l}% less, land value +${2*l}%`},
+ training:{name:'Training grounds',base:3000,desc:l=>`+${5*l}% training gains`},
+ hunting:{name:'Hunting access',base:4000,desc:l=>['No trail to the hunting grounds','Trail to the hunting grounds','Trail + 1 search turn','Trail + 1 turn, 5% heavier hogs'][l]}};
+const LAND_PLACES=['Mill Creek','Bayou Road','Tupelo Bend','Red Clay Hollow','Sawmill Lane','Palmetto Flats','Cypress Knee Road','Blackwater Crossing','Longleaf Trace','Hickory Ridge','Oxbow Lake Road','Piney Woods Route'];
+
+const landLevel=(P,k)=>((P||S.land).up||{})[k]||0;
+const landSize=P=>Math.round(LAND_TIERS[P.tier].size*(1+.15*landLevel(P,'acreage')));
+const accessArea=P=>{const T=TERRAINS[P.terrain];return T.area&&(P.hunt||landLevel(P,'hunting')>=1)?T.area:null};
+function landLayout(P){const base=LAND_TIERS[P.tier].size,n=landSize(P),gx=base>>1,hy=Math.max(5,Math.round(base*.62));return{n,base,gx,hy,gate:[gx,n-1],house:[gx-2,hy-4],entrance:accessArea(P)?[gx,0]:null}}
+
+// ---------- terrain generation (deterministic per property; cached) ----------
+function lhash(x,y,s){let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul(s|0,982451653);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return(h>>>0)/4294967296}
+function lnoise(x,y,s){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,a=lhash(ix,iy,s),b=lhash(ix+1,iy,s),c=lhash(ix,iy+1,s),d=lhash(ix+1,iy+1,s),ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);return a+(b-a)*ux+(c-a)*uy+(a-b-c+d)*ux*uy}
+const lfbm=(x,y,s)=>lnoise(x,y,s)*.6+lnoise(x*2.1,y*2.1,s+7)*.3+lnoise(x*4.3,y*4.3,s+13)*.1;
+const LAND_GEN=new Map();
+function landGen(P){
+  const n=landSize(P),key=[P.seed,P.terrain,n,P.water?1:0,accessArea(P)?1:0,P.clearVer||0].join('|'),hit=LAND_GEN.get(P.id);
+  if(hit&&hit.key===key)return hit;
+  const T=TERRAINS[P.terrain],s=P.seed|0,lay=landLayout(P),N=n*n,t=new Uint8Array(N),e=new Uint8Array(N);
+  // thresholds from a sample so each terrain gets its intended mix whatever the noise does
+  const q=(sd,sc,frac)=>{if(frac<=0)return 9;const v=[];for(let i=0;i<1500;i++){const x=lhash(i,1,sd)*300,y=lhash(i,2,sd)*300;v.push(lfbm(x*sc,y*sc,sd))}v.sort((a,b)=>a-b);return v[Math.floor((1-frac)*v.length)]};
+  const sc=TILE_YD/70,qw=q(s+2,sc*1.3,T.water),qr=q(s+3,sc*2,T.rock),qt=q(s+4,sc*1.8,T.tree),qm=q(s+6,sc*1.5,T.mud);
+  const hx=lay.house[0]+2,hy=lay.house[1]+2,keep=Math.max(6,lay.base*.16);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const i=y*n+x,wx=x*sc,wy=y*sc;
+    e[i]=Math.round(clamp(.5+(lfbm(wx*.5,wy*.5,s+1)-.5)*1.8*T.elev,0,1)*255);
+    let v=T_GRASS;if(Math.hypot(x-hx,y-hy)>keep){
+      if(lfbm(wx*1.3,wy*1.3,s+2)>qw)v=T_WATER;else if(lfbm(wx*2,wy*2,s+3)>qr)v=T_ROCK;
+      else if(lfbm(wx*1.8,wy*1.8,s+4)>qt)v=T_TREE;else if(lfbm(wx*1.5,wy*1.5,s+6)>qm)v=T_MUD;else if(lhash(x,y,s+9)<.04)v=T_DIRT}
+    t[i]=v}
+  if(P.water||T.stream){const w=n<40?1:n<160?2:3;for(let x=0;x<n;x++){const yc=Math.round(lay.base*.26+Math.sin(x*sc*.7+s)*lay.base*.05);for(let d=0;d<w;d++){const y=yc+d;if(y>=0&&y<n)t[y*n+x]=T_WATER}}}
+  // the road from the property gate to the house, and the trail north to the hunting grounds
+  const rw=n>=80?2:1;for(let y=lay.hy;y<n;y++)for(let d=0;d<rw;d++)t[y*n+lay.gx-d]=T_ROAD;
+  if(lay.entrance)for(let y=0;y<lay.hy-4;y++){const x=clamp(lay.gx+Math.round(Math.sin(y*.18)*Math.min(6,lay.base*.06)),1,n-2);t[y*n+x]=T_TRAIL}
+  for(const[x0,y0,w,h]of P.cleared||[])for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++)if(x>=0&&y>=0&&x<n&&y<n){const i=y*n+x;if(t[i]===T_TREE||t[i]===T_MUD)t[i]=T_GRASS}
+  const G={key,n,t,e,lay};LAND_GEN.set(P.id,G);if(LAND_GEN.size>4)LAND_GEN.delete(LAND_GEN.keys().next().value);return G;
+}
+
+// ---------- occupancy, pens and stats (memoised on the property's edit version) ----------
+const LAND_MEMO=new WeakMap();
+function landMemo(P){let m=LAND_MEMO.get(P);const n=landSize(P);if(!m||m.ver!==(P.ver||0)||m.n!==n){m={ver:P.ver||0,n};LAND_MEMO.set(P,m)}return m}
+const bSize=b=>{const d=BLD[b.type];return b.rot%2?[d.h,d.w]:[d.w,d.h]};
+function landOcc(P){const m=landMemo(P);if(m.occ)return m.occ;const n=m.n,o=new Int32Array(n*n);
+  P.buildings.forEach((b,bi)=>{const[w,h]=bSize(b);for(let y=b.y;y<b.y+h;y++)for(let x=b.x;x<b.x+w;x++)if(x>=0&&y>=0&&x<n&&y<n)o[y*n+x]=bi+1});return m.occ=o}
+const fenceAt=(P,x,y)=>P.fences[x+','+y],gateAt=(P,x,y)=>P.gates[x+','+y];
+// enclosed regions: flood from the map edge through anything that is not fence or a closed gate
+function landPens(P){const m=landMemo(P);if(m.pens)return m.pens;const n=m.n,N=n*n,G=landGen(P),occ=landOcc(P);
+  const wall=new Uint8Array(N);for(const k in P.fences){const[x,y]=k.split(',').map(Number);if(x<n&&y<n)wall[y*n+x]=1}
+  for(const k in P.gates){const[x,y]=k.split(',').map(Number);if(x<n&&y<n&&!P.gates[k])wall[y*n+x]=1}
+  const seen=new Uint8Array(N),q=new Int32Array(N);let qt=0;
+  const push=i=>{if(!seen[i]&&!wall[i]){seen[i]=1;q[qt++]=i}};
+  for(let i=0;i<n;i++){push(i);push((n-1)*n+i);push(i*n);push(i*n+n-1)}
+  for(let qh=0;qh<qt;qh++){const i=q[qh],x=i%n;if(x>0)push(i-1);if(x<n-1)push(i+1);if(i>=n)push(i-n);if(i<N-n)push(i+n)}
+  const regs=[],rid=new Int32Array(N);
+  for(let s0=0;s0<N;s0++){if(seen[s0]||wall[s0])continue;const r={id:regs.length,tiles:0,sample:[],sx:0,sy:0,cnt:0,minStr:9,types:{}};regs.push(r);qt=0;push(s0);
+    for(let qh=0;qh<qt;qh++){const i=q[qh],x=i%n;rid[i]=r.id+1;r.sx+=x;r.sy+=(i/n)|0;r.cnt++;if(!occ[i]&&G.t[i]<=T_MUD){r.tiles++;if(r.sample.length<150)r.sample.push(i);else if(lhash(i,r.tiles,3)<150/r.tiles)r.sample[Math.floor(lhash(i,1,4)*150)]=i}
+      for(const j of[x>0?i-1:-1,x<n-1?i+1:-1,i>=n?i-n:-1,i<N-n?i+n:-1]){if(j<0)continue;if(wall[j]){const k=(j%n)+','+((j/n)|0),f=P.fences[k];if(f){r.minStr=Math.min(r.minStr,FENCES[f].str);r.types[f]=1}}else push(j)}}}
+  for(const[x,y,type]of P.pens||[])if(x<n&&y<n){const r=regs[rid[y*n+x]-1];if(r&&!r.type)r.type=type}
+  for(const r of regs){const d=PENS[r.type];r.ok=!!d&&r.minStr>=d.str;r.bonus=!!d&&Object.keys(r.types).length===1&&r.types[d.best];
+    r.cap=r.ok&&d.per?Math.floor(r.tiles/d.per*(r.bonus?1.25:1)):0;r.cx=r.sx/r.cnt;r.cy=r.sy/r.cnt}
+  m.rid=rid;return m.pens=regs}
+function landStats(P=S.land){const m=landMemo(P),kl=P.kennelLvl||S.up.kennel;if(m.st&&m.stKennel===kl)return m.st;
+  const st={dogs:0,horses:0,cows:0,hogs:0,feed:0,train:0,regen:0,clue:0,hogW:0,injury:0,stamina:0,feedDaily:0,feedSave:0,maint:0,horse:0,truck:0,trainPen:0,pens:0},T=TERRAINS[P.terrain];
+  for(const b of P.buildings){const d=BLD[b.type],mul=1+.5*((b.lvl||1)-1);
+    for(const[k,v]of Object.entries(d.cap||{}))st[k]+=Math.round((v+(d.kennel?3*(kl-1):0))*mul);
+    for(const[k,v]of Object.entries(d.fx||{}))st[k]+=k==='feedSave'||k==='truck'?v:v*mul}
+  st.truck=Math.min(1,st.truck);st.feedSave=Math.min(3,st.feedSave);
+  for(const r of landPens(P)){if(!r.ok)continue;st.pens++;const d=PENS[r.type];if(d.cap)st[d.cap]+=r.cap;if(r.type==='trainpen')st.trainPen+=Math.min(.1,r.tiles/800)}
+  for(const[k,v]of Object.entries(T.fx))st[k]+=v;
+  st.train=Math.min(.6,st.train+st.trainPen+.05*landLevel(P,'training'));st.regen+=2*landLevel(P,'water');st.feed+=50*landLevel(P,'storage');
+  st.maint=Math.max(-.5,st.maint-.1*landLevel(P,'security'));m.stKennel=kl;return m.st=st}
+// capacities the rest of the game reads
+const dogCap=()=>S.land?landStats().dogs:cap(S.up.kennel);
+const horseCap=()=>S.land?landStats().horses:(S.up.land>=2?2+S.up.land*2:0);
+const cowCap=()=>S.land?landStats().cows:(S.up.land>=3?S.up.land*10:0);
+const hogCap=()=>S.land?landStats().hogs:0;
+const feedCap=()=>50*S.up.storage+(S.land?landStats().feed:0);
+const trainEnergy=()=>40-(S.up.yard-1)*5-3*landLevel(S.land,'lighting');
+function landTrainMult(k){if(!S.land)return 1;const st=landStats();return 1+st.train+(k==='sta'?st.stamina:0)}
+// hunting: property trails, trucks and terrain for the area the property opens onto
+function landHunt(areaId){const out={turns:0,clue:0,hogW:0,injury:0,note:''};if(!S.land)return out;const st=landStats(),P=S.land,acc=accessArea(P)===areaId;
+  out.clue=st.clue*(acc?1:.5);out.injury=st.injury;
+  if(acc){out.turns=(landLevel(P,'roads')>=1?1:0)+st.truck+(landLevel(P,'hunting')>=2?1:0);out.hogW=st.hogW+(landLevel(P,'hunting')>=3?.05:0);
+    out.note=`Straight out your property gate${out.turns?`: +${out.turns} search turn${out.turns>1?'s':''}`:''}.`}
+  return out}
+
+// ---------- value, upkeep, placement ----------
+function landOnlyValue(P){const T=TERRAINS[P.terrain];return LAND_TIERS[P.tier].price*T.mult*(1+.15*landLevel(P,'acreage'))*(1+(P.hunt?.15:0)+(P.water||T.stream?.12:0))}
+function landValue(P=S.land){let v=landOnlyValue(P);
+  for(const b of P.buildings)v+=BLD[b.type].cost*(b.lvl||1)*(BLD[b.type].decor?1.2:.7);
+  v+=Object.keys(P.fences).length*10+Object.keys(P.gates).length*80;
+  for(const k in P.up||{})v+=landUpCostTotal(k,P.up[k])*.6;
+  return Math.round(v*(1+.03*landLevel(P,'security')+.02*landLevel(P,'gates')))}
+const landUpCost=(k,l)=>Math.round(LAND_UP[k].base*Math.pow(1.9,l)*(1+(S.land?S.land.tier-1:0)*.35)/10)*10;
+const landUpCostTotal=(k,l)=>{let s=0;for(let i=0;i<l;i++)s+=landUpCost(k,i);return s};
+function landUpkeep(P=S.land){const st=landStats(P);return Math.max(0,Math.round((landOnlyValue(P)*.0005+P.buildings.length*1.5+Object.keys(P.fences).length*.03+st.pens)*(1+st.maint)))}
+const buildCost=type=>Math.round(BLD[type].cost*(1-.05*landLevel(S.land,'roads')));
+const fenceCost=f=>Math.round(FENCES[f].cost*(1-.15*landLevel(S.land,'fencing')));
+const gateCost=()=>Math.round(GATE_COST*(1-.2*landLevel(S.land,'gates')));
+// why a building can't go here (or '' when it can)
+function placeProblem(P,type,x,y,rot,skip){const d=BLD[type],n=landSize(P),G=landGen(P),occ=landOcc(P),[w,h]=rot%2?[d.h,d.w]:[d.w,d.h];
+  if(x<0||y<0||x+w>n||y+h>n)return'Outside your property line.';
+  const nearGate=(gx,gy)=>Math.abs(gx-G.lay.gate[0])<=2&&gy>=n-3;
+  for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){const i=yy*n+xx,t=G.t[i],o=occ[i];
+    if(o&&P.buildings[o-1]!==skip)return'Overlaps '+BLD[P.buildings[o-1].type].name.toLowerCase()+'.';
+    if(t===T_ROAD)return'Blocks the road to the house.';if(t===T_TRAIL)return'Blocks the hunting trail.';
+    if(nearGate(xx,yy))return'Blocks the property gate.';
+    if(fenceAt(P,xx,yy)||gateAt(P,xx,yy)!==undefined)return'Sits on a fence line.';
+    if(t===T_WATER)return'Over water.';if(t===T_ROCK)return'On rock.';if(t===T_TREE)return'Clear the trees first.';if(t===T_MUD)return'Clear the mud first.'}
+  return''}
+function canBuild(type){const d=BLD[type],P=S.land;if(P.tier<d.tier)return`Needs a ${LAND_TIERS[d.tier].name.toLowerCase()} or bigger.`;
+  if(d.need==='power'&&!landLevel(P,'power'))return'Needs the Electricity upgrade.';
+  if(d.max&&P.buildings.filter(b=>b.type===type).length>=d.max)return`You can have ${d.max}.`;return''}
+// shrinking capacity below what you keep is refused
+function capacityProblem(next,base=S.land){const st=landStats({...base,buildings:next,ver:(base.ver||0)+1e6});
+  if(st.dogs<S.dogs.length)return`That leaves ${st.dogs} dog spaces for ${S.dogs.length} dogs.`;
+  if(st.horses<S.horses.length)return`That leaves ${st.horses} horse spaces for ${S.horses.length} horses.`;
+  if(st.cows<S.cattle)return`That leaves room for ${st.cows} cattle; you have ${S.cattle}.`;return''}
+function landTouch(){S.land.ver=(S.land.ver||0)+1;syncLandLevel();save()}
+function syncLandLevel(){if(S.land)S.up.land=Math.min(5,S.land.tier)}
+
+// ---------- making properties ----------
+function landFirstFit(P,type,prefer){const d=BLD[type],n=landSize(P),G=landGen(P),[cx,cy]=prefer||[G.lay.gx,G.lay.hy];let best=null,bd=1e9;
+  for(let r=0;r<n;r++){for(let y=Math.max(0,cy-r);y<=Math.min(n-1,cy+r);y++)for(let x=Math.max(0,cx-r);x<=Math.min(n-1,cx+r);x++){
+    if(Math.max(Math.abs(x-cx),Math.abs(y-cy))!==r)continue;for(const rot of[0,1]){if(!placeProblem(P,type,x,y,rot)){const dd=Math.hypot(x-cx,y-cy);if(dd<bd){bd=dd;best={x,y,rot}}}}}
+    if(best)return best}return null}
+function landPlaceAuto(P,type,lvl=1,why){const spot=landFirstFit(P,type);if(!spot)return false;P.buildings.push({id:'B'+(P.nextB=(P.nextB||0)+1),type,x:spot.x,y:spot.y,rot:spot.rot,lvl});P.ver=(P.ver||0)+1;return true}
+// template → property; key locations (gate, road, house, trail) stay in the same places
+function makeProperty(tpl){const P={id:tpl.id||'P-'+hashStr(S.name+Date.now()+R()).toString(36),ownerId:(S.online&&S.online.pid)||'local',name:tpl.name||`${S.name}`,tier:tpl.tier,terrain:tpl.terrain,
+  seed:tpl.seed??ri(1,1e9),water:!!tpl.water,hunt:!!tpl.hunt,road:true,elevation:tpl.elevation||'rolling',location:tpl.location||pick(LAND_PLACES)+' County',purchasePrice:tpl.price||0,
+  boughtDay:S.day,invested:0,up:{},buildings:[],fences:{},gates:{},pens:[],cleared:[],clearVer:0,ver:0,hogs:[],penHogs:true,
+  perms:{enter:'friends',dogs:'friends',animals:'everyone',edit:'owner',coowners:[],friends:[]}};
+  const G=landGen(P);P.buildings.push({id:'B0',type:'house',x:G.lay.house[0],y:G.lay.house[1],rot:0,lvl:1});P.ver=1;return P}
+function starterProperty(){const P=makeProperty({tier:1,terrain:'field',name:'Home place',price:5000});landPlaceAuto(P,'kennel');return P}
+// saves from before the land system: keep every capacity the player already had
+function legacyProperty(){const t=clamp(S.up.land||1,1,5),P=makeProperty({tier:t,terrain:t>=3?'pine':'field',name:'Home place',price:LAND_TIERS[t].price,hunt:t>=3});
+  landPlaceAuto(P,'kennel');S.land=P;
+  const need=(k,have,type)=>{let guard=0;while(landStats(P)[k]<have&&guard++<20){if(!landPlaceAuto(P,type))break}};
+  need('dogs',Math.max(S.dogs.length,cap(S.up.kennel)),'kennel');
+  if(t>=2)need('horses',Math.max(S.horses.length,2+t*2),'horsebarn');
+  if(t>=3)need('cows',Math.max(S.cattle,t*10),'cowbarn');
+  P.invested=0;return P}
+
+// ---------- marketplace (rotates weekly; one listing can't be bought twice) ----------
+function landListings(){const wk=Math.floor((S.day-1)/7),rng=mulberry(hashStr(S.name+'|land|'+wk)),top=Math.min(6,(S.land?S.land.tier:1)+2),out=[];
+  const tk=Object.keys(TERRAINS);
+  for(let i=0;i<8;i++){const tier=Math.max(1,Math.min(top,(S.land?S.land.tier:1)+Math.floor(rng()*3)-(i<2?1:0))),terrain=tk[Math.floor(rng()*tk.length)],T=TERRAINS[terrain];
+    const water=!!T.stream||rng()<.35,hunt=!!T.area&&rng()<.6,elevation=T.elev>.7?'steep':T.elev>.3?'rolling':'flat';
+    const price=Math.round(LAND_TIERS[tier].price*T.mult*(1+(water?.12:0)+(hunt?.15:0))*(.92+rng()*.16)/100)*100;
+    const place=LAND_PLACES[Math.floor(rng()*LAND_PLACES.length)];
+    out.push({id:`L${wk}-${i}-${hashStr(place+terrain+tier).toString(36)}`,tier,terrain,water,hunt,elevation,roadAccess:true,price,seed:Math.floor(rng()*1e9),
+      name:`${T.name} tract on ${place}`,location:`Tract ${1+Math.floor(rng()*40)}, ${place} County`})}
+  return out.sort((a,b)=>a.tier-b.tier||a.price-b.price)}
+function landReqProblems(tier){const r=LAND_TIERS[tier].req,p=[];if(r.level&&S.level<r.level)p.push(`Ranch level ${r.level} (you're ${S.level})`);
+  if(r.rep&&repOf()<r.rep)p.push(`Reputation ${r.rep} (you have ${Math.round(repOf())})`);if(r.hogs&&S.st.hogs<r.hogs)p.push(`${r.hogs} hogs caught (${S.st.hogs})`);
+  if(r.litters&&S.st.litters<r.litters)p.push(`${r.litters} litters bred (${S.st.litters})`);return p}
+const tradeIn=()=>Math.round(landOnlyValue(S.land)*(S.day-S.land.boughtDay>=7?.85:.6));
+// move buildings to the new ground; anything that doesn't fit is sold at half its cost
+function relocate(from,to){let sold=0;const moved=[];for(const b of from.buildings){if(b.type==='house')continue;
+  if(landPlaceAuto(to,b.type,b.lvl||1))moved.push(b.type);else sold+=Math.round(BLD[b.type].cost*(b.lvl||1)*.5)}
+  to.hogs=from.hogs||[];to.penHogs=from.penHogs;to.perms=from.perms;to.name=from.name;return{sold,moved:moved.length}}
+function buyProperty(L){if(S.land.id===L.id||(S.landOwned||[]).includes(L.id))return toast('You already own that property.');
+  const probs=landReqProblems(L.tier);if(probs.length)return toast('Not yet: '+probs.join(', '));
+  if(S.day-S.land.boughtDay<3)return toast('You only just moved in. Closing on another property takes 3 days.');
+  const credit=tradeIn(),due=L.price-credit;if(S.money<due)return toast(`You need ${fmt(due)} after the ${fmt(credit)} trade-in.`);
+  if(!confirm(`Buy the ${L.name} (${LAND_TIERS[L.tier].name}, ${landSizeText(L.tier)}) for ${fmt(L.price)}?\n\nYour current property sells for ${fmt(credit)}, so you pay ${fmt(due)}. Buildings move with you where they fit; the rest sell for half.`))return;
+  const P=makeProperty({...L}),old=S.land,r=relocate(old,P);
+  const pc=capacityProblem(P.buildings,P);if(pc)return toast('Your animals would not fit there: '+pc);
+  S.money-=due;if(r.sold)earn(r.sold);
+  P.purchasePrice=L.price;S.landOwned=[...(S.landOwned||[]),old.id,L.id];S.land=P;landTouch();gainXP(60);
+  addLog(`Bought the ${L.name} for ${fmt(L.price)} (${fmt(credit)} trade-in). ${r.moved} buildings moved${r.sold?`, the rest sold for ${fmt(r.sold)}`:''}.`);toast(`Welcome to your ${LAND_TIERS[L.tier].name.toLowerCase()}!`);sfx.win();checkAch();render()}
+const landSizeText=t=>{const s=LAND_TIERS[t].size*TILE_YD;return `${s} × ${s} yd (${Math.round(s*s/4840)} acres)`};
+
+// ---------- map view: chunked canvas renderer ----------
+// Terrain is drawn into 32×32-tile chunk canvases at a detail level that matches the zoom, cached
+// under a pixel budget (least recently used first). Only chunks, buildings, fences and animals
+// inside the viewport are drawn each frame.
+const LV={cam:null,camFor:null,chunks:new Map(),px:0,raf:0,sprites:[],spriteKey:'',ptr:new Map(),drag:null,last:0};
+const TILE_RGB=[[124,163,78],[166,134,88],[110,90,62],[140,137,130],[76,130,165],[122,160,76],[182,160,120],[154,130,86]];
+function landChunk(P,G,cx,cy,px){const key=P.id+'|'+G.key+'|'+cx+','+cy+'|'+px;let c=LV.chunks.get(key);
+  if(c){LV.chunks.delete(key);LV.chunks.set(key,c);return c}
+  const n=G.n,x0=cx*LAND_CHUNK,y0=cy*LAND_CHUNK,w=Math.min(LAND_CHUNK,n-x0),h=Math.min(LAND_CHUNK,n-y0);
+  c=document.createElement('canvas');c.width=w*px;c.height=h*px;const g=c.getContext('2d'),img=g.createImageData(w*px,h*px),d=img.data,W=w*px;
+  for(let ty=0;ty<h;ty++)for(let tx=0;tx<w;tx++){const i=(y0+ty)*n+x0+tx,t=G.t[i],sh=(.84+.32*G.e[i]/255)*(.95+lhash(x0+tx,y0+ty,7)*.1);
+    const col=TILE_RGB[t],tree=t===T_TREE;
+    for(let py=0;py<px;py++)for(let pxx=0;pxx<px;pxx++){let r=col[0],gg=col[1],b=col[2];
+      if(tree&&(px<4||Math.hypot(pxx-px/2+.5,py-px/2+.5)<px*.46)){r=52;gg=92;b=46}
+      if(t===T_WATER&&px>=8&&(py+(x0+tx)*3)%7===0){r+=25;gg+=25;b+=25}
+      const o=((ty*px+py)*W+tx*px+pxx)*4;d[o]=r*sh;d[o+1]=gg*sh;d[o+2]=b*sh;d[o+3]=255}}
+  g.putImageData(img,0,0);c.pix=w*h*px*px;LV.chunks.set(key,c);LV.px+=c.pix;
+  while(LV.px>12e6&&LV.chunks.size>1){const[k0,c0]=LV.chunks.entries().next().value;LV.px-=c0.pix;LV.chunks.delete(k0)}
+  return c}
+const lodFor=z=>z<2.5?1:z<6?4:z<13?8:16;
+function landOverviewImg(P,G){const key=P.id+'|'+G.key;if(LV.ov&&LV.ov.key===key)return LV.ov.c;const n=G.n,c=document.createElement('canvas');c.width=c.height=n;const g=c.getContext('2d'),img=g.createImageData(n,n),d=img.data;
+  for(let i=0;i<n*n;i++){const t=G.t[i],col=t===T_TREE?[52,92,46]:TILE_RGB[t],sh=.84+.32*G.e[i]/255;d[i*4]=col[0]*sh;d[i*4+1]=col[1]*sh;d[i*4+2]=col[2]*sh;d[i*4+3]=255}
+  g.putImageData(img,0,0);LV.ov={key,c};return c}
+function landFit(P,W,H){const n=landSize(P);return{x:n/2,y:n/2,z:Math.max(.6,Math.min(W,H)/n)}}
+function landView(){const cv=LV.cv,W=cv.clientWidth,H=cv.clientHeight,c=LV.cam;return{W,H,x0:c.x-W/2/c.z,y0:c.y-H/2/c.z,x1:c.x+W/2/c.z,y1:c.y+H/2/c.z}}
+const toTile=(sx,sy)=>{const v=landView();return[Math.floor(v.x0+sx/LV.cam.z),Math.floor(v.y0+sy/LV.cam.z)]};
+// animals walk the property: dogs around kennels and dog yards, horses and cattle in barns and pastures
+function landSprites(P,G){const key=[P.id,P.ver,S.dogs.length,S.horses.length,S.cattle,(P.hogs||[]).length].join('|');if(LV.spriteKey===key)return LV.sprites;
+  const pens=landPens(P),n=G.n,homes=k=>{const out=[];for(const b of P.buildings){const d=BLD[b.type];if(d.cap&&d.cap[k]){const[w,h]=bSize(b);out.push({rect:[b.x-1,b.y-1,w+2,h+2]})}}
+    for(const r of pens)if(r.ok&&PENS[r.type].cap===k&&r.sample.length)out.push({cells:r.sample});return out};
+  const pool=LV.sprites;let used=0;const add=(kind,color,list)=>{if(!list.length)return;const home=list[used%list.length],s=pool[used]||(pool[used]={});
+    Object.assign(s,{kind,color,home,x:null,y:null,tx:0,ty:0,wait:R()*2});used++};
+  const own=P===S.land;
+  if(own){S.dogs.slice(0,40).forEach(d=>{let c='#8a6a45';try{c=Coat.COLORS[gameCoat(d).white>.9?'White':gameCoat(d).base]||c}catch(e){}add('dog',c,homes('dogs'))});
+    S.horses.slice(0,20).forEach(h=>add('horse',HORSE_HEX[h.coat]||'#6d3b1f',homes('horses')));
+    for(let i=0;i<Math.min(S.cattle,30);i++)add('cow',i%3?'#3b2a22':'#e8e2d6',homes('cows'));
+    (P.hogs||[]).forEach(()=>add('hog','#4a3b33',homes('hogs')))}
+  else if(P.animals){const A0=P.animals;for(let i=0;i<Math.min(A0.dogs,40);i++)add('dog','#8a6a45',homes('dogs'));for(let i=0;i<Math.min(A0.horses,20);i++)add('horse','#6d3b1f',homes('horses'));for(let i=0;i<Math.min(A0.cows,30);i++)add('cow',i%3?'#3b2a22':'#e8e2d6',homes('cows'))}
+  pool.length=used;LV.spriteKey=key;return pool}
+const tileSpeed=[1,1,.45,.4,.3,.65,1.2,1];
+function stepSprites(P,G,dt){const n=G.n;for(const s of LV.sprites){const h=s.home;
+  const pickT=()=>{if(h.cells){const i=h.cells[Math.floor(R()*h.cells.length)];return[i%n+.5,((i/n)|0)+.5]}const[x,y,w,hh]=h.rect;return[x+R()*w,y+R()*hh]};
+  if(s.x===null){[s.x,s.y]=pickT();[s.tx,s.ty]=pickT()}
+  if(s.wait>0){s.wait-=dt;continue}
+  const dx=s.tx-s.x,dy=s.ty-s.y,dist=Math.hypot(dx,dy);if(dist<.1){[s.tx,s.ty]=pickT();s.wait=.5+R()*2.5;continue}
+  const ti=clamp(Math.floor(s.y),0,n-1)*n+clamp(Math.floor(s.x),0,n-1),slope=1-Math.abs(G.e[ti]-128)/400,sp=(s.kind==='dog'?1.8:s.kind==='horse'?1.4:.7)*tileSpeed[G.t[ti]]*slope*dt;
+  s.x+=dx/dist*Math.min(sp,dist);s.y+=dy/dist*Math.min(sp,dist)}}
+function landDraw(){const cv=LV.cv,P=LV.P;if(!cv||!P)return;const G=landGen(P),n=G.n,ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1,{W,H,x0,y0,x1,y1}=landView(),z=LV.cam.z;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#26331f';ctx.fillRect(0,0,W,H);
+  const sx=x=>(x-x0)*z,sy=y=>(y-y0)*z,px=lodFor(z);ctx.imageSmoothingEnabled=px<z;
+  if(px===1){ctx.drawImage(landOverviewImg(P,G),sx(0),sy(0),n*z,n*z)}else for(let cy=Math.max(0,Math.floor(y0/LAND_CHUNK));cy<=Math.min(Math.ceil(n/LAND_CHUNK)-1,Math.floor(y1/LAND_CHUNK));cy++)
+    for(let cx=Math.max(0,Math.floor(x0/LAND_CHUNK));cx<=Math.min(Math.ceil(n/LAND_CHUNK)-1,Math.floor(x1/LAND_CHUNK));cx++){
+      const c=landChunk(P,G,cx,cy,px);ctx.drawImage(c,sx(cx*LAND_CHUNK),sy(cy*LAND_CHUNK),c.width/px*z,c.height/px*z)}
+  ctx.strokeStyle='rgba(255,240,200,.85)';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.strokeRect(sx(0),sy(0),n*z,n*z);ctx.setLineDash([]);
+  const vis=(x,y,w=1,h=1)=>x+w>=x0&&y+h>=y0&&x<=x1&&y<=y1;
+  // pens: a label at each fenced region's centre
+  if(z>=1.5)for(const r of landPens(P))if(r.tiles>=4&&vis(r.cx-4,r.cy-2,8,4)){ctx.font=`600 ${Math.max(10,Math.min(14,z*1.2))}px system-ui`;ctx.textAlign='center';
+    const t=r.type?(PENS[r.type].name+(r.ok?(PENS[r.type].cap?` · ${r.cap} ${PENS[r.type].cap}`:''):' · fence too weak')):'Fenced pen (tap with Pen tool)';
+    ctx.fillStyle='rgba(0,0,0,.45)';const tw=ctx.measureText(t).width+8;ctx.fillRect(sx(r.cx+.5)-tw/2,sy(r.cy+.5)-9,tw,17);ctx.fillStyle=r.ok||!r.type?'#fff':'#ffb3a6';ctx.fillText(t,sx(r.cx+.5),sy(r.cy+.5)+4)}
+  // fences connect to their neighbours; gates show open or closed
+  const lw=Math.max(1.2,z*.18);
+  for(const k in P.fences){const[x,y]=k.split(',').map(Number);if(!vis(x-1,y-1,3,3))continue;const f=FENCES[P.fences[k]];ctx.strokeStyle=f.color;ctx.lineWidth=lw;ctx.beginPath();
+    for(const[dx,dy]of[[1,0],[0,1]]){const kk=(x+dx)+','+(y+dy);if(P.fences[kk]||P.gates[kk]!==undefined){ctx.moveTo(sx(x+.5),sy(y+.5));ctx.lineTo(sx(x+dx+.5),sy(y+dy+.5))}}
+    ctx.stroke();if(z>=4){ctx.fillStyle=f.color;ctx.fillRect(sx(x+.5)-lw,sy(y+.5)-lw,lw*2,lw*2)}}
+  for(const k in P.gates){const[x,y]=k.split(',').map(Number);if(!vis(x,y))continue;const open=!!P.gates[k];ctx.strokeStyle=open?'#7fd18b':'#e0a526';ctx.lineWidth=lw*1.6;ctx.beginPath();
+    if(open){ctx.moveTo(sx(x+.1),sy(y+.1));ctx.lineTo(sx(x+.6),sy(y+.9))}else{ctx.moveTo(sx(x),sy(y+.5));ctx.lineTo(sx(x+1),sy(y+.5))}ctx.stroke()}
+  // buildings
+  for(const b of P.buildings){const d=BLD[b.type],[w,h]=bSize(b);if(!vis(b.x,b.y,w,h))continue;const X=sx(b.x),Y=sy(b.y);
+    ctx.fillStyle=d.color;ctx.fillRect(X,Y,w*z,h*z);ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=1;ctx.strokeRect(X+.5,Y+.5,w*z-1,h*z-1);
+    if(UI.landSel===b.id&&LV.P===S.land){ctx.strokeStyle='#ffe066';ctx.lineWidth=3;ctx.strokeRect(X-1,Y-1,w*z+2,h*z+2)}
+    if(z>=5){ctx.font=`${Math.min(w,h)*z*.55}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(d.icon,X+w*z/2,Y+h*z/2);ctx.textBaseline='alphabetic'}
+    if(z>=14){ctx.font='600 11px system-ui';ctx.fillStyle='#fff';ctx.fillText(d.name+((b.lvl||1)>1?' ★'+b.lvl:''),X+w*z/2,Y+h*z-4)}}
+  // gate, road sign and the trail out to the hunting grounds
+  const G2=G.lay;ctx.font=`600 ${Math.max(10,Math.min(13,z))}px system-ui`;ctx.textAlign='center';ctx.fillStyle='#fff';
+  ctx.fillText('▲ Property gate',sx(G2.gate[0]),sy(n)+14>H?H-6:sy(n)+14);
+  if(G2.entrance){const a=AREAS.find(x=>x.id===accessArea(P));ctx.fillStyle='#ffe066';ctx.fillText(`▲ Trail to ${a?a.name:'the hunting grounds'}`,sx(G2.entrance[0]),Math.max(14,sy(0)-6))}
+  // animals
+  const now=performance.now(),dt=Math.min(.1,(now-(LV.last||now))/1000);LV.last=now;landSprites(P,G);stepSprites(P,G,dt);
+  const rr=Math.max(1.5,z*.28);for(const s of LV.sprites){if(s.x===null||!vis(s.x-1,s.y-1,2,2))continue;ctx.fillStyle=s.color;ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(sx(s.x),sy(s.y),s.kind==='dog'?rr:rr*1.4,0,7);ctx.fill();ctx.stroke()}
+  // placement preview: green when it fits, red when it doesn't
+  const pl=UI.landPlace;if(pl&&P===S.land){const d=BLD[pl.type],[w,h]=pl.rot%2?[d.h,d.w]:[d.w,d.h],skip=pl.move?P.buildings.find(b=>b.id===pl.move):null,bad=placeProblem(P,pl.type,pl.x,pl.y,pl.rot,skip);
+    ctx.fillStyle=bad?'rgba(220,60,40,.5)':'rgba(70,200,90,.5)';ctx.fillRect(sx(pl.x),sy(pl.y),w*z,h*z);ctx.strokeStyle=bad?'#ff6b57':'#7dff8e';ctx.lineWidth=2;ctx.strokeRect(sx(pl.x),sy(pl.y),w*z,h*z);
+    if(z>=5){ctx.font=`${Math.min(w,h)*z*.55}px system-ui`;ctx.textBaseline='middle';ctx.fillText(d.icon,sx(pl.x+w/2),sy(pl.y+h/2));ctx.textBaseline='alphabetic'}}}
+function landLoop(t){if(!LV.cv||!document.body.contains(LV.cv)){LV.raf=0;LV.cv=null;return}if(!document.hidden&&(LV.ptr.size||t-(LV.drawn||0)>30)){LV.drawn=t;landDraw()}LV.raf=requestAnimationFrame(landLoop)}
+function landAttach(P,ro,sel='#landcv'){const cv=document.querySelector(sel);if(!cv)return;LV.cv=cv;LV.P=P;LV.ro=ro;
+  if(LV.camFor!==P.id+'|'+landSize(P)){LV.cam=landFit(P,cv.clientWidth,cv.clientHeight);LV.camFor=P.id+'|'+landSize(P)}
+  if(!cv.dataset.wired){cv.dataset.wired=1;cv.addEventListener('pointerdown',landDown);cv.addEventListener('pointermove',landMove);cv.addEventListener('pointerup',landUp);cv.addEventListener('pointercancel',landUp);
+    cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect();landZoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.2:1/1.2)},{passive:false})}
+  if(!LV.raf)LV.raf=requestAnimationFrame(landLoop)}
+function landZoomAt(mx,my,f){const c=LV.cam,{W,H}=landView(),n=landSize(LV.P),min=Math.max(.5,Math.min(W,H)/n*.8);const wx=c.x+(mx-W/2)/c.z,wy=c.y+(my-H/2)/c.z;
+  c.z=clamp(c.z*f,min,40);c.x=wx-(mx-W/2)/c.z;c.y=wy-(my-H/2)/c.z}
+// one finger: pan (or paint fences / clear ground with those tools); two fingers: pinch-zoom; a short tap acts on the tile
+function landDown(e){LV.cv.setPointerCapture(e.pointerId);LV.ptr.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+  if(LV.ptr.size===2){const[a,b]=[...LV.ptr.values()];LV.pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};LV.drag=null}else LV.drag={x:e.offsetX,y:e.offsetY,moved:false,painted:false}}
+function landMove(e){if(!LV.ptr.has(e.pointerId))return;LV.ptr.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+  if(LV.ptr.size===2&&LV.pinch){const[a,b]=[...LV.ptr.values()],d=Math.hypot(a.x-b.x,a.y-b.y);landZoomAt((a.x+b.x)/2,(a.y+b.y)/2,d/LV.pinch.d);LV.pinch.d=d;return}
+  const g=LV.drag;if(!g)return;const dx=e.offsetX-g.x,dy=e.offsetY-g.y;if(!g.moved&&Math.hypot(dx,dy)<6)return;g.moved=true;
+  const tool=UI.landTool;if(!LV.ro&&UI.tab==='land'&&UI.landTab==='build'&&(tool==='fence'||tool==='clear'||tool==='erase')){landPaint(...toTile(e.offsetX,e.offsetY));g.painted=true;return}
+  LV.cam.x-=dx/LV.cam.z;LV.cam.y-=dy/LV.cam.z;g.x=e.offsetX;g.y=e.offsetY}
+function landUp(e){const g=LV.drag;LV.ptr.delete(e.pointerId);if(LV.ptr.size<2)LV.pinch=null;
+  if(g&&!g.moved&&e.type==='pointerup')landTap(...toTile(e.offsetX,e.offsetY));if(g&&g.painted){LV.drag=null;landTouch();render();return}LV.drag=null}
+function landTap(x,y){const P=LV.P,n=landSize(P);if(x<0||y<0||x>=n||y>=n)return;
+  const occ=landOcc(P),o=occ[y*n+x],b=o?P.buildings[o-1]:null,k=x+','+y,G=landGen(P);
+  if(LV.ro){if(b)toast(BLD[b.type].name+((b.lvl||1)>1?` (level ${b.lvl})`:''));else toast(TILE_NAME[G.t[y*n+x]]);return}
+  const tool=UI.tab==='land'&&UI.landTab==='build'?UI.landTool:'view';
+  if(UI.landPlace){UI.landPlace.x=x-(UI.landPlace.rot%2?BLD[UI.landPlace.type].h:BLD[UI.landPlace.type].w)/2|0;UI.landPlace.y=y-(UI.landPlace.rot%2?BLD[UI.landPlace.type].w:BLD[UI.landPlace.type].h)/2|0;render();return}
+  if(tool==='fence'||tool==='clear'||tool==='erase'){landPaint(x,y);landTouch();render();return}
+  if(tool==='gate'){if(P.gates[k]!==undefined){P.gates[k]=P.gates[k]?0:1;landTouch();render();return}
+    if(!P.fences[k])return toast('Tap a fence to put a gate in it.');const c=gateCost();if(S.money<c)return toast('Not enough cash.');
+    S.money-=c;S.land.invested+=c;delete P.fences[k];P.gates[k]=0;landTouch();toast('Gate installed (closed). Tap it to open or close.');render();return}
+  if(tool==='pen'){const m=landMemo(P);landPens(P);const r=landPens(P)[(m.rid[y*n+x]||0)-1];if(!r)return toast('That ground isn’t fenced in. Close a fence loop first.');return landPenSheet(x,y,r)}
+  if(P.gates[k]!==undefined){P.gates[k]=P.gates[k]?0:1;landTouch();toast(P.gates[k]?'Gate opened — the pen behind it is open.':'Gate closed.');render();return}
+  if(tool==='select'||UI.landTab==='build'){UI.landSel=b?b.id:null;render();return}
+  if(G.lay.entrance&&y<=1&&Math.abs(x-G.lay.entrance[0])<=3)return A.ldrive();
+  if(b)toast(`${BLD[b.type].name}${(b.lvl||1)>1?' ★'+b.lvl:''}: ${BLD[b.type].desc}`);else{const r=landPens(P)[(landMemo(P).rid[y*n+x]||0)-1];toast(r&&r.type?`${PENS[r.type].name}: ${r.ok?(PENS[r.type].cap?r.cap+' '+PENS[r.type].cap:'active'):'fence too weak for this pen'}`:TILE_NAME[G.t[y*n+x]])}}
+// fences, clearing and erasing paint tile by tile
+function landPaint(x,y){const P=S.land,n=landSize(P),G=landGen(P),k=x+','+y;if(x<0||y<0||x>=n||y>=n)return;const i=y*n+x,t=G.t[i];
+  if(UI.landTool==='fence'){if(P.fences[k]||P.gates[k]!==undefined||landOcc(P)[i]||t===T_ROAD||t===T_TRAIL||t===T_WATER||t===T_ROCK)return;
+    const c=fenceCost(UI.landFence||'wood');if(S.money<c){if(!LV.warned){LV.warned=1;toast('Out of cash for fencing.')}return}S.money-=c;S.land.invested+=c;P.fences[k]=UI.landFence||'wood';P.ver++}
+  else if(UI.landTool==='erase'){if(P.fences[k]){S.money+=Math.round(fenceCost(P.fences[k])*.5);delete P.fences[k];P.ver++}else if(P.gates[k]!==undefined){S.money+=Math.round(gateCost()*.5);delete P.gates[k];P.ver++}}
+  else if(UI.landTool==='clear'){let cnt=0;for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++)if(xx>=0&&yy>=0&&xx<n&&yy<n){const tt=G.t[yy*n+xx];if(tt===T_TREE||tt===T_MUD)cnt++}
+    if(!cnt)return;const c=Math.round(cnt*20*(1-.3*landLevel(P,'clearing')));if(S.money<c){if(!LV.warned){LV.warned=1;toast('Out of cash for clearing.')}return}
+    S.money-=c;S.land.invested+=c;P.cleared.push([x-1,y-1,3,3]);P.clearVer=(P.clearVer||0)+1;P.ver++;
+    if(P.cleared.length>400){P.cleared=P.cleared.slice(-400)}}
+  setTimeout(()=>{LV.warned=0},1500)}
+function landPenSheet(x,y,r){UI.landPenAt=[x,y];
+  openSheet(`<h2>Fenced pen</h2><p class="sub">${r.tiles} tiles of open ground (${r.tiles*TILE_YD*TILE_YD} sq yd). Fence: ${Object.keys(r.types).map(f=>FENCES[f].name.toLowerCase()).join(', ')||'none'}.</p>
+  <div class="grid wide">${Object.entries(PENS).map(([k,p])=>{const ok=r.minStr>=p.str,room=p.per?Math.floor(r.tiles/p.per*(Object.keys(r.types).length===1&&r.types[p.best]?1.25:1)):0;
+    return `<button class="panel" style="text-align:left${r.type===k?';border:2px solid var(--blaze)':''}" data-act="lpen" data-k="${k}" ${ok?'':'disabled'}><b>${p.name}</b><div class="small muted">${p.per?`Room for ${room} ${p.cap}. `:`+${Math.round(Math.min(.1,r.tiles/800)*100)}% training. `}${ok?`Best with ${FENCES[p.best]?FENCES[p.best].name.toLowerCase():'any fence'}.`:`Needs a stronger fence (${p.str>=3?'livestock or heavy-duty':'wood, chain-link or stronger'}).`}</div></button>`}).join('')}
+   <button class="panel" style="text-align:left" data-act="lpen" data-k=""><b>No pen</b><div class="small muted">Just a fenced area.</div></button></div>`)}
+
+// ---------- screens ----------
+function landMapBlock(bar=''){return `<div class="landwrap"><canvas id="landcv" aria-label="Map of your property"></canvas>${bar?`<div class="landbar">${bar}</div>`:''}<div class="landzoom"><button class="btn sm ghost" data-act="lzoom" data-k="in" aria-label="Zoom in">+</button><button class="btn sm ghost" data-act="lzoom" data-k="out" aria-label="Zoom out">−</button><button class="btn sm ghost" data-act="lzoom" data-k="fit" aria-label="Fit map">⤢</button></div></div>`}
+const capRow=(label,have,cap)=>`<tr><td>${label}</td><td class="num">${have} / ${cap}</td></tr>`;
+function landOverview(){const P=S.land,st=landStats(),T=TERRAINS[P.terrain],acc=accessArea(P),a=AREAS.find(x=>x.id===acc),kn=P.buildings.filter(b=>BLD[b.type].kennel).length;
+  const has=t=>P.buildings.some(b=>b.type===t),pen=t=>landPens(P).some(r=>r.ok&&r.type===t);
+  return `${landMapBlock()}<p class="small muted" style="margin:4px 0 10px">Drag to move, pinch or scroll to zoom. Tap a gate to open or close it${acc?', or the trail at the top to head out hunting':''}.</p>
+  ${acc?`<button class="btn big alt" data-act="ldrive" style="margin-bottom:10px">🛻 Drive to ${esc(a.name)}</button>`:''}
+  <div class="grid wide">
+   <div class="panel"><b>Property</b><table class="small" style="margin-top:4px">
+    <tr><td>Name</td><td>${esc(P.name)}</td></tr><tr><td>Owner</td><td>${esc(S.name)}${S.online&&S.online.user?' ('+esc(S.online.user)+')':''}</td></tr>
+    <tr><td>Tier</td><td>${P.tier} — ${LAND_TIERS[P.tier].name}</td></tr><tr><td>Size</td><td>${landSize(P)*TILE_YD} × ${landSize(P)*TILE_YD} yd</td></tr>
+    <tr><td>Terrain</td><td>${T.name}, ${P.elevation}</td></tr><tr><td>Location</td><td>${esc(P.location)}</td></tr>
+    <tr><td>Purchase value</td><td class="num">${fmt(P.purchasePrice)}</td></tr><tr><td>Current value</td><td class="num"><b>${fmt(landValue())}</b></td></tr>
+    <tr><td>Invested</td><td class="num">${fmt(P.invested)}</td></tr><tr><td>Upkeep</td><td class="num">${fmt(landUpkeep())} a day</td></tr></table>
+    <p class="small muted" style="margin:6px 0 0">${esc(T.blurb)}</p></div>
+   <div class="panel"><b>Capacity</b><table class="small" style="margin-top:4px">${capRow('Dogs',S.dogs.length,st.dogs)}${capRow('Horses',S.horses.length,st.horses)}${capRow('Cattle',S.cattle,st.cows)}${capRow('Penned hogs',(P.hogs||[]).length,st.hogs)}${capRow('Feed',S.inv.feed,feedCap())}</table>
+    <p class="small muted" style="margin:6px 0 0">Kennels, barns, pens and storage you build set these.</p></div>
+   <div class="panel"><b>Features</b><table class="small" style="margin-top:4px">
+    <tr><td>Kennels</td><td>${kn}</td></tr><tr><td>Training</td><td>${st.train?'+'+Math.round(st.train*100)+'% gains':'None'}</td></tr>
+    <tr><td>Barns</td><td>${[has('horsebarn')&&'Horse',has('cowbarn')&&'Cow'].filter(Boolean).join(', ')||'None'}</td></tr>
+    <tr><td>Pastures & pens</td><td>${landPens(P).filter(r=>r.ok).map(r=>PENS[r.type].name).join(', ')||'None'}</td></tr>
+    <tr><td>Hunting access</td><td>${acc?esc(a.name):'None'}</td></tr><tr><td>Water</td><td>${P.water||T.stream?'Stream':'No'}${landLevel(P,'water')?', water access '+landLevel(P,'water'):''}</td></tr>
+    <tr><td>Electricity</td><td>${landLevel(P,'power')?'Yes':'No'}</td></tr></table></div></div>
+  <h3>Property management</h3><div class="row"><button class="btn sm" data-act="lrename">Rename property</button><button class="btn sm ghost" data-act="ltab" data-k="access">Permissions</button><button class="btn sm ghost" data-act="ltab" data-k="market">Buy bigger land</button>${P.tier>1?`<button class="btn sm ghost" data-act="lsell">Sell property</button>`:''}</div>
+  ${st.hogs?`<label class="small" style="display:block;margin-top:8px"><input type="checkbox" data-act="lpenhogs" ${P.penHogs?'checked':''}> Pen caught hogs to fatten (sold the next day for 25% more)</label>`:''}`}
+function landBuild(){const P=S.land,pl=UI.landPlace,sel=P.buildings.find(b=>b.id===UI.landSel),tool=UI.landTool||'select';
+  const tools=[['select','Select'],['fence','Fence'],['gate','Gate'],['pen','Pen'],['clear','Clear'],['erase','Erase']];
+  let panel='';
+  if(pl){const d=BLD[pl.type],skip=pl.move?P.buildings.find(b=>b.id===pl.move):null,bad=placeProblem(P,pl.type,pl.x,pl.y,pl.rot,skip);
+    panel=`<div class="panel" style="border:2px solid ${bad?'var(--bad)':'var(--good)'}"><b>${pl.move?'Moving':'Placing'}: ${d.name}</b> <span class="small muted">${d.w*TILE_YD}×${d.h*TILE_YD} yd${pl.move?'':' · '+fmt(buildCost(pl.type))}</span>
+     <div class="small" style="margin:4px 0;color:var(--${bad?'bad':'good'})">${bad||'Fits here.'}</div><p class="small muted" style="margin:0 0 6px">Tap the map to move the outline.</p>
+     <div class="row"><button class="btn sm ghost" data-act="lrot">Rotate</button><button class="btn sm" data-act="lplace" ${bad?'disabled':''}>${pl.move?'Move here':'Build'}</button><button class="btn sm ghost" data-act="lcancel">Cancel</button></div></div>`}
+  else if(sel){const d=BLD[sel.type],lvl=sel.lvl||1,up=(d.cap||d.fx)&&sel.type!=='house'&&lvl<3,uc=Math.round(d.cost*.8*lvl);
+    panel=`<div class="panel"><b>${d.icon} ${d.name}${lvl>1?' ★'+lvl:''}</b><div class="small muted">${esc(d.desc)}${lvl>1?` Level ${lvl}: +${50*(lvl-1)}% effect.`:''}</div>
+     <div class="row" style="margin-top:6px"><button class="btn sm ghost" data-act="lmove">Move</button><button class="btn sm ghost" data-act="lrotsel">Rotate</button>${up?`<button class="btn sm" data-act="lupb" ${S.money>=uc?'':'disabled'}>Upgrade ${fmt(uc)}</button>`:''}${sel.type!=='house'?`<button class="btn sm ghost" data-act="ldel">Delete (+${fmt(Math.round(d.cost*lvl*.5))})</button>`:''}</div></div>`}
+  const fenceRow=tool==='fence'?`<div class="seg" style="margin:6px 0">${Object.entries(FENCES).map(([k,f])=>`<button class="${(UI.landFence||'wood')===k?'on':''}" data-act="lfence" data-k="${k}">${f.name} ${fmt(fenceCost(k))}</button>`).join('')}</div><p class="small muted">Drag across the map to lay fence. Closed loops make pens; use the Pen tool to choose what each one holds.</p>`:'';
+  const tip={select:'Tap a building to move, rotate, upgrade or delete it.',gate:`Tap a fence to add a gate (${fmt(gateCost())}); tap a gate to open or close it.`,pen:'Tap inside a fenced loop to make it a dog yard, pasture, hog pen or training pen.',clear:`Drag to clear trees and mud (${fmt(Math.round(20*(1-.3*landLevel(P,'clearing'))))} a tile).`,erase:'Drag over fences and gates to take them down (half refund).',fence:''}[tool];
+  return `${landMapBlock(panel)}<div class="seg" style="margin:8px 0">${tools.map(([k,l])=>`<button class="${tool===k&&!pl?'on':''}" data-act="ltool" data-k="${k}">${l}</button>`).join('')}</div>
+  ${fenceRow}${tip?`<p class="small muted" style="margin:4px 0 8px">${tip}</p>`:''}
+  <h3>Buildings</h3><div class="grid">${Object.entries(BLD).filter(([k])=>k!=='house').map(([k,d])=>{const no=canBuild(k);
+    return `<button class="panel" style="text-align:left" data-act="lpick" data-k="${k}" ${no||S.money<buildCost(k)?'disabled':''}><div style="font-size:22px">${d.icon}</div><b>${d.name}</b><div class="small muted">${d.w*TILE_YD}×${d.h*TILE_YD} yd · ${fmt(buildCost(k))}</div><div class="small">${no?`<span style="color:var(--bad)">${esc(no)}</span>`:esc(d.desc)}</div></button>`}).join('')}</div>`}
+function landUpgrades(){const P=S.land;return `<p class="sub">Improvements stay with this property and add to its value.</p><div class="grid wide">${Object.entries(LAND_UP).map(([k,u])=>{const l=landLevel(P,k),max=u.max||3,c=landUpCost(k,l),need=u.need&&!landLevel(P,u.need),noArea=k==='hunting'&&!TERRAINS[P.terrain].area;
+  return `<div class="panel"><div class="spread"><b>${u.name}</b><span class="tag">Level ${l}/${max}</span></div><div class="small">${u.desc(l)}</div>
+   ${l>=max?'<p class="small muted">Fully upgraded.</p>':noArea?'<p class="small muted">No hunting grounds border this terrain.</p>':need?'<p class="small muted">Needs Electricity first.</p>':`<p class="small muted" style="margin:6px 0">Next: ${u.desc(l+1)}</p><button class="btn sm" data-act="lup" data-k="${k}" ${S.money>=c?'':'disabled'}>Upgrade ${fmt(c)}</button>`}</div>`}).join('')}</div>`}
+function landMarket(){const P=S.land,ls=landListings(),credit=tradeIn(),next=LAND_TIERS[Math.min(6,P.tier+1)];
+  return `<p class="sub">New tracts list every week. Your current property sells for <b>${fmt(credit)}</b>${S.day-P.boughtDay<7?' (a quick resale; after 7 days of ownership it fetches more)':''}. Buildings move with you where they fit.</p>
+  ${P.tier<6?`<div class="panel small" style="margin-bottom:10px"><b>Next step: ${next.name}</b> — ${landReqProblems(P.tier+1).length?'still needs '+landReqProblems(P.tier+1).map(esc).join(', '):'you qualify'}.</div>`:''}
+  <div class="grid wide">${ls.map(L=>{const T=TERRAINS[L.terrain],probs=landReqProblems(L.tier),owned=P.id===L.id||(S.landOwned||[]).includes(L.id),avail=Object.entries(BLD).filter(([k,d])=>d.tier<=L.tier&&!d.decor&&k!=='house').length;
+    const sz=LAND_TIERS[L.tier].size,ground=sz*sz*(1-T.tree*.5-T.water-T.rock)*.45;
+    return `<div class="panel"><div class="spread"><b>${esc(L.name)}</b><span class="tag">Tier ${L.tier}</span></div>
+     <div class="small muted">${LAND_TIERS[L.tier].name} · ${landSizeText(L.tier)} · ${esc(L.location)}</div>
+     <table class="small" style="margin:6px 0"><tr><td>Terrain</td><td>${T.name}, ${L.elevation}</td></tr><tr><td>Water</td><td>${L.water||T.stream?'Stream on the land':'None'}</td></tr>
+      <tr><td>Hunting access</td><td>${L.hunt&&T.area?'Trail to '+esc(AREAS.find(a=>a.id===T.area).name):T.area?'Can be added':'None'}</td></tr><tr><td>Buildings allowed</td><td>${avail} types</td></tr>
+      <tr><td>Dog capacity</td><td>up to ~${Math.floor(ground/6*6/2)} with kennels</td></tr><tr><td>Animal capacity</td><td>~${Math.floor(ground/16)} horses or ~${Math.floor(ground/10)} cattle on pasture</td></tr><tr><td>Upgrade potential</td><td>${T.area?'Hunting, ':''}${L.tier<6?'more acreage, ':''}roads, power</td></tr></table>
+     <div class="small muted">${esc(T.blurb)}</div>
+     <div class="spread" style="margin-top:8px"><b class="num">${fmt(L.price)}</b>${owned?'<span class="tag ok">Owned</span>':`<button class="btn sm" data-act="lbuy" data-id="${L.id}" ${probs.length||S.money<L.price-credit?'disabled':''}>Buy</button>`}</div>
+     ${probs.length&&!owned?`<div class="small" style="color:var(--bad);margin-top:4px">Needs ${probs.map(esc).join(', ')}</div>`:''}</div>`}).join('')}</div>`}
+function landAccess(){const pm=S.land.perms,sel=(k,opts)=>`<select data-act-change="lperm" data-k="${k}">${opts.map(([v,l])=>`<option value="${v}" ${pm[k]===v?'selected':''}>${l}</option>`).join('')}</select>`,
+  who=[['everyone','Everyone'],['friends','Friends & co-owners'],['nobody','Only co-owners']];
+  const list=k=>(pm[k]||[]).map(id=>`<div class="spread small"><span>${esc((pm.names||{})[id]||'A ranch')}</span><button class="btn sm ghost" data-act="lunfriend" data-k="${k}" data-id="${id}">Remove</button></div>`).join('')||'<p class="small muted">None yet.</p>';
+  return `<p class="sub">Other players can visit your property from Online → Ranches. The server checks these rules before it shares your land.</p>
+  ${inClaude?'<div class="panel small">Visiting works on the public website.</div>':''}
+  <div class="panel"><table class="small"><tr><td>Who can enter</td><td>${sel('enter',who)}</td></tr><tr><td>Who can see your dogs</td><td>${sel('dogs',who)}</td></tr><tr><td>Who can see your animals</td><td>${sel('animals',who)}</td></tr>
+   <tr><td>Who can edit</td><td><select disabled><option>Only you</option></select></td></tr><tr><td>Who can buy or sell</td><td><select disabled><option>Only you</option></select></td></tr></table>
+   <p class="small muted" style="margin:6px 0 0">Friends are players in one of your hunting groups, plus anyone you add below. Visitors can look but never change anything.</p></div>
+  <h3>Co-owners</h3><div class="panel">${list('coowners')}</div><h3>Friends</h3><div class="panel">${list('friends')}</div>
+  <div class="row" style="margin-top:8px"><button class="btn sm" data-act="lfindranch">Add a friend or co-owner</button></div>`}
+SCREENS.land=()=>{const tabs=[['overview','Overview'],['build','Build'],['upgrades','Upgrades'],['market','Buy land'],['access','Permissions']],t=UI.landTab||'overview';
+  return `<h2>${esc(S.land.name)}</h2><p class="sub">${LAND_TIERS[S.land.tier].name} · ${TERRAINS[S.land.terrain].name} · value ${fmt(landValue())} · ${fmt(S.money)} on hand</p>
+  <div class="seg">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="ltab" data-k="${k}">${l}</button>`).join('')}</div>
+  ${t==='build'?landBuild():t==='upgrades'?landUpgrades():t==='market'?landMarket():t==='access'?landAccess():landOverview()}`};
+
+// ---------- actions ----------
+const LAND_ACTIONS={
+  ltab:d=>{UI.landTab=d.k;UI.landPlace=null;UI.landSel=null;if(d.k==='build'&&!UI.landTool)UI.landTool='select';render()},
+  ltool:d=>{UI.landTool=d.k;UI.landPlace=null;UI.landSel=null;render()},
+  lfence:d=>{UI.landFence=d.k;render()},
+  lzoom:d=>{if(!LV.cam||!LV.cv)return;if(d.k==='fit'){LV.cam=landFit(LV.P,LV.cv.clientWidth,LV.cv.clientHeight);return}const{W,H}=landView();landZoomAt(W/2,H/2,d.k==='in'?1.4:1/1.4)},
+  lpick:d=>{const no=canBuild(d.k);if(no)return toast(no);const c=LV.cam||{x:landSize(S.land)/2,y:landSize(S.land)/2},bd=BLD[d.k];
+    UI.landPlace={type:d.k,rot:0,x:Math.round(c.x-bd.w/2),y:Math.round(c.y-bd.h/2)};UI.landSel=null;render();document.getElementById('landcv').scrollIntoView({block:'center',behavior:'smooth'})},
+  lrot:()=>{const p=UI.landPlace;if(p){p.rot=(p.rot+1)%4;render()}},
+  lcancel:()=>{UI.landPlace=null;render()},
+  lplace:()=>{const p=UI.landPlace,P=S.land;if(!p)return;const skip=p.move?P.buildings.find(b=>b.id===p.move):null,bad=placeProblem(P,p.type,p.x,p.y,p.rot,skip);if(bad)return toast(bad);
+    if(skip){Object.assign(skip,{x:p.x,y:p.y,rot:p.rot});toast(`${BLD[p.type].name} moved.`)}
+    else{const c=buildCost(p.type);if(S.money<c)return toast('Not enough cash.');S.money-=c;P.invested+=c;P.buildings.push({id:'B'+(P.nextB=(P.nextB||0)+1),type:p.type,x:p.x,y:p.y,rot:p.rot,lvl:1});
+      addLog(`Built a ${BLD[p.type].name.toLowerCase()} for ${fmt(c)}.`);gainXP(8);toast(`${BLD[p.type].name} built.`);sfx.coin()}
+    UI.landPlace=null;landTouch();checkAch();render()},
+  lmove:()=>{const b=S.land.buildings.find(x=>x.id===UI.landSel);if(!b)return;UI.landPlace={type:b.type,rot:b.rot,x:b.x,y:b.y,move:b.id};render()},
+  lrotsel:()=>{const P=S.land,b=P.buildings.find(x=>x.id===UI.landSel);if(!b)return;const r=(b.rot+1)%4,bad=placeProblem(P,b.type,b.x,b.y,r,b);if(bad)return toast('No room to turn it here: '+bad);b.rot=r;landTouch();render()},
+  lupb:()=>{const P=S.land,b=P.buildings.find(x=>x.id===UI.landSel);if(!b)return;const lvl=b.lvl||1,c=Math.round(BLD[b.type].cost*.8*lvl);if(lvl>=3||S.money<c)return;
+    S.money-=c;P.invested+=c;b.lvl=lvl+1;landTouch();toast(`${BLD[b.type].name} upgraded to level ${b.lvl}.`);sfx.win();render()},
+  ldel:()=>{const P=S.land,b=P.buildings.find(x=>x.id===UI.landSel);if(!b||b.type==='house')return;const next=P.buildings.filter(x=>x!==b),pc=capacityProblem(next);if(pc)return toast('Can’t remove it: '+pc);
+    const back=Math.round(BLD[b.type].cost*(b.lvl||1)*.5);if(!confirm(`Tear down the ${BLD[b.type].name.toLowerCase()} for ${fmt(back)} in salvage?`))return;P.buildings=next;S.money+=back;UI.landSel=null;landTouch();render()},
+  lpen:d=>{const P=S.land,[x,y]=UI.landPenAt||[];const m=landMemo(P),n=landSize(P),rid=m.rid;const id=rid&&rid[y*n+x];
+    P.pens=(P.pens||[]).filter(([px,py])=>!(px<n&&py<n&&rid[py*n+px]===id));if(d.k)P.pens.push([x,y,d.k]);closeSheet();landTouch();render()},
+  lup:d=>{const P=S.land,k=d.k,u=LAND_UP[k],l=landLevel(P,k),c=landUpCost(k,l);if(l>=(u.max||3)||S.money<c)return;if(u.need&&!landLevel(P,u.need))return toast('Needs Electricity first.');
+    if(k==='hunting'&&!TERRAINS[P.terrain].area)return;
+    if(k==='acreage'&&!confirm(`Add acreage for ${fmt(c)}? New ground is added along the east and south lines.`))return;
+    S.money-=c;P.invested+=c;P.up[k]=l+1;landTouch();addLog(`Property upgrade: ${u.name} level ${l+1}.`);toast(`${u.name} upgraded.`);sfx.win();render()},
+  lbuy:d=>{const L=landListings().find(x=>x.id===d.id);if(L)buyProperty(L)},
+  lrename:()=>{const n=prompt('Property name',S.land.name);if(n&&n.trim()){S.land.name=n.trim().slice(0,30);landTouch();render()}},
+  lsell:()=>{const P=S.land;if(P.tier<=1)return;const credit=tradeIn(),NP=makeProperty({tier:1,terrain:'field',name:P.name,price:5000}),r=relocate(P,NP),pc=capacityProblem(NP.buildings,NP);
+    if(pc)return toast('Your animals won’t fit on a starter lot: '+pc);
+    if(!confirm(`Sell ${P.name} for ${fmt(credit)} and move to a starter lot? Buildings that don't fit sell for half.`))return;
+    earn(credit+r.sold);S.landOwned=[...(S.landOwned||[]),P.id];S.land=NP;landTouch();addLog(`Sold ${P.name} for ${fmt(credit)} and moved to a starter lot.`);render()},
+  lpenhogs:(d,el)=>{S.land.penHogs=el.checked;save()},
+  ldrive:()=>{const a=accessArea(S.land);if(!a)return;UI.huntSel.area=a;UI.hunt=null;UI.tab='hunt';closeSheet();toast('Dogs loaded. Out the property gate and onto the trail.');render();window.scrollTo(0,0)},
+  lunfriend:d=>{const pm=S.land.perms;pm[d.k]=(pm[d.k]||[]).filter(x=>x!==d.id);landTouch();render();publishRanch(true)},
+  lfindranch:async()=>{if(inClaude)return toast('Online play runs on the website.');try{const rs=await sbGet('hd_ranches?select=player_id,name&order=updated_at.desc&limit=100'),me=myPid();
+    openSheet(`<h2>Add a friend or co-owner</h2><p class="sub">Co-owners always see everything. Friends follow your "friends" settings.</p>${rs.filter(r=>r.player_id!==me).map(r=>`<div class="spread" style="margin:4px 0"><span>${esc(r.name)}</span><span><button class="btn sm ghost" data-act="laddfriend" data-k="friends" data-id="${r.player_id}" data-n="${esc(r.name)}">Friend</button> <button class="btn sm ghost" data-act="laddfriend" data-k="coowners" data-id="${r.player_id}" data-n="${esc(r.name)}">Co-owner</button></span></div>`).join('')||'<p class="small muted">No other ranches yet.</p>'}`)}catch(e){toast(e.message)}},
+  laddfriend:d=>{const pm=S.land.perms;for(const k of['friends','coowners'])pm[k]=(pm[k]||[]).filter(x=>x!==d.id);pm[d.k]=[...(pm[d.k]||[]),d.id];pm.names={...(pm.names||{}),[d.id]:d.n};closeSheet();landTouch();render();publishRanch(true);toast(`${d.n} added.`)},
+  onVisitProp:async d=>{try{const r=await sbRpc('hd_get_property',{...(await A2()),p_owner:d.id});const P=r.property;P.id='V-'+d.id;
+    const st=landStats(P),dogs=(r.dogs||[]).length;
+    openSheet(`<h2>${esc(P.name)}</h2><p class="sub">${LAND_TIERS[P.tier].name} · ${TERRAINS[P.terrain].name} · ${esc(P.location)} · you are ${r.role==='visitor'?'a visitor':'a '+r.role.replace('coowner','co-owner')}</p>
+     <div class="landwrap" style="height:46vh"><canvas id="visitcv"></canvas></div>
+     <table class="small" style="margin-top:8px"><tr><td>Value</td><td class="num">${fmt(P.value||landValue(P))}</td></tr><tr><td>Room for</td><td>${st.dogs} dogs · ${st.horses} horses · ${st.cows} cattle</td></tr>
+      ${r.animals?`<tr><td>Animals</td><td>${P.animals?`${P.animals.dogs} dogs, ${P.animals.horses} horses, ${P.animals.cows} cattle`:'—'}</td></tr>`:''}
+      <tr><td>Dogs on view</td><td>${r.dogs?dogs+' shown on their ranch page':'Hidden by the owner'}</td></tr></table>
+     <p class="small muted">You can look around but not change anything here.</p>`);landAttach(P,true,'#visitcv')}catch(e){toast(e.message)}}
+};
+// the permission selects fire on change
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset.actChange==='lperm'&&S.land){S.land.perms[el.dataset.k]=el.value;landTouch();publishRanch(true);toast('Saved.')}});
+// what gets published for visitors: no terrain tiles (the seed regenerates them), plus value and animal counts
+function landPublic(){const P=S.land;return{...P,kennelLvl:S.up.kennel,value:landValue(),animals:{dogs:S.dogs.length,horses:S.horses.length,cows:S.cattle,hogs:(P.hogs||[]).length}}}
+// daily ranch tick: feed grown and saved, healing, penned hogs sold, upkeep charged
+function landDaily(msgs){const P=S.land;if(!P)return;const st=landStats();
+  if(st.feedDaily){const add=Math.min(st.feedDaily,Math.max(0,feedCap()-S.inv.feed));if(add)S.inv.feed+=add}
+  if((P.hogs||[]).length){let tot=0;for(const h of P.hogs)tot+=Math.round(h.pay*1.25);earn(tot);msgs.push(`Sold ${P.hogs.length} fattened hog${P.hogs.length>1?'s':''} for ${fmt(tot)}.`);P.hogs=[]}
+  const u=landUpkeep();if(u){const paid=Math.min(u,Math.max(0,S.money));S.money-=paid;if(paid<u)msgs.push(`Couldn’t cover all the property upkeep (${fmt(u)}).`)}
+  syncLandLevel()}
+
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennel, barn, land and gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennel, barn, land and gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
 const upCost=(k,l)=>Math.round(UPGRADES[k].base*Math.pow(2.2,l-1)/10)*10;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Bigger facilities unlock more dogs, litters, hunting grounds and animals. Max level 5.</p>
  <div class="grid wide">${Object.entries(UPGRADES).map(([k,u])=>{const l=S.up[k],max=l>=5,cost=upCost(k,l);
   return `<div class="panel"><div class="spread"><b>${u.name}</b><span class="tag">Level ${l}</span></div><div class="small">${u.desc(l)}</div>
-  ${max?'<p class="small muted">Fully upgraded.</p>':`<p class="small muted" style="margin:6px 0">Next: ${u.desc(l+1)}</p><button class="btn sm" data-act="upgrade" data-k="${k}" ${S.money>=cost?'':'disabled'}>Upgrade ${fmt(cost)}</button>`}</div>`}).join('')}</div>`;
-SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${50*S.up.storage}.</p>
+  ${k==='land'?`<p class="small muted" style="margin:6px 0">Land now comes from the property you own.</p><button class="btn sm" data-act="tab" data-t="land">Land & property</button>`:max?'<p class="small muted">Fully upgraded.</p>':`<p class="small muted" style="margin:6px 0">Next: ${u.desc(l+1)}</p><button class="btn sm" data-act="upgrade" data-k="${k}" ${S.money>=cost?'':'disabled'}>Upgrade ${fmt(cost)}</button>`}</div>`}).join('')}</div>`;
+SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
  <div class="grid wide">${Object.entries(ITEMS).map(([k,it])=>`<div class="panel"><div class="spread"><b>${it.name}</b><span class="tag num">${S.inv[k]} owned</span></div><div class="small muted">${it.desc}</div>
- <div style="margin-top:8px"><button class="btn sm" data-act="buyItem" data-k="${k}" ${S.money>=it.price&&(k!=='feed'||S.inv.feed+it.qty<=50*S.up.storage)&&(k!=='collar'||!S.inv.collar)?'':'disabled'}>Buy${it.qty>1?' '+it.qty:''} for ${fmt(it.price)}</button></div></div>`).join('')}</div>`;
+ <div style="margin-top:8px"><button class="btn sm" data-act="buyItem" data-k="${k}" ${S.money>=it.price&&(k!=='feed'||S.inv.feed+it.qty<=feedCap())&&(k!=='collar'||!S.inv.collar)?'':'disabled'}>Buy${it.qty>1?' '+it.qty:''} for ${fmt(it.price)}</button></div></div>`).join('')}</div>`;
 SCREENS.events=()=>{
   const ad=S.dogs.filter(isAdult);
   return `<h2>Shows & trials</h2><p class="sub">Each dog can enter each event once a day.</p>
@@ -1981,19 +2495,19 @@ function runEvent(d,kind){
   gainXP(10);addLog(msg);toast(msg);checkAch();save();render();
 }
 SCREENS.stable=()=>{
-  if(S.up.land<2)return `<h2>Stable & livestock</h2><div class="panel lock"><b>Locked</b><p class="small">Upgrade your land to level 2 to build a stable. Cattle come at land level 3.</p><button class="btn sm" data-act="tab" data-t="ranch">Go to upgrades</button></div>`;
+  if(!horseCap()&&!cowCap()&&!S.horses.length&&!S.cattle)return `<h2>Stable & livestock</h2><div class="panel lock"><b>No barns yet</b><p class="small">Build a horse barn or fence a horse pasture to keep horses, and a cow barn or cow pasture for cattle (Land & property → Build).</p><button class="btn sm" data-act="tab" data-t="land">Land & property</button></div>`;
   const hm=S.horses.filter(h=>h.sex==='M'&&h.age>=36),hf=S.horses.filter(h=>h.sex==='F'&&h.age>=36);
   const hcard=(h,buy)=>`<div class="panel"><div style="display:flex;justify-content:center">${horseSVG(h,150)}</div><b>${esc(h.name)}</b> <span class="${h.sex==='M'?'sexM':'sexF'}">${h.sex==='M'?'♂':'♀'}</span>
    <div class="small muted">${esc(h.breed)}, ${esc(h.coat)}, ${ageStr(h.age)}</div><div class="small num">Speed ${h.spd} · Stamina ${h.sta} · Bond ${h.bond}${h.wins?' · '+h.wins+' wins':''}</div>
-   <div class="row" style="margin-top:6px">${buy?`<button class="btn sm" data-act="buyHorse" data-id="${h.id}" ${S.money>=h.price&&S.horses.length<2+S.up.land*2?'':'disabled'}>Buy ${fmt(h.price)}</button>`
+   <div class="row" style="margin-top:6px">${buy?`<button class="btn sm" data-act="buyHorse" data-id="${h.id}" ${S.money>=h.price&&S.horses.length<horseCap()?'':'disabled'}>Buy ${fmt(h.price)}</button>`
    :`<button class="btn sm alt" data-act="race" data-id="${h.id}" ${h.lastRace===S.day||S.money<100||h.age<24?'disabled':''}>Race ($100)</button><button class="btn sm ghost" data-act="ride" data-id="${h.id}" ${h.lastRide===S.day?'disabled':''}>Ride</button><button class="btn sm ghost" data-act="sellHorse" data-id="${h.id}">Sell ${fmt(horseValue(h)*.85)}</button>`}</div></div>`;
-  return `<h2>Stable</h2><p class="sub">Room for ${2+S.up.land*2} horses. Ride daily to build bond; race for purses.</p>
+  return `<h2>Stable</h2><p class="sub">Room for ${horseCap()} horses (barns and pastures on your land). Ride daily to build bond; race for purses.</p>
   ${S.horses.length?`<div class="grid wide">${S.horses.map(h=>hcard(h)).join('')}</div>`:'<p class="small muted">No horses yet.</p>'}
   ${hm.length&&hf.length?`<div class="panel" style="margin-top:10px"><b>Breed horses</b> <span class="small muted">$300 vet fee, foal arrives now</span><div class="row" style="margin-top:6px"><select id="hSire">${hm.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select><select id="hDam">${hf.map(h=>`<option value="${h.id}">${esc(h.name)}</option>`).join('')}</select><button class="btn sm" data-act="breedHorse" ${S.money>=300?'':'disabled'}>Breed</button></div></div>`:''}
   <h3>Horses for sale</h3><div class="grid wide">${S.horseMarket.map(h=>hcard(h,true)).join('')}</div>
-  <h2>Livestock</h2>${S.up.land<3?'<div class="panel lock small">Cattle unlock at land level 3.</div>':`<div class="panel"><div class="spread"><b>Cattle herd</b><span class="tag num">${S.cattle} head</span></div>
-   <div class="small muted">Each head earns $35 a day. Herd size up to ${S.up.land*10}.</div>
-   <div class="row" style="margin-top:8px"><button class="btn sm" data-act="buyCow" ${S.money>=400&&S.cattle<S.up.land*10?'':'disabled'}>Buy a head ($400)</button><button class="btn sm ghost" data-act="sellCow" ${S.cattle?'':'disabled'}>Sell one ($320)</button>
+  <h2>Livestock</h2>${!cowCap()&&!S.cattle?'<div class="panel lock small">Build a cow barn or fence a cow pasture on your land to keep cattle.</div>':`<div class="panel"><div class="spread"><b>Cattle herd</b><span class="tag num">${S.cattle} head</span></div>
+   <div class="small muted">Each head earns $35 a day. Room for ${cowCap()} head.</div>
+   <div class="row" style="margin-top:8px"><button class="btn sm" data-act="buyCow" ${S.money>=400&&S.cattle<cowCap()?'':'disabled'}>Buy a head ($400)</button><button class="btn sm ghost" data-act="sellCow" ${S.cattle?'':'disabled'}>Sell one ($320)</button>
    <button class="btn sm alt" data-act="cattleShow" ${S.cattle>=3&&S.lastCattleShow!==S.day&&S.money>=60?'':'disabled'}>Livestock show ($60)</button></div>${S.cattle<3?'<p class="small muted">Shows need at least 3 head.</p>':''}</div>`}`;
 };
 SCREENS.profile=()=>`<h2>Player profile</h2>
@@ -2025,7 +2539,7 @@ const A={
  dog:d=>dogProfile(d.id),
  mview:d=>marketView(d.id),
  buy:d=>{const i=S.market.findIndex(x=>x.id===d.id),j=S.featured.findIndex(x=>x.id===d.id),q=findLineup(d.id);const dog=i>=0?S.market[i]:j>=0?S.featured[j]:q?q.arr[q.i]:null;
-  if(!dog||S.money<dog.price||S.dogs.length>=cap(S.up.kennel))return sfx.bad();
+  if(!dog||S.money<dog.price||S.dogs.length>=dogCap())return sfx.bad();
   S.money-=dog.price;if(i>=0)S.market.splice(i,1);else if(j>=0)S.featured.splice(j,1);else q.arr[q.i]=makeLineupDog(q.b,dog.lineup);delete dog.price;delete dog.lineup;S.dogs.push(dog);
   gainXP(10);addLog(`Bought ${dog.name}, a ${breedName(dog)}.`);toast(`${dog.name} joined your kennel.`);sfx.coin();checkAch();save();closeSheet();render()},
  sell:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog)return;const g=buildGrade(dog);if(!confirm(`Sell ${dog.name} for ${fmt(salePrice(dog))}?`+(g.k==='poor'||g.k==='defect'?` Selling a ${g.label.toLowerCase()} dog will hurt your reputation.`:'')))return;
@@ -2043,7 +2557,7 @@ const A={
   if(!sire||!dam||S.money<150||S.preg.length>=S.up.barn)return sfx.bad();
   S.money-=150;S.preg.push({dam:dam.id,sireSnap:JSON.parse(JSON.stringify(sire)),due:S.day+2});dam.cool=6;
   gainXP(25);addLog(`Bred ${sire.name} to ${dam.name}. Pups due day ${S.day+2}.`);toast(`${dam.name} is expecting. Pups due day ${S.day+2}.`);sfx.ok();UI.dam='';save();render()},
- train:d=>{const dog=S.dogs.find(x=>x.id===UI.trainDog);const cost=40-(S.up.yard-1)*5,price=40+S.level*10;if(!dog||dog.energy<cost||S.money<price)return sfx.bad();
+ train:d=>{const dog=S.dogs.find(x=>x.id===UI.trainDog);const cost=trainEnergy(),price=40+S.level*10;if(!dog||dog.energy<cost||S.money<price)return sfx.bad();
   const g=trainGain(dog,d.k);dog.stats[d.k]=Math.min(dog.pot[d.k],dog.stats[d.k]+g);dog.energy-=cost;S.money-=price;dog.trained++;gainXP(5);toast(`${dog.name}: ${STATS.find(s=>s[0]===d.k)[1]} +${g}`);sfx.ok();checkAch();save();render()},
  vit:d=>{const dog=S.dogs.find(x=>x.id===UI.trainDog);if(!dog||!S.inv.vitamins)return;if(dog.pot[d.k]>=99)return toast('Already at the genetic ceiling.');S.inv.vitamins--;dog.pot[d.k]=Math.min(99,dog.pot[d.k]+3);toast(`${dog.name}'s potential rose.`);save();render()},
  harea:d=>{UI.huntSel.area=d.id;render()},
@@ -2052,22 +2566,22 @@ const A={
  hcell:d=>huntCell(+d.i),
  hrelease:()=>huntRelease(),
  hagain:()=>{UI.hunt=null;const ok=id=>{const x=S.dogs.find(z=>z.id===id);return x&&x.energy>=35&&x.health>=40};UI.huntSel.bay=UI.huntSel.bay.filter(ok);UI.huntSel.catch=UI.huntSel.catch.filter(ok);render()},
- upgrade:d=>{const l=S.up[d.k],cost=upCost(d.k,l);if(l>=5||S.money<cost)return sfx.bad();S.money-=cost;S.up[d.k]++;gainXP(40);addLog(`Upgraded ${UPGRADES[d.k].name} to level ${l+1}.`);toast(`${UPGRADES[d.k].name} upgraded.`);sfx.win();checkAch();save();render()},
+ upgrade:d=>{if(d.k==='land'){UI.tab='land';return render()}const l=S.up[d.k],cost=upCost(d.k,l);if(l>=5||S.money<cost)return sfx.bad();S.money-=cost;S.up[d.k]++;gainXP(40);addLog(`Upgraded ${UPGRADES[d.k].name} to level ${l+1}.`);toast(`${UPGRADES[d.k].name} upgraded.`);sfx.win();checkAch();save();render()},
  buyItem:d=>{const it=ITEMS[d.k];if(S.money<it.price)return sfx.bad();S.money-=it.price;S.inv[d.k]+=it.qty;sfx.coin();save();render()},
  show:d=>runEvent(S.dogs.find(x=>x.id===d.id),'show'),
  trial:d=>runEvent(S.dogs.find(x=>x.id===d.id),'trial'),
- buyHorse:d=>{const i=S.horseMarket.findIndex(h=>h.id===d.id);const h=S.horseMarket[i];if(!h||S.money<h.price)return sfx.bad();S.money-=h.price;S.horseMarket.splice(i,1);S.horses.push(h);gainXP(15);addLog(`Bought ${h.name}, a ${h.breed}.`);sfx.coin();checkAch();save();render()},
+ buyHorse:d=>{const i=S.horseMarket.findIndex(h=>h.id===d.id);const h=S.horseMarket[i];if(!h||S.money<h.price||S.horses.length>=horseCap())return sfx.bad();S.money-=h.price;S.horseMarket.splice(i,1);S.horses.push(h);gainXP(15);addLog(`Bought ${h.name}, a ${h.breed}.`);sfx.coin();checkAch();save();render()},
  sellHorse:d=>{const h=S.horses.find(x=>x.id===d.id);if(!confirm(`Sell ${h.name}?`))return;const v=Math.round(horseValue(h)*.85);earn(v);S.horses=S.horses.filter(x=>x!==h);toast(`Sold ${h.name} for ${fmt(v)}.`);save();render()},
- ride:d=>{const h=S.horses.find(x=>x.id===d.id);h.lastRide=S.day;h.bond=Math.min(100,h.bond+6);h.sta=Math.min(99,h.sta+(R()<.4?1:0));gainXP(5);toast(`A good ride on ${h.name}. Bond ${h.bond}.`);save();render()},
+ ride:d=>{const h=S.horses.find(x=>x.id===d.id);h.lastRide=S.day;h.bond=Math.min(100,h.bond+6+(S.land?landStats().horse:0));h.sta=Math.min(99,h.sta+(R()<.4?1:0));gainXP(5);toast(`A good ride on ${h.name}. Bond ${h.bond}.`);save();render()},
  race:d=>{const h=S.horses.find(x=>x.id===d.id);if(S.money<100)return;S.money-=100;h.lastRace=S.day;S.st.races++;
   const me=h.spd*.6+h.sta*.3+h.bond*.1+R()*25,field=Array.from({length:5},()=>55+gauss()*9+R()*25+S.level);field.push(me);field.sort((a,b)=>b-a);const place=field.indexOf(me)+1,pr=[900,400,150];
   let msg=`${h.name} finished ${place}${['st','nd','rd'][place-1]||'th'} of 6`;if(place<=3){earn(pr[place-1]);msg+=`, won ${fmt(pr[place-1])}`}if(place===1){h.wins++;S.st.raceWins++;sfx.win()}else sfx.coin();
   gainXP(10);addLog(msg+'.');toast(msg+'.');checkAch();save();render()},
  breedHorse:()=>{const s=S.horses.find(h=>h.id===document.getElementById('hSire').value),m=S.horses.find(h=>h.id===document.getElementById('hDam').value);if(!s||!m||S.money<300)return;
-  if(S.horses.length>=2+S.up.land*2)return toast('The stable is full.');S.money-=300;
+  if(S.horses.length>=horseCap())return toast('The stable is full.');S.money-=300;
   const f=makeHorse(pick([s.breed,m.breed]),{age:0,coat:pick([s.coat,m.coat]),spd:clamp(Math.round((s.spd+m.spd)/2+gauss()*5),30,99),sta:clamp(Math.round((s.sta+m.sta)/2+gauss()*5),30,99),bond:30});
   S.horses.push(f);gainXP(20);toast(`${m.name} foaled ${f.name}!`);addLog(`New foal: ${f.name}.`);save();render()},
- buyCow:()=>{if(S.money<400)return;S.money-=400;S.cattle++;sfx.coin();save();render()},
+ buyCow:()=>{if(S.money<400||S.cattle>=cowCap())return;S.money-=400;S.cattle++;sfx.coin();save();render()},
  sellCow:()=>{if(!S.cattle)return;S.cattle--;earn(320);save();render()},
  cattleShow:()=>{S.money-=60;S.lastCattleShow=S.day;const score=Math.min(S.cattle,20)*3+S.up.barn*5+R()*40;const prize=score>90?900:score>70?450:score>55?200:0;
   if(prize)earn(prize);const msg=prize?`Your cattle placed at the livestock show and won ${fmt(prize)}.`:'No ribbon at the livestock show this time.';gainXP(10);addLog(msg);toast(msg);save();render()},
@@ -2088,7 +2602,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
 // ---------- boot ----------
 if(!load()||!S||S.v!==1)freshState();else{try{migrate()}catch(e){console.error('migrate',e)}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS);S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS);S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
 applyTheme();render();
