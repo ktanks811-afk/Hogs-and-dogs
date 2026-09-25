@@ -895,7 +895,7 @@ async function morphMaps(mo,scale){
   const fs=Math.min(1,.97*768/(bb[2]-bb[0]),.965*512/(bb[3]-bb[1])),ox=384-fs*(bb[0]+bb[2])/2,oy=.975*512-fs*bb[3];
   const k2=scale/MS,FIT=[fs*k2,0,0,fs*k2,ox*k2,oy*k2];
   const w=Math.round(1536*scale),h=Math.round(1024*scale),N=w*h;
-  const oA=new Float32Array(N),oS=new Float32Array(N),oI=new Float32Array(N),oW=new Float32Array(N),oR=new Uint8Array(N),oSa=new Float32Array(N),oTa=new Float32Array(N),oMk=new Float32Array(N);
+  const oA=new Float32Array(N),oS=new Float32Array(N),oI=new Float32Array(N),oW=new Float32Array(N),oR=new Uint8Array(N),oSa=new Float32Array(N),oTa=new Float32Array(N),oMk=new Float32Array(N),oFb=new Uint8Array(N);
   for(const part of['torso','hind','front','tail','head']){
     const src=rg[P[part]],SM=src.M,sw=SM.w,sh=SM.h,Wt=src.W[part],b=src.bbox[part];if(b[2]<b[0])continue;
     const Mf=aff.mul(FIT,xf[part]),Mi=aff.inv(Mf);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
@@ -910,11 +910,11 @@ async function morphMaps(mo,scale){
       const o=y*w+x,oa=oA[o],na=oa*(1-wt)+sa*wt;if(na<=0){oA[o]=0;continue}
       const f0=oa*(1-wt)/na,f1=sa*wt/na;
       oS[o]=oS[o]*f0+SM.m1[p4]*f1;oI[o]=oI[o]*f0+ink*f1;oW[o]=oW[o]*f0+SM.m1[p4+2]*f1;oSa[o]=oSa[o]*f0+SM.m2[p4+1]*f1;oTa[o]=oTa[o]*f0+SM.m2[p4+2]*f1;oMk[o]=oMk[o]*f0+mk*f1;
-      if(sa*wt>=oa*(1-wt))oR[o]=reg;oA[o]=na;
+      if(sa*wt>=oa*(1-wt)){oR[o]=reg;oFb[o]=SM.m3[p4+2]}oA[o]=na;
     }
   }
   const m1=new Uint8ClampedArray(N*4),m2=new Uint8ClampedArray(N*4),m3=new Uint8ClampedArray(N*4);
-  for(let i=0;i<N;i++){const p=i*4,a=oA[i];m3[p]=a>.02?a*255:0;m3[p+1]=oMk[i];m3[p+3]=255;m1[p]=oS[i];m1[p+1]=oI[i];m1[p+2]=oW[i];m1[p+3]=255;m2[p]=oR[i]*20;m2[p+1]=oSa[i];m2[p+2]=oTa[i];m2[p+3]=255}
+  for(let i=0;i<N;i++){const p=i*4,a=oA[i];m3[p]=a>.02?a*255:0;m3[p+1]=oMk[i];m3[p+2]=oFb[i];m3[p+3]=255;m1[p]=oS[i];m1[p+1]=oI[i];m1[p+2]=oW[i];m1[p+3]=255;m2[p]=oR[i]*20;m2[p+1]=oSa[i];m2[p+2]=oTa[i];m2[p+3]=255}
   const keys=Object.keys(MORPH_CACHE);if(keys.length>40)delete MORPH_CACHE[keys[0]];
   return MORPH_CACHE[key]={w,h,m1,m2,m3};
 }
@@ -1678,20 +1678,21 @@ SCREENS.hunt=()=>{
 };
 function huntStart(){
   const sel=UI.huntSel,a=AREAS.find(x=>x.id===sel.area);
-  const gst=UI.guest&&!S.dogs.includes(UI.guest)?UI.guest:null;if(gst)S.dogs.push(gst);
-  const bay=[...sel.bay,...(gst&&UI.guestRole==='bay'?[gst.id]:[])].map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),ctch=[...sel.catch,...(gst&&UI.guestRole==='catch'?[gst.id]:[])].map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
-  if(gst&&(!bay.length||!ctch.length)){S.dogs=S.dogs.filter(d=>d!==gst);return}
+  const gst=UI.guest||null,look=id=>gst&&gst.id===id?gst:S.dogs.find(d=>d.id===id);
+  const bay=[...sel.bay,...(gst&&UI.guestRole==='bay'?[gst.id]:[])].map(look).filter(Boolean),ctch=[...sel.catch,...(gst&&UI.guestRole==='catch'?[gst.id]:[])].map(look).filter(Boolean);
   if(!bay.length||!ctch.length)return;
   [...bay,...ctch].forEach(d=>d.energy-=35);
   let tot=a.hogs.reduce((s,h)=>s+h[1],0),r=R()*tot,key=a.hogs[0][0];for(const[h,w]of a.hogs){r-=w;if(r<=0){key=h;break}}
   const hog=HOGS[key],w=ri(hog.w[0],hog.w[1]);
   UI.hunt={area:a,size:a.size,hogCell:ri(0,a.size*a.size-1),cells:{},turns:6+S.up.gear-1+(S.inv.collar?1:0)+(a.size>5?1:0),phase:'track',
-    bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,hogKey:key,hog:{...hog,w},hold:100,calm:50,t:0,log:[`${bay.map(d=>d.name).join(' and ')} strike off into the ${a.name.toLowerCase()}.`],result:null};
+    bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hogKey:key,hog:{...hog,w},hold:100,calm:50,t:0,log:[`${bay.map(d=>d.name).join(' and ')} strike off into the ${a.name.toLowerCase()}.`],result:null};
   S.st.hunts++;save();sfx.bark();render();
 }
+// a borrowed dog lives on the hunt, never in S.dogs, so it can't be sold, bred or listed mid-hunt
+function huntDog(id){const h=UI.hunt;return h&&h.guestDog&&h.guestDog.id===id?h.guestDog:S.dogs.find(d=>d.id===id)}
 function huntPlay(){
   const h=UI.hunt,n=h.size;
-  const bayPow=avg(h.bay.map(id=>bayScore(S.dogs.find(d=>d.id===id)||{stats:{trk:0,sta:0,int:0,spd:0}})));
+  const bayPow=avg(h.bay.map(id=>bayScore(huntDog(id)||{stats:{trk:0,sta:0,int:0,spd:0}})));
   let body='';
   if(h.phase==='track'){
     body=`<p class="sub">Tap a patch of cover to send the bay dogs. Clues: <b style="color:#c0582a">hot</b> = next to the hog, <b style="color:#c98f3a">warm</b> = two away, <b style="color:#5c6b73">cold</b> = far. Turns left: <b class="num">${h.turns}</b></p>
@@ -1703,7 +1704,7 @@ function huntPlay(){
     <div style="margin-top:12px"><button class="btn big" data-act="hrelease">Release the catch dogs</button></div></div>`;
   }else{
     const r=h.result;
-    body=`<div class="panel"><h3 style="margin-top:0">${r.win?'Hog caught!':'The hog got away'}</h3>${r.lines.map(l=>`<div>${esc(l)}</div>`).join('')}
+    body=`<div class="panel"><h3 style="margin-top:0">${r.win?'Hog caught!':r.found?'The hog got away':'No hog found'}</h3>${r.lines.map(l=>`<div>${esc(l)}</div>`).join('')}
     <div style="margin-top:12px" class="row"><button class="btn" data-act="hagain">Hunt again</button><button class="btn ghost" data-act="tab" data-t="home">Back to ranch</button></div></div>`;
   }
   return `<h2>${esc(h.area.name)}</h2><div class="small muted">Bay pack strength ${Math.round(bayPow)}</div>${body}<h3>Hunt log</h3><div class="panel log">${h.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>`;
@@ -1711,7 +1712,7 @@ function huntPlay(){
 function huntCell(i){
   const h=UI.hunt;if(h.phase!=='track'||h.turns<=0)return;
   const n=h.size,x=i%n,y=Math.floor(i/n),hx=h.hogCell%n,hy=Math.floor(h.hogCell/n),dist=Math.abs(x-hx)+Math.abs(y-hy);
-  const bays=h.bay.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),pow=avg(bays.map(bayScore)),sharp=bays.some(d=>d.temp==='Sharp');
+  const bays=h.bay.map(huntDog).filter(Boolean),pow=avg(bays.map(bayScore)),sharp=bays.some(d=>d.temp==='Sharp');
   h.turns--;
   if(dist===0){
     if(R()<.5+pow/200){h.phase='bay';h.cells[i]={cls:'found',icon:'🐗'};h.log.unshift(`${pick(bays).name} opens up — the ${h.hog.name.toLowerCase()} is bayed!`);sfx.bark();beginBay();render();return}
@@ -1730,7 +1731,7 @@ function startBayTimer(){
   if(UI.huntTimer)clearInterval(UI.huntTimer);
   UI.huntTimer=setInterval(()=>{
     const h=UI.hunt;if(!h||h.phase!=='bay'){clearInterval(UI.huntTimer);UI.huntTimer=null;return}
-    const bays=h.bay.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
+    const bays=h.bay.map(huntDog).filter(Boolean);
     const sta=avg(bays.map(d=>d.stats.sta)),calmDog=bays.some(d=>d.temp==='Calm'||d.temp==='Loyal');
     h.t+=.12;h.hold-=(1.1*(h.hog.w/150))/(.55+sta/100)*(calmDog?.75:1)/Math.sqrt(bays.length);
     h.calm=50+48*Math.sin(h.t*(1.2+h.hog.rar*.25))*Math.cos(h.t*.37);
@@ -1741,7 +1742,7 @@ function startBayTimer(){
 }
 function huntRelease(){
   const h=UI.hunt;if(h.phase!=='bay')return;clearInterval(UI.huntTimer);UI.huntTimer=null;
-  const cd=h.catch.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
+  const cd=h.catch.map(huntDog).filter(Boolean);
   const pow=cd.reduce((s,d)=>s+catchScore(d),0);
   let p=.22+pow/(h.hog.w*.9)*.5+(h.calm>=70?.2:h.calm<30?-.15:0)+h.hold/400;
   if(cd.some(d=>d.temp==='Bold'))p+=.05;if(cd.some(d=>d.temp==='Hot-headed'))p+=.08;
@@ -1750,7 +1751,7 @@ function huntRelease(){
 }
 function finishHunt(win,lines){
   const h=UI.hunt;h.phase='done';
-  const bays=h.bay.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),cd=h.catch.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
+  const bays=h.bay.map(huntDog).filter(Boolean),cd=h.catch.map(huntDog).filter(Boolean);
   const found=!!Object.values(h.cells).find(c=>c.cls==='found');
   bays.forEach(d=>{d.hunt.n++;if(found)d.hunt.bays++;d.stats.trk=Math.min(d.pot.trk,d.stats.trk+1);if(d.hunt.n%5===0){d.pot.trk=Math.min(99,d.pot.trk+1)}});
   let vests=S.inv.vest;
@@ -1763,11 +1764,11 @@ function finishHunt(win,lines){
     lines.push(`${cd[0].name} catches the ${h.hog.w} lb ${h.hog.name.toLowerCase()}. Sold for ${fmt(pay)}.`);gainXP(15+h.hog.w/5);addLog(`Caught a ${h.hog.w} lb ${h.hog.name.toLowerCase()} in ${h.area.name} for ${fmt(pay)}.`);
   }else{gainXP(8);if(found)addLog(`A ${h.hog.name.toLowerCase()} escaped in ${h.area.name}.`)}
   lines.push('Dogs gained hunting experience.');
-  if(h.guestId){const g=S.dogs.find(z=>z.id===h.guestId);S.dogs=S.dogs.filter(z=>z.id!==h.guestId);
+  if(h.guestId){const g=h.guestDog;
     if(win&&g&&g.guest&&h.lastPay){const share=Math.min(5000,Math.round(h.lastPay*.25));S.money-=share;lines.push(`${g.guest.ranch} gets 25% (${fmt(share)}) for lending ${g.name}.`);
       A2().then(a=>sbRpc('hd_pay_guest',{...a,p_owner:g.guest.owner,p_amount:share,p_reason:`${g.name} helped ${S.name} catch a ${h.hog.w} lb hog`})).catch(()=>{})}
     UI.guest=null}
-  h.result={win,lines};h.log.unshift(win?'Hog caught.':'Hunt over.');checkAch();save();
+  h.result={win,found,lines};h.log.unshift(win?'Hog caught.':'Hunt over.');checkAch();save();
 }
 
 // ---------- other screens ----------
