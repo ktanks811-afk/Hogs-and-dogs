@@ -62,7 +62,7 @@ p.sub{margin:0 0 10px;color:var(--muted);font-size:14px}
 .btn.sm{padding:6px 12px;font-size:14px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.big{font-size:18px;padding:13px 22px;width:100%}
-select,input[type=text],input[type=number]{background:var(--panel);border:1.5px solid var(--line);border-radius:6px;padding:7px 9px;max-width:100%}
+select,input[type=text],input[type=number],input[type=password]{background:var(--panel);border:1.5px solid var(--line);border-radius:6px;padding:7px 9px;max-width:100%}
 .seg{display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;margin-bottom:8px}
 .seg button{white-space:nowrap;border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:14px;font-weight:600}
 .seg button.on{background:var(--pine);color:#fff;border-color:var(--pine)}
@@ -250,7 +250,7 @@ function freshState(){
   refreshMarket();refreshHorseMarket();S.lineups=buildLineups();
   addLog('You signed the papers on a small ranch with three dogs.');
 }
-function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}scheduleCloud()}
 function load(){try{const t=localStorage.getItem(SAVE_KEY);if(t){S=JSON.parse(t);return true}}catch(e){}return false}
 function addLog(t){S.log.unshift({d:S.day,t});S.log=S.log.slice(0,40)}
 
@@ -1464,6 +1464,68 @@ const ONLINE_ACTIONS=({
   dropGuest:()=>{UI.guest=null;render()}
 });
 
+// ---------- ACCOUNTS & CLOUD SAVE ----------
+// An account ties this ranch to a username and password so it can be picked up on any device.
+// While signed in, the save goes to the server a few seconds after each change.
+function signedIn(){return !!(S&&S.online&&S.online.user)}
+function cloudCopy(){const o=JSON.parse(JSON.stringify(S));delete o.online;return o}
+let cloudT=null;
+// upload within a few seconds of the first change, however many saves follow it
+function scheduleCloud(){if(!signedIn()||inClaude||cloudT)return;cloudT=setTimeout(cloudSave,4000)}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&cloudT)cloudSave()});
+async function cloudSave(){
+  clearTimeout(cloudT);cloudT=null;if(!signedIn())return false;
+  try{S.cloudAt=await sbRpc('hd_save_game',{...(await A2()),p_save:cloudCopy()});try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}return true}
+  catch(e){console.warn('cloud save',e);return false}
+}
+// swap in a save from the account; reloading runs the normal boot and migration on it
+function useCloudSave(save,cred,at){save.online=cred;save.cloudAt=at;save.welcomed=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(save))}catch(e){return toast('Could not store the save on this device.')}location.reload()}
+async function checkCloud(){
+  if(!signedIn()||inClaude)return;
+  try{const r=await sbRpc('hd_load_game',await A2());
+    if(r&&r.save&&r.save_updated&&new Date(r.save_updated)-new Date(S.cloudAt||0)>2000){UI.cloudOffer=r;
+      openSheet(`<h2>Newer save found</h2><p>Your account has a newer save from another device: <b>${esc(r.save.name)}</b>, day ${r.save.day}.</p><p class="small muted">This device has ${esc(S.name)}, day ${S.day}. Whichever you keep becomes the save on your account.</p>
+      <div class="row" style="margin-top:10px"><button class="btn" data-act="accUseCloud">Load the newer save</button><button class="btn ghost" data-act="accKeepLocal">Keep this device's</button></div>`)}
+  }catch(e){console.warn('cloud check',e)}
+}
+SCREENS.account=()=>{
+  if(inClaude)return `<h2>Account</h2><div class="panel"><p>Accounts work on the public website.</p><p><a href="${SITE_URL}" target="_blank" rel="noopener"><b>${SITE_URL.replace('https://','')}</b></a></p></div>`;
+  if(signedIn())return `<h2>Account</h2><div class="panel"><div>Signed in as <b>${esc(S.online.user)}</b></div>
+    <div class="small muted" style="margin-top:4px">${esc(S.name)} saves to your account automatically.${S.cloudAt?' Last saved '+new Date(S.cloudAt).toLocaleString()+'.':''} Sign in on another device to pick up where you left off.</div>
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-act="accSave">Save now</button><button class="btn sm ghost" data-act="accSignOut">Sign out</button></div></div>`;
+  const f=(k,btn,act,note)=>`<div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">${btn}</h3>${note?`<p class="small muted" style="margin-top:0">${note}</p>`:''}
+    <label class="small"><b>Username</b><br><input type="text" id="${k}User" maxlength="20" autocomplete="username" autocapitalize="none" style="width:100%;margin:3px 0 8px"></label>
+    <label class="small"><b>Password</b><br><input type="password" id="${k}Pass" autocomplete="${k==='in'?'current-password':'new-password'}" style="width:100%;margin-top:3px"></label>
+    <button class="btn" data-act="${act}" style="margin-top:10px">${btn}</button></div>`;
+  return `<h2>Account</h2><p class="sub">Sign in to save your ranch to an account and play it on any device.</p>
+    ${f('in','Sign in','accSignIn')}${f('up','Create account','accSignUp',`Saves ${esc(S.name)} (day ${S.day}) to the new account. Usernames are 3–20 letters, numbers or underscores; passwords need 6 or more characters.`)}`;
+};
+const ACCOUNT_ACTIONS={
+  accSignIn:async(d,btn)=>{const u=document.getElementById('inUser').value.trim(),pw=document.getElementById('inPass').value;if(!u||!pw)return toast('Enter your username and password.');
+    btn.disabled=true;
+    try{const r=await sbRpc('hd_login',{p_user:u,p_pass:pw}),cred={pid:r.id,sec:r.secret,user:r.username};
+      if(r.save){const local=S.day>1||S.st.hunts>0;
+        if(local&&!confirm(`Load ${r.save.name} (day ${r.save.day}) from your account? It replaces ${S.name} (day ${S.day}) on this device.`)){sbRpc('hd_logout',{p_pid:cred.pid,p_sec:cred.sec}).catch(()=>{});btn.disabled=false;return}
+        return useCloudSave(r.save,cred,r.save_updated)}
+      S.online=cred;S.welcomed=true;save();await cloudSave();toast(`Signed in as ${r.username}.`);render()}
+    catch(e){btn.disabled=false;toast(e.message)}},
+  accSignUp:async(d,btn)=>{const u=document.getElementById('upUser').value.trim(),pw=document.getElementById('upPass').value;
+    if(!/^[A-Za-z0-9_]{3,20}$/.test(u))return toast('Usernames are 3–20 letters, numbers or underscores.');if(pw.length<6)return toast('Passwords need at least 6 characters.');
+    btn.disabled=true;
+    try{// keep an existing online ID so this ranch's listings, trades and groups stay with it
+      if(S.online&&S.online.pid){await sbRpc('hd_claim_account',{p_pid:S.online.pid,p_sec:S.online.sec,p_user:u,p_pass:pw});S.online.user=u}
+      else{const r=await sbRpc('hd_signup',{p_user:u,p_pass:pw});S.online={pid:r.id,sec:r.secret,user:r.username}}
+      S.welcomed=true;save();await cloudSave();toast(`Account created. ${S.name} is saved to ${u}.`);render()}
+    catch(e){btn.disabled=false;toast(e.message)}},
+  accSave:async()=>toast(await cloudSave()?'Saved to your account.':'Could not reach the server. Try again in a moment.'),
+  accSignOut:async()=>{if(!confirm(`Sign out? ${S.name} stays saved to your account, and this device starts a fresh ranch. Sign back in to get it back.`))return;
+    if(!await cloudSave()&&!confirm('Your latest progress could not be saved to your account. Sign out anyway?'))return;
+    try{await sbRpc('hd_logout',await A2())}catch(e){}
+    try{localStorage.removeItem(SAVE_KEY)}catch(e){}location.reload()},
+  accUseCloud:()=>{const r=UI.cloudOffer;if(r)useCloudSave(r.save,S.online,r.save_updated)},
+  accKeepLocal:()=>{UI.cloudOffer=null;closeSheet();cloudSave()}
+};
+
 // ---------- day cycle ----------
 function endDay(){
   if(UI.hunt&&UI.hunt.phase!=='done'){toast('Finish the hunt first.');return}
@@ -1772,7 +1834,7 @@ function finishHunt(win,lines){
 }
 
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennel, barn, land and gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennel, barn, land and gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
 const upCost=(k,l)=>Math.round(UPGRADES[k].base*Math.pow(2.2,l-1)/10)*10, upReq=l=>Math.max(1,(l-1)*2);
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Bigger facilities unlock more dogs, litters, hunting grounds and animals. Max level 5.</p>
  <div class="grid wide">${Object.entries(UPGRADES).map(([k,u])=>{const l=S.up[k],max=l>=5,cost=upCost(k,l),req=upReq(l+1);
@@ -1903,13 +1965,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
 // ---------- boot ----------
 if(!load()||!S||S.v!==1)freshState();else{try{migrate()}catch(e){console.error('migrate',e)}}
-Object.assign(A,ONLINE_ACTIONS);S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS);S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
 applyTheme();render();
 if(!S.welcomed)openSheet(`<h2>Welcome to Hogs & Dogs</h2><p>You’ve got a small ranch, three working dogs and $3,000. Breed better bloodlines, train your pack, and hunt hogs to grow into the top outfit in the county.</p>
 <label><b>Name your ranch</b><br><input type="text" id="wName" value="${esc(S.name)}" maxlength="30" style="width:100%;margin-top:4px"></label>
-<div style="margin-top:12px"><button class="btn big" data-act="welcome">Start ranching</button></div>`);
+<div style="margin-top:12px"><button class="btn big" data-act="welcome">Start ranching</button></div>
+<p class="small" style="margin-top:10px;text-align:center">Already have an account? <a href="#" data-act="tab" data-t="account"><b>Sign in</b></a></p>`);
+else setTimeout(checkCloud,1500);
 </script>
 </body>
 </html>
