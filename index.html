@@ -86,6 +86,19 @@ select,input[type=text],input[type=number],input[type=password]{background:var(-
 .bar{height:10px;border-radius:5px;background:var(--panel2);position:relative;overflow:hidden}
 .bar .pot{position:absolute;inset:0 auto 0 0;background:rgba(184,135,42,.35)}
 .bar .cur{position:absolute;inset:0 auto 0 0;background:var(--pine2)}
+.cmphead{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.cmphead .who{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.cmprow{margin:7px 0}
+.cmprow .lb{font-size:12.5px;text-align:center;color:var(--muted);margin-bottom:2px}
+.cmprow .bars{display:grid;grid-template-columns:30px 1fr 1fr 30px;gap:5px;align-items:center;font-size:14px}
+.cmprow .bars b:last-child{text-align:right}
+.cmprow b.lead{color:var(--blaze)}
+.cmpbar{height:10px;background:var(--panel2);position:relative;overflow:hidden}
+.cmpbar.l{border-radius:5px 0 0 5px}.cmpbar.r{border-radius:0 5px 5px 0}
+.cmpbar i{position:absolute;top:0;bottom:0}.cmpbar.l i{right:0}.cmpbar.r i{left:0}
+.cmpbar i.pot{opacity:.28}
+.mine{background:var(--pine2)}.theirs{background:var(--mud)}
+.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .meter{height:16px;border-radius:8px;background:var(--panel2);overflow:hidden;position:relative}
 .meter i{position:absolute;inset:0 auto 0 0;transition:width .12s linear}
 
@@ -1316,7 +1329,7 @@ function importDog(obj,from){
 }
 // remote dogs shown in the UI get view-only IDs so they never collide with your own
 UI.remote={};
-function viewDog(obj,tag){const d=JSON.parse(JSON.stringify(obj));d.viewKey=tag;d.id='VIEW-'+tag;UI.remote[d.id]=d;return d}
+function viewDog(obj,tag,from){const d=JSON.parse(JSON.stringify(obj));d.viewKey=tag;if(from)d.fromRanch=from;d.id='VIEW-'+tag;UI.remote[d.id]=d;return d}
 const _findDogOrig=findDog;findDog=function(id){return(UI.remote&&UI.remote[id])||_findDogOrig(id)};
 UI.on='ranches';UI.od={};
 const todayKey=k=>`${k}-${new Date().toISOString().slice(0,10)}`;
@@ -1376,12 +1389,12 @@ const ONLINE_VIEWS={
   ranches:({r})=>`<div class="panel"><div class="spread"><div><b>${esc(S.name)}</b><div class="small muted">${S.onlinePublished?`Published on day ${S.onlinePublished}. It republishes each day you play.`:'Not published yet.'}</div></div><button class="btn sm" data-act="onPublish">Publish now</button></div></div>
    <h3>County ranches</h3>${r.length?`<div class="panel tablewrap"><table><tr><th>#</th><th>Ranch</th><th class="num">Level</th><th class="num">Hogs</th><th></th></tr>${r.map((x,i)=>`<tr style="${x.player_id===myPid()?'font-weight:700;color:var(--blaze)':''}"><td>${i+1}</td><td>${esc(x.name)}<div class="small muted">${x.dog_count} dogs${x.best_line?' · '+esc(x.best_line):''}</div></td><td class="num">${x.level}</td><td class="num">${x.hogs}</td><td>${x.player_id===myPid()?'':`<button class="btn sm ghost" data-act="onVisit" data-id="${x.player_id}">Visit</button>`}</td></tr>`).join('')}</table></div>`:'<p class="small muted">No ranches yet — be the first to publish yours.</p>'}`,
   market:({l})=>{const mine=l.filter(x=>x.seller===myPid()),others=l.filter(x=>x.seller!==myPid());
-   const card=x=>{const d=viewDog(x.dog,'L'+x.id);return `<div><div class="small" style="font-weight:700;margin:0 0 3px 2px">${x.kind==='stud'?'Stud service':'For sale'} · ${esc(x.seller_ranch||'')}</div>${dogCard(d,'onListing',fmt(x.price)+(x.kind==='stud'?' fee':''))}</div>`};
+   const card=x=>{const d=viewDog(x.dog,'L'+x.id,x.seller_ranch);return `<div><div class="small" style="font-weight:700;margin:0 0 3px 2px">${x.kind==='stud'?'Stud service':'For sale'} · ${esc(x.seller_ranch||'')}</div>${dogCard(d,'onListing',fmt(x.price)+(x.kind==='stud'?' fee':''))}</div>`};
    return `<p class="sub">Sell a dog or offer a male at stud from its profile (“Sell online” / “Offer at stud”). Money from sales and stud fees arrives the next time you play.</p>
    ${mine.length?`<h3>Your listings</h3><div class="grid">${mine.map(card).join('')}</div>`:''}
    <h3>For sale and at stud</h3>${others.length?`<div class="grid">${others.map(card).join('')}</div>`:'<p class="small muted">Nothing listed right now.</p>'}`},
   trades:({t})=>{const p=myPid(),inc=t.filter(x=>x.to_user===p&&x.status==='pending'),out=t.filter(x=>x.from_user===p&&x.status==='pending'),done=t.filter(x=>x.status!=='pending').slice(0,10);
-   const offerDogs=x=>(x.offer||[]).map((o,i)=>dogCard(viewDog(o,'T'+x.id+'-'+i),'onViewDog')).join('');
+   const offerDogs=x=>(x.offer||[]).map((o,i)=>dogCard(viewDog(o,'T'+x.id+'-'+i,x.from_ranch),'onViewDog')).join('');
    return `<p class="sub">Visit a ranch and tap one of their dogs to make an offer.</p>
    <h3>Offers to you</h3>${inc.length?inc.map(x=>`<div class="panel" style="margin-bottom:8px"><b>${esc(x.from_ranch||'A ranch')}</b> wants <b>${esc((x.want_dog||{}).name||'a dog')}</b> and offers${x.money?' '+fmt(x.money)+(x.offer.length?' plus':''):''}:
      <div class="grid" style="margin-top:6px">${offerDogs(x)}</div><div class="row" style="margin-top:8px"><button class="btn sm" data-act="onAccept" data-id="${x.id}">Accept</button><button class="btn sm ghost" data-act="onDecline" data-id="${x.id}">Decline</button></div></div>`).join(''):'<p class="small muted">No offers right now.</p>'}
@@ -1401,13 +1414,36 @@ const ONLINE_VIEWS={
 };
 async function visitRanch(pid){
   try{const [x]=await sbGet(`hd_ranches?select=*&player_id=eq.${pid}`);if(!x)return toast('That ranch has not been published.');
-    UI.visit=x;const dogs=(x.snapshot||[]).map((o,i)=>viewDog(o,'R'+pid.slice(0,8)+'-'+i));
+    UI.visit=x;const dogs=(x.snapshot||[]).map((o,i)=>viewDog(o,'R'+pid.slice(0,8)+'-'+i,x.name));
     openSheet(`<h2>${esc(x.name)}</h2><p class="sub">Level ${x.level} · ${x.hogs} hogs caught · ${x.dog_count} dogs${x.best_line?'<br>Best line: '+esc(x.best_line):''}</p>
       <div class="grid">${dogs.map(d=>dogCard(d,'onVisitDog')).join('')||'<p class="small muted">No dogs to show.</p>'}</div>`);
   }catch(e){toast(e.message)}
 }
-function remoteDogSheet(d,actions){openSheet(`<h2>${esc(d.name)} <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span></h2><div class="dcard" style="padding:0;border-width:0 0 4px"><div class="art">${dogArt(d,300)}</div></div>
-  <div class="row" style="margin:8px 0">${rarTag(d)}<span class="tag">${esc(breedName(d))}</span><span class="tag">${ageStr(d.age)}</span><span class="tag">${esc(d.temp)}</span></div>${actions||''}${mixSection(d)}<h3>Stats</h3>${statBars(d)}`)}
+function remoteDogSheet(d,actions){UI.cmpRemote={d,actions};openSheet(`<h2>${esc(d.name)} <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span></h2><div class="dcard" style="padding:0;border-width:0 0 4px"><div class="art">${dogArt(d,300)}</div></div>
+  <div class="row" style="margin:8px 0">${rarTag(d)}<span class="tag">${esc(breedName(d))}</span><span class="tag">${ageStr(d.age)}</span><span class="tag">${esc(d.temp)}</span></div>${actions||''}${compareBox(d)}${mixSection(d)}<h3>Stats</h3>${statBars(d)}`)}
+// ---------- DOG COMPARISON ----------
+// Put another player's dog next to one of yours: stats, potential, hunting scores and value.
+function compareBox(d){const mine=S.dogs.filter(z=>!z.guest);if(!mine.length)return '';
+  // suggest your closest match: same role first, then same breed
+  const role=x=>bayScore(x)>=catchScore(x)?'bay':'catch',pickDef=[...mine].sort((a,b)=>(role(b)===role(d))-(role(a)===role(d))||(b.breed===d.breed)-(a.breed===d.breed)||Math.max(bayScore(b),catchScore(b))-Math.max(bayScore(a),catchScore(a)))[0];
+  return `<div class="panel" style="margin:8px 0"><b>Compare with your dog</b><div class="row" style="margin-top:6px"><select id="cmpMine" style="flex:1;min-width:0">${mine.map(z=>`<option value="${z.id}" ${z===pickDef?'selected':''}>${esc(z.name)} — ${esc(breedName(z))}</option>`).join('')}</select><button class="btn sm alt" data-act="onCompare" data-id="${d.id}">Compare</button></div></div>`}
+function compareSheet(me,them){
+  const bar=(side,cls,cur,pot)=>`<div class="cmpbar ${side}"><i class="pot ${cls}" style="width:${pot}%"></i><i class="${cls}" style="width:${cur}%"></i></div>`;
+  const row=(label,a,b,pa=a,pb=b)=>{a=Math.round(a);b=Math.round(b);return `<div class="cmprow"><div class="lb">${label}</div><div class="bars"><b class="num ${a>b?'lead':''}">${a}</b>${bar('l','mine',a,Math.round(pa))}${bar('r','theirs',b,Math.round(pb))}<b class="num ${b>a?'lead':''}">${b}</b></div></div>`};
+  const lead=STATS.filter(([k])=>me.stats[k]>them.stats[k]).length,trail=STATS.filter(([k])=>me.stats[k]<them.stats[k]).length;
+  const vs=(x,y,what)=>Math.round(x)===Math.round(y)?`Even as ${what}.`:x>y?`${esc(me.name)} is the stronger ${what} (+${Math.round(x-y)}).`:`${esc(them.name)} is the stronger ${what} (+${Math.round(y-x)}).`;
+  const card=(d,who,cls)=>`<div><div class="who"><span class="key ${cls}"></span>${who}</div><div class="dcard" style="padding:0;border-width:0 0 3px;--rc:var(${RAR[rarTier(d)][1]})"><div class="art">${dogArt(d,170)}</div></div>
+    <b>${esc(d.name)}</b> <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span><div class="small muted">${esc(breedName(d))}<br>${esc(coatName(d))}<br>${ageStr(d.age)} · ${esc(d.temp)}</div><div style="margin-top:3px">${rarTag(d)}</div></div>`;
+  openSheet(`<h2>Head to head</h2>
+    <div class="cmphead">${card(me,'Yours','mine')}${card(them,esc((them.fromRanch||'Their ranch')),'theirs')}</div>
+    <div class="panel" style="margin-top:10px"><b>${lead>trail?`${esc(me.name)} leads in ${lead} of ${STATS.length} stats.`:trail>lead?`${esc(them.name)} leads in ${trail} of ${STATS.length} stats.`:`Dead even: ${lead} stats each.`}</b>
+      <div class="small" style="margin-top:4px">${vs(bayScore(me),bayScore(them),'bay dog')} ${vs(catchScore(me),catchScore(them),'catch dog')}</div></div>
+    <h3>Hunting</h3>${row('Bay score',bayScore(me),bayScore(them))}${row('Catch score',catchScore(me),catchScore(them))}
+    <h3>Stats <span class="small muted">faded bar = genetic potential</span></h3>${STATS.map(([k,l])=>row(l,me.stats[k],them.stats[k],me.pot[k],them.pot[k])).join('')}
+    <div class="panel small" style="margin-top:10px"><div class="spread"><span>Market value</span><span class="num"><b>${fmt(dogValue(me))}</b> vs <b>${fmt(dogValue(them))}</b></span></div>
+      <div class="spread" style="margin-top:4px"><span>Hunting record</span><span class="num">${me.hunt?me.hunt.catches:0} catches vs ${them.hunt?them.hunt.catches:0}</span></div></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="cmpBack">Back to ${esc(them.name)}</button></div>`);
+}
 const ONLINE_ACTIONS=({
   onTab:d=>{UI.on=d.k;render()},
   onRefresh:()=>{UI.od={};onlineFill(true)},
@@ -1457,11 +1493,13 @@ const ONLINE_ACTIONS=({
     try{await onlineId();const me=S.online.pid;const mem=await sbGet(`hd_group_members?select=group_id&player_id=eq.${me}`);if(!mem.length)return toast('Join a hunting group first (Online → Hunting groups).');
       const all=await sbGet(`hd_group_members?select=player_id&group_id=in.(${mem.map(x=>x.group_id).join(',')})`);const ids=[...new Set(all.map(x=>x.player_id))].filter(x=>x!==me);if(!ids.length)return toast('Nobody else in your groups yet.');
       const rs=await sbGet(`hd_ranches?select=player_id,name,snapshot&player_id=in.(${ids.join(',')})`);UI.guestPool=[];
-      const cards=rs.flatMap(r=>(r.snapshot||[]).filter(o=>o.age>=12).map((o,i)=>{const v=viewDog(o,'G'+r.player_id.slice(0,8)+'-'+i);UI.guestPool.push({v,owner:r.player_id,ranch:r.name});return `<div>${dogCard(v,'pickGuest')}<div class="small muted">${esc(r.name)}</div></div>`}));
+      const cards=rs.flatMap(r=>(r.snapshot||[]).filter(o=>o.age>=12).map((o,i)=>{const v=viewDog(o,'G'+r.player_id.slice(0,8)+'-'+i,r.name);UI.guestPool.push({v,owner:r.player_id,ranch:r.name});return `<div>${dogCard(v,'pickGuest')}<div class="small muted">${esc(r.name)}</div></div>`}));
       openSheet(`<h2>Borrow a group dog</h2><p class="sub">Pick one dog to hunt alongside yours. If it helps catch a hog, its owner gets 25% of the sale.</p><div class="grid">${cards.join('')||'<p class="small muted">Your group members haven’t published any adult dogs.</p>'}</div>`)}catch(e){toast(e.message)}},
   pickGuest:d=>{const g=(UI.guestPool||[]).find(x=>x.v.id===d.id);if(!g)return;const dog=importDog(g.v,g.ranch);dog.id='GUEST-'+Date.now();dog.guest={owner:g.owner,ranch:g.ranch};dog.health=100;dog.energy=100;
     UI.guest=dog;UI.guestRole=catchScore(dog)>bayScore(dog)?'catch':'bay';closeSheet();toast(`${dog.name} from ${g.ranch} will join your hunt as a ${UI.guestRole} dog.`);render()},
-  dropGuest:()=>{UI.guest=null;render()}
+  dropGuest:()=>{UI.guest=null;render()},
+  onCompare:d=>{const them=UI.remote[d.id],me=S.dogs.find(z=>z.id===document.getElementById('cmpMine').value);if(them&&me)compareSheet(me,them)},
+  cmpBack:()=>{const c=UI.cmpRemote;if(c)remoteDogSheet(c.d,c.actions)}
 });
 
 // ---------- ACCOUNTS & CLOUD SAVE ----------
