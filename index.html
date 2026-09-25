@@ -258,7 +258,7 @@ function freshState(){
     up:{kennel:1,yard:1,barn:1,gear:1,land:1,storage:1},inv:{feed:30,vitamins:0,liniment:1,vest:0,collar:0},
     horses:[],horseMarket:[],cattle:0,lastCattleShow:0,preg:[],ach:{},log:[],sound:true,theme:'',
     st:{hogs:0,best:0,bestName:'',litters:0,pups:0,sold:0,earned:0,races:0,raceWins:0,shows:0,showWins:0,hunts:0},
-    rivals:RIVALS.map(n=>({name:n,score:ri(9000,42000)})),welcomed:false,dogoWhite:true,rep:50,repLog:[]};
+    rivals:RIVALS.map(n=>({name:n,score:ri(9000,42000)})),welcomed:false,dogoWhite:true,rep:50,repLog:[],found:[],research:{}};
   S.dogs.push(makeDog({breed:'Black Mouth Cur',sex:'F',age:22,name:'Dixie'}));
   S.dogs.push(makeDog({breed:'Mountain Cur',sex:'M',age:30,name:'Boone'}));
   S.dogs.push(makeDog({breed:'American Bulldog',sex:'M',age:26,name:'Tank'}));
@@ -316,7 +316,8 @@ function inheritLocus(L,a,b){
 function predictCoats(a,b){
   const loci=Object.keys(LOCI),combos=loci.map(L=>{const m={};for(const x of a.genes[L])for(const y of b.genes[L]){const k=sortPair(L,[x,y]).join('/');m[k]=(m[k]||0)+.25}return Object.entries(m)});
   const out={},wm=((a.whiteMod||0)+(b.whiteMod||0))/2,pm=((a.patMod??.5)+(b.patMod??.5))/2;
-  (function rec(i,g,p){if(i===loci.length){const c=gameCoat({id:'HD-X',genes:g,whiteMod:wm,patMod:pm,coatInt:((a.coatInt??.5)+(b.coatInt??.5))/2,seed:dogSeed(a),breed:a.breed===b.breed?a.breed:'Cross'}),n=describeCoat(c);out[n]=out[n]||{p:0,rar:coatRar(c)};out[n].p+=p;return}
+  (function rec(i,g,p){if(i===loci.length){const fake=gg=>({id:'HD-X',genes:gg,whiteMod:wm,patMod:pm,coatInt:((a.coatInt??.5)+(b.coatInt??.5))/2,seed:dogSeed(a),breed:a.breed===b.breed?a.breed:'Cross'}),c=gameCoat(fake(g));let n=describeCoat(c);
+      if(Object.values(g).flat().some(x=>!known(x))){const mn=describeCoat(gameCoat(fake(maskGenes(g))));if(mn!==n)n=mn+' (+ unknown trait)'}out[n]=out[n]||{p:0,rar:coatRar(c)};out[n].p+=p;return}
     for(const[k,q]of combos[i]){g[loci[i]]=k.split('/');rec(i+1,g,p*q)}})(0,{},1);
   return Object.entries(out).map(([n,o])=>({n,p:o.p,rar:o.rar})).sort((x,y)=>y.p-x.p);
 }
@@ -1187,14 +1188,38 @@ function legacyMorph(d){
   const bs=ps.length?ps:[d.bodyOf||'Black Mountain Cur'];
   const fake=bs.map(b=>({morph:pureMorph(b,false)}));return inheritMorph(fake[0],fake[1]||fake[0]);
 }
+// ---------- GENETIC DISCOVERY ----------
+// Hidden genes start as "Unknown trait". Litters and DNA tests build research; at 100% the gene
+// is discovered and shows by name everywhere. Common genes are known from the start.
+const DISCOVER={br:'Brindle',at:'Tan-Point',as:'Saddle',e:'Recessive Red',eg:'Grizzle',Em:'Mask',b:'Liver',d:'Dilute',sp:'Piebald Spotting',sw:'Extreme White',M:'Merle',T:'Ticking',l:'Long-Coat',R:'Roan'};
+const KNOWN_DEFAULT={B:'B',D:'D',E:'E',K:'K',A:'ay',S:'S',M:'m',T:'t',L:'L',R:'r'};
+const RESEARCH_NEEDED=3,DNA_TEST=200;
+const known=a=>!DISCOVER[a]||(S.found||[]).includes(a);
+const genoText=(d,L,sep='/')=>d.genes[L].map(a=>known(a)?a:'?').join(sep);
+const unknownCarried=d=>[...new Set(Object.values(d.genes).flat().filter(a=>!known(a)))];
+// swap undiscovered alleles (or just one) for the common default, to see what they change
+function maskGenes(g,only){const o={};for(const L in g)o[L]=g[L].map(a=>(only?a===only:!known(a))?KNOWN_DEFAULT[L]:a);return o}
+const coatText=(d,g)=>Coat.describe(Coat.fromGenotype(g,dogMods(d),coatBreed(d)));
+const expresses=(d,a)=>coatText(d,d.genes)!==coatText(d,maskGenes(d.genes,a));
+function research(a,pts,why){if(known(a))return;S.research=S.research||{};S.research[a]=Math.min(RESEARCH_NEEDED,(S.research[a]||0)+pts);
+  if(S.research[a]>=RESEARCH_NEEDED){S.found=[...(S.found||[]),a];const m=`🧬 Hidden ${DISCOVER[a]} Gene discovered!`;addLog(m+(why?` (${why})`:''));setTimeout(()=>toast(m),400);sfx.win()}}
+// a pup that shows the trait teaches a lot; one that only carries it teaches a little
+function litterResearch(pups){const seen={};for(const p of pups)for(const a of unknownCarried(p))seen[a]=Math.max(seen[a]||0,expresses(p,a)?1.5:.5);
+  for(const[a,v]of Object.entries(seen))research(a,v,'from the litter records')}
+const researchPct=a=>Math.round(((S.research||{})[a]||0)/RESEARCH_NEEDED*100);
+function discoveryPanel(){const found=Object.keys(DISCOVER).filter(known),all=[...found,...Object.keys(DISCOVER).filter(a=>!known(a)).sort((x,y)=>researchPct(y)-researchPct(x))];
+  return `<h3>Gene discoveries <span class="small muted">${found.length} of ${all.length}</span></h3><div class="panel small">
+  <p class="muted" style="margin:0 0 6px">Some genes hide in bloodlines. Breed litters or DNA-test dogs to research them. Pups that show a trait teach you the most.</p>
+  ${all.map(a=>known(a)?`<div class="spread"><span>✓ <b>${DISCOVER[a]} gene</b></span><span class="gt">${a}</span></div>`
+    :`<div class="spread" style="gap:8px"><span class="muted">Unknown trait</span><div class="meter" style="height:6px;flex:1;max-width:140px"><i style="width:${researchPct(a)}%;background:var(--gold)"></i></div><span class="num muted">${researchPct(a)}%</span></div>`).join('')}</div>`}
 // allele origin for the coat-genetics display
 const NOTABLE={L:['l','Long coat'],R:['R','Roaning'],M:['M','Merle'],K:['br','Brindle'],S:['sp','Piebald spotting'],A:['at','Tan points'],E:['Em','Mask'],D:['d','Dilution'],B:['b','Liver/chocolate'],T:['T','Ticking']};
 function alleleSources(d){
   const out=[],P=d.parents&&d.parents.map(p=>findAny(p.id));
-  for(const[L,[al,label]]of Object.entries(NOTABLE)){const pair=d.genes[L]||[];const n=pair.filter(a=>a===al).length;if(!n)continue;
+  for(const[L,[al,label0]]of Object.entries(NOTABLE)){const pair=d.genes[L]||[];const n=pair.filter(a=>a===al).length;if(!n)continue;const kn=known(al),label=kn?label0:'Unknown trait';
     let src='';if(P&&P[0]&&P[1]){const s=P[0].genes[L].includes(al),m=P[1].genes[L].includes(al);src=s&&m?'from both parents':s?`from ${P[0].name} (${breedName(P[0])})`:m?`from ${P[1].name} (${breedName(P[1])})`:'new mutation'}
-    out.push(`${label} <span class="gt">${pair.join('/')}</span> ${n===2?'(two copies)':'(one copy'+(['S','K','A','E'].includes(L)&&Coat.GLOCI[L].indexOf(al)>0&&pair[0]!==al?', hidden':'')+')'} ${src?'— '+src:''}`)}
-  if(d.genes.E&&d.genes.E[0]==='e'&&d.genes.E[1]==='e')out.push('Recessive red <span class="gt">e/e</span> hides dark pigment');
+    out.push(`${label} <span class="gt">${genoText(d,L)}</span> ${n===2?'(two copies)':'(one copy'+(kn&&['S','K','A','E'].includes(L)&&Coat.GLOCI[L].indexOf(al)>0&&pair[0]!==al?', hidden':'')+')'} ${src?'— '+src:''}`)}
+  if(known('e')&&d.genes.E&&d.genes.E[0]==='e'&&d.genes.E[1]==='e')out.push('Recessive red <span class="gt">e/e</span> hides dark pigment');
   return out;
 }
 const findAny=id=>id&&(findDog(id)||S.dogs.find(x=>x.id===id));
@@ -1291,7 +1316,7 @@ function addRep(delta,why){if(!delta)return;const before=repOf();S.rep=Math.roun
 function related(a,b){const ids=d=>(d.parents||[]).map(p=>p.id);const pa=ids(a),pb=ids(b);return pa.includes(b.id)||pb.includes(a.id)||pa.some(x=>pb.includes(x))}
 const merlePair=(a,b)=>a.genes.M.includes('M')&&b.genes.M.includes('M');
 function pairWarnings(sire,dam){const w=[];if(related(sire,dam))w.push('These two are close relatives. Inbred litters cost reputation.');
-  if(merlePair(sire,dam))w.push('Merle × merle risks double-merle pups with health defects.');
+  if(merlePair(sire,dam)&&(known('M')||[sire,dam].every(x=>/merle/i.test(coatName(x)))))w.push('Merle × merle risks double-merle pups with health defects.');
   for(const p of[sire,dam]){const g=buildGrade(p);if(g.k==='poor'||g.k==='defect')w.push(`${p.name} is ${g.label.toLowerCase()}, so expect below-standard pups.`)}return w}
 const REP_PUP={good:.5,std:0,poor:-.8,defect:-2};
 function litterRep(pups,sire,dam){const c={good:0,poor:0,defect:0};let v=0;
@@ -1636,6 +1661,7 @@ function endDay(){
     S.st.litters++;S.st.pups+=n;gainXP(30);
     const best=pups.reduce((a,b)=>rarTier(b)>rarTier(a)?b:a);
     msgs.push(`${dam.name} whelped ${n} pup${n>1?'s':''}! Best of the litter: ${best.name} (${RAR[rarTier(best)][0]}, ${coatName(best)}).`);sfx.bark();
+    litterResearch(pups);
     {const rv=litterRep(pups,sire,dam);if(Math.abs(rv)>=1)msgs.push(`Reputation ${rv>0?'+':''}${Math.round(rv*10)/10}: ${repTier(repOf()).toLowerCase()}.`)}
     if(sameLine(sire,dam))S.st.sameLitters=(S.st.sameLitters||0)+1;const lh=litterHint(pups,sire,dam);if(lh)msgs.push(lh)}
   if(S.cattle){const inc=S.cattle*35;earn(inc);msgs.push(`Cattle brought in ${fmt(inc)}.`)}
@@ -1724,11 +1750,13 @@ function dogProfile(id){
   <h3>Stats <span class="small muted">current / genetic potential</span></h3>${statBars(d)}
   <div class="row small" style="margin-top:6px"><span class="tag">Bay score ${Math.round(bayScore(d))}</span><span class="tag">Catch score ${Math.round(catchScore(d))}</span><span class="tag">Hunts ${d.hunt.n}</span><span class="tag">Bays ${d.hunt.bays}</span><span class="tag">Catches ${d.hunt.catches}</span><span class="tag">Training sessions ${d.trained}</span></div>
   <h3>Genetics</h3><p class="small" style="margin:0 0 6px"><b>Coat:</b> ${esc(coatName(d))}</p><p class="small" style="margin:0 0 6px"><b>Genetic ID:</b> <span class="gt" style="user-select:all">${esc(geneticId(d))}</span></p><p class="small" style="margin:0 0 6px"><b>Eyes:</b> ${(()=>{const c=gameCoat(d);return c.eyes===c.eyes2?esc(c.eyes):esc(c.eyes)+' and '+esc(c.eyes2)+' (mismatched)'})()}</p><p class="small muted" style="margin:0 0 6px">White modifier ${(d.whiteMod||0)>=0?'+':''}${Math.round((d.whiteMod||0)*100)}%, pattern strength ${Math.round((d.patMod??.5)*100)}%</p>
-  <div class="tablewrap"><table>${Object.entries(LOCI).map(([L,o])=>`<tr><td>${o.name}</td><td class="gt">${d.genes[L].join(' / ')}</td></tr>`).join('')}</table></div>
+  <div class="tablewrap"><table>${Object.entries(LOCI).map(([L,o])=>`<tr><td>${o.name}</td><td><span class="gt">${genoText(d,L,' / ')}</span>${d.genes[L].some(a=>!known(a))?' <span class="small muted">Unknown trait</span>':''}</td></tr>`).join('')}</table></div>
+  ${(()=>{const u=unknownCarried(d);return u.length?`<div class="panel small" style="margin-top:8px"><b>${u.length} unknown trait${u.length>1?'s':''}</b> <span class="muted">${d.dna?'DNA tested.':'Breed or DNA-test this dog to learn more.'}</span>${u.map(a=>`<div class="spread" style="gap:8px;margin-top:4px"><span class="muted">Unknown trait</span><div class="meter" style="height:6px;flex:1;max-width:140px"><i style="width:${researchPct(a)}%;background:var(--gold)"></i></div><span class="num muted">${researchPct(a)}%</span></div>`).join('')}</div>`:''})()}
   <h3>Pedigree</h3>${ped}
   <h3>Actions</h3><div class="row">
    <button class="btn sm alt" data-act="goTrain" data-id="${d.id}">Train</button>
    <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>
+   <button class="btn sm alt" data-act="dnaTest" data-id="${d.id}" ${d.dna||S.money<DNA_TEST?'disabled':''}>${d.dna?'DNA tested':'DNA test ('+fmt(DNA_TEST)+')'}</button>
    <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>
    <button class="btn sm ghost" data-act="setPair" data-id="${d.id}" ${isAdult(d)?'':'disabled'}>Use for breeding</button>
    <button class="btn sm" data-act="sell" data-id="${d.id}">Sell for ${fmt(salePrice(d))}</button>${inClaude?'':`<button class="btn sm alt" data-act="sellOnline" data-id="${d.id}">Sell online</button>${d.sex==='M'&&isAdult(d)?`<button class="btn sm alt" data-act="studOnline" data-id="${d.id}">Offer at stud</button>`:''}`}</div>`);
@@ -1753,10 +1781,11 @@ SCREENS.breed=()=>{
   }
   const opt=(list,sel)=>'<option value="">Choose…</option>'+list.map(d=>`<option value="${d.id}" ${d.id===sel?'selected':''}>${esc(d.name)} — ${esc(breedName(d))} (${esc(coatName(d))})</option>`).join('');
   return `<h2>Breeding center</h2><p class="sub">Pick a sire and a dam. Genes pass down one allele from each parent; dominant alleles mask recessive ones.</p>
-  <div class="grid wide"><div class="panel"><label><b>Sire ♂</b><br><select data-f="sire" style="width:100%;margin-top:4px">${opt(sires,UI.sire)}</select></label>${sire?`<div class="art" style="display:flex;justify-content:center">${dogArt(sire,200)}</div><div class="small gt">${Object.keys(LOCI).map(L=>sire.genes[L].join('')).join(' ')}</div>`:''}</div>
-  <div class="panel"><label><b>Dam ♀</b><br><select data-f="dam" style="width:100%;margin-top:4px">${opt(dams,UI.dam)}</select></label>${dam?`<div class="art" style="display:flex;justify-content:center">${dogArt(dam,200)}</div><div class="small gt">${Object.keys(LOCI).map(L=>dam.genes[L].join('')).join(' ')}</div>`:''}</div></div>
+  <div class="grid wide"><div class="panel"><label><b>Sire ♂</b><br><select data-f="sire" style="width:100%;margin-top:4px">${opt(sires,UI.sire)}</select></label>${sire?`<div class="art" style="display:flex;justify-content:center">${dogArt(sire,200)}</div><div class="small gt">${Object.keys(LOCI).map(L=>genoText(sire,L,'')).join(' ')}</div>`:''}</div>
+  <div class="panel"><label><b>Dam ♀</b><br><select data-f="dam" style="width:100%;margin-top:4px">${opt(dams,UI.dam)}</select></label>${dam?`<div class="art" style="display:flex;justify-content:center">${dogArt(dam,200)}</div><div class="small gt">${Object.keys(LOCI).map(L=>genoText(dam,L,'')).join(' ')}</div>`:''}</div></div>
   ${!sires.length||!dams.length?`<p class="small muted">You need an adult male and an available adult female (healthy, not resting after a litter).</p>`:''}
   ${pred}
+  ${discoveryPanel()}
   <h3>In the barn</h3>${S.preg.length?S.preg.map(p=>{const d=S.dogs.find(x=>x.id===p.dam);return `<div class="panel" style="margin-bottom:6px">${esc(d?d.name:'?')} × ${esc(p.sireSnap.name)} — due day ${p.due}</div>`}).join(''):'<p class="small muted">No litters on the way.</p>'}`;
 };
 SCREENS.market=()=>{
@@ -1781,7 +1810,7 @@ function marketView(id){
   openSheet(`<div class="small muted num">${d.id}</div><h2 style="margin-top:2px">${esc(d.name)} <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span></h2>
   <div class="dcard" style="--rc:var(${RAR[rarTier(d)][1]});padding:0;border-width:0 0 4px"><div class="art">${dogArt(d,300)}</div></div>
   <div class="row" style="margin:8px 0">${rarTag(d)}${d.mut?'<span class="tag" style="background:var(--gold);color:#fff">✦ Mutation</span>':''}<span class="tag">${esc(breedName(d))}</span><span class="tag">${ageStr(d.age)}</span><span class="tag">${d.kg} kg</span><span class="tag">${esc(d.temp)}</span></div>
-  <p class="small"><b>Coat:</b> ${esc(coatName(d))} <span class="gt muted">${Object.keys(LOCI).map(L=>d.genes[L].join('')).join(' ')}</span></p>
+  <p class="small"><b>Coat:</b> ${esc(coatName(d))} <span class="gt muted">${Object.keys(LOCI).map(L=>genoText(d,L,'')).join(' ')}</span></p>
   ${statBars(d)}
   <div style="margin-top:12px"><button class="btn big" data-act="buy" data-id="${d.id}" ${S.money>=d.price&&S.dogs.length<cap(S.up.kennel)?'':'disabled'}>Buy for ${fmt(d.price)}</button>
   ${S.dogs.length>=cap(S.up.kennel)?'<p class="small muted">Your kennel is full. Sell a dog or upgrade the kennel.</p>':S.money<d.price?'<p class="small muted">Not enough cash.</p>':''}</div>`);
@@ -2003,6 +2032,9 @@ const A={
   const v=salePrice(dog);addRep({good:.4,std:0,poor:-.8,defect:-1.5}[g.k],`Sold ${dog.name} (${g.label.toLowerCase()})`);earn(v);S.dogs=S.dogs.filter(x=>x.id!==dog.id);S.preg=S.preg.filter(p=>p.dam!==dog.id);
   ['sire','dam','trainDog'].forEach(k=>{if(UI[k]===dog.id)UI[k]=''});UI.huntSel.bay=UI.huntSel.bay.filter(x=>x!==dog.id);UI.huntSel.catch=UI.huntSel.catch.filter(x=>x!==dog.id);
   S.st.sold++;gainXP(10);addLog(`Sold ${dog.name} for ${fmt(v)}.`);toast(`Sold ${dog.name} for ${fmt(v)}.`);sfx.coin();save();closeSheet();render()},
+ dnaTest:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog||dog.dna||S.money<DNA_TEST)return;S.money-=DNA_TEST;dog.dna=true;const u=unknownCarried(dog);
+  u.forEach(a=>research(a,1,`DNA test on ${dog.name}`));addLog(`DNA-tested ${dog.name}: ${u.length?u.length+' unknown trait'+(u.length>1?'s':'')+' found':'no unknown traits'}.`);
+  toast(u.length?`${dog.name} carries ${u.length} unknown trait${u.length>1?'s':''}. Research advanced.`:`${dog.name} carries no unknown traits.`);save();render();dogProfile(dog.id)},
  rename:d=>{const dog=S.dogs.find(x=>x.id===d.id);const n=prompt('New name',dog.name);if(n&&n.trim()){dog.name=n.trim().slice(0,24);save();render();dogProfile(dog.id)}},
  useLin:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!S.inv.liniment)return;S.inv.liniment--;dog.health=Math.min(dog.hcap,dog.health+35);save();render();dogProfile(dog.id);toast(`${dog.name} feels better.`)},
  setPair:d=>{const dog=S.dogs.find(x=>x.id===d.id);UI[dog.sex==='M'?'sire':'dam']=dog.id;UI.tab='breed';closeSheet();render()},
