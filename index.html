@@ -1873,11 +1873,11 @@ function finishHunt(win,lines){
 
 // ---------- other screens ----------
 SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennel, barn, land and gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
-const upCost=(k,l)=>Math.round(UPGRADES[k].base*Math.pow(2.2,l-1)/10)*10, upReq=l=>Math.max(1,(l-1)*2);
+const upCost=(k,l)=>Math.round(UPGRADES[k].base*Math.pow(2.2,l-1)/10)*10;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Bigger facilities unlock more dogs, litters, hunting grounds and animals. Max level 5.</p>
- <div class="grid wide">${Object.entries(UPGRADES).map(([k,u])=>{const l=S.up[k],max=l>=5,cost=upCost(k,l),req=upReq(l+1);
+ <div class="grid wide">${Object.entries(UPGRADES).map(([k,u])=>{const l=S.up[k],max=l>=5,cost=upCost(k,l);
   return `<div class="panel"><div class="spread"><b>${u.name}</b><span class="tag">Level ${l}</span></div><div class="small">${u.desc(l)}</div>
-  ${max?'<p class="small muted">Fully upgraded.</p>':`<p class="small muted" style="margin:6px 0">Next: ${u.desc(l+1)}</p><button class="btn sm" data-act="upgrade" data-k="${k}" ${S.money>=cost&&S.level>=req?'':'disabled'}>Upgrade ${fmt(cost)}</button>${S.level<req?` <span class="small muted">Needs level ${req}</span>`:''}`}</div>`}).join('')}</div>`;
+  ${max?'<p class="small muted">Fully upgraded.</p>':`<p class="small muted" style="margin:6px 0">Next: ${u.desc(l+1)}</p><button class="btn sm" data-act="upgrade" data-k="${k}" ${S.money>=cost?'':'disabled'}>Upgrade ${fmt(cost)}</button>`}</div>`}).join('')}</div>`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${50*S.up.storage}.</p>
  <div class="grid wide">${Object.entries(ITEMS).map(([k,it])=>`<div class="panel"><div class="spread"><b>${it.name}</b><span class="tag num">${S.inv[k]} owned</span></div><div class="small muted">${it.desc}</div>
  <div style="margin-top:8px"><button class="btn sm" data-act="buyItem" data-k="${k}" ${S.money>=it.price&&(k!=='feed'||S.inv.feed+it.qty<=50*S.up.storage)&&(k!=='collar'||!S.inv.collar)?'':'disabled'}>Buy${it.qty>1?' '+it.qty:''} for ${fmt(it.price)}</button></div></div>`).join('')}</div>`;
@@ -1967,7 +1967,7 @@ const A={
  hcell:d=>huntCell(+d.i),
  hrelease:()=>huntRelease(),
  hagain:()=>{UI.hunt=null;const ok=id=>{const x=S.dogs.find(z=>z.id===id);return x&&x.energy>=35&&x.health>=40};UI.huntSel.bay=UI.huntSel.bay.filter(ok);UI.huntSel.catch=UI.huntSel.catch.filter(ok);render()},
- upgrade:d=>{const l=S.up[d.k],cost=upCost(d.k,l);if(l>=5||S.money<cost||S.level<upReq(l+1))return sfx.bad();S.money-=cost;S.up[d.k]++;gainXP(40);addLog(`Upgraded ${UPGRADES[d.k].name} to level ${l+1}.`);toast(`${UPGRADES[d.k].name} upgraded.`);sfx.win();checkAch();save();render()},
+ upgrade:d=>{const l=S.up[d.k],cost=upCost(d.k,l);if(l>=5||S.money<cost)return sfx.bad();S.money-=cost;S.up[d.k]++;gainXP(40);addLog(`Upgraded ${UPGRADES[d.k].name} to level ${l+1}.`);toast(`${UPGRADES[d.k].name} upgraded.`);sfx.win();checkAch();save();render()},
  buyItem:d=>{const it=ITEMS[d.k];if(S.money<it.price)return sfx.bad();S.money-=it.price;S.inv[d.k]+=it.qty;sfx.coin();save();render()},
  show:d=>runEvent(S.dogs.find(x=>x.id===d.id),'show'),
  trial:d=>runEvent(S.dogs.find(x=>x.id===d.id),'trial'),
