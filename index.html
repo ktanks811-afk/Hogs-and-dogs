@@ -205,7 +205,7 @@ const BREEDS={
  'Leopard Cur':{short:'Leopard',role:'bay',lvl:3,price:1000,kg:[18,35],ears:'drop',muz:1,pot:[68,56,72,66,74,60,50],freq:{M:{M:.4,m:.6},K:{K:.6,br:.2,y:.2}}},
  // Dogo: pot is the centre of each range; range bounds individual potential (spd str sta int trk obd grip)
  'Dogo Argentino':{short:'Dogo',role:'catch',group:'Working / Hunting',lvl:3,price:1400,kg:[36,45],ears:'rose',muz:.85,pot:[79,91,83,75,80,79,91],
-  range:[[70,88],[85,98],[75,92],[65,85],[70,90],[70,88],[85,98]],whiteBias:.05,freq:{L:{L:1,l:0},R:{R:0,r:1},B:{B:.95,b:.05},D:{D:.97,d:.03},E:{Em:.03,eg:0,E:.9,e:.07},K:{K:.95,br:0,y:.05},A:{ay:.4,as:.1,at:.3,a:.2},S:{S:0,sp:.06,sw:.94},M:{M:0,m:1},T:{T:.08,t:.92}}},
+  range:[[70,88],[85,98],[75,92],[65,85],[70,90],[70,88],[85,98]],whiteBias:.25,speckRate:0,freq:{L:{L:1,l:0},R:{R:0,r:1},B:{B:.95,b:.05},D:{D:.97,d:.03},E:{Em:.03,eg:0,E:.9,e:.07},K:{K:.95,br:0,y:.05},A:{ay:.4,as:.1,at:.3,a:.2},S:{S:0,sp:0,sw:1},M:{M:0,m:1},T:{T:0,t:1}}},
  'Gordon Setter':{short:'Setter',role:'bay',lvl:1,price:1300,kg:[25,36],ears:'hound',muz:1.2,pot:[70,50,76,72,74,72,40],freq:{L:{L:0,l:1},R:{R:.04,r:.96},K:{K:.04,br:0,y:.96},A:{ay:.02,as:.03,at:.95,a:0},E:{Em:0,eg:0,E:.93,e:.07},S:{S:.9,sp:.08,sw:.02},B:{B:.9,b:.1},D:{D:.97,d:.03},M:{M:0,m:1},T:{T:.06,t:.94}}},
  'Cane Corso':{short:'Corso',role:'catch',lvl:4,price:1600,kg:[40,50],ears:'drop',muz:.7,pot:[54,84,56,62,40,64,80],freq:{K:{K:.6,br:.3,y:.1},D:{D:.6,d:.4},S:{S:.95,sp:.05,sw:0}}}
 };
@@ -281,7 +281,7 @@ function sampleAllele(f){let r=R(),acc=0;for(const[a,p]of Object.entries(f)){acc
 function genesFor(b,rare){
   const g={};
   for(const L in LOCI){const f={...DEFAULT_FREQ[L],...((b.freq||{})[L]||{})};g[L]=sortPair(L,[sampleAllele(f),sampleAllele(f)])}
-  if(rare){const opts=[['D',['d','d']],['B',['b','b']],['M',['M','m']],['K',['br','br']]];const n=ri(1,2);for(let i=0;i<n;i++){const[L,p]=pick(opts);g[L]=sortPair(L,p)}}
+  if(rare){const never=(L,a)=>((b.freq||{})[L]||{})[a]===0,opts=[['D',['d','d']],['B',['b','b']],['M',['M','m']],['K',['br','br']]].filter(([L,p])=>!never(L,p[0]));const n=ri(1,2);for(let i=0;i<n&&opts.length;i++){const[L,p]=pick(opts);g[L]=sortPair(L,p)}}
   return g;
 }
 const EU_HEX={Black:'#1f1c1a',Blue:'#5d6874',Liver:'#6b3a24',Lilac:'#9a8a90'};
@@ -331,7 +331,7 @@ function makeDog(o){
   const age=o.age??ri(8,40);
   const d={id:newId(),name:o.name||pick(NAMES),breed:o.breed,cross:null,sex:o.sex||pick(['M','F']),age,genes:genesFor(b,o.rare),pot,stats:{},
     kg:r1(b.kg[0]+R()*(b.kg[1]-b.kg[0])),ears:b.ears,muz:b.muz,temp:pick(TEMPS),health:100,hcap:100,energy:100,
-    hunt:{n:0,bays:0,catches:0,xp:0},trained:0,parents:null,gen:0,base:b.price,mut:!!o.mut,cool:0,lastShow:0,lastTrial:0,whiteMod:Math.round((r1((R()-.5)*.3*10)/10+(b.whiteBias||0))*100)/100,patMod:Math.round(R()*100)/100,coatInt:Math.round((.3+R()*.4)*100)/100,eyes:'Auto',eyes2:'Auto',merleMod:Math.round((.2+R()*.6)*100)/100,tickMod:Math.round((.3+R()*.4)*100)/100,speckMod:R()<(o.breed==='Treeing Walker'?.6:.2)?Math.round(R()*70)/100:0,featherMod:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherMod+gauss()*.06,0,1)*100)/100:Math.round((.1+R()*.5)*100)/100,featherDen:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherDen+gauss()*.06,0,1)*100)/100:Math.round((.2+R()*.6)*100)/100,texture:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.texture+gauss()*.08,0,1)*100)/100:Math.round(R()*35)/100,seed:ri(1,99999)};
+    hunt:{n:0,bays:0,catches:0,xp:0},trained:0,parents:null,gen:0,base:b.price,mut:!!o.mut,cool:0,lastShow:0,lastTrial:0,whiteMod:Math.round((r1((R()-.5)*.3*10)/10+(b.whiteBias||0))*100)/100,patMod:Math.round(R()*100)/100,coatInt:Math.round((.3+R()*.4)*100)/100,eyes:'Auto',eyes2:'Auto',merleMod:Math.round((.2+R()*.6)*100)/100,tickMod:Math.round((.3+R()*.4)*100)/100,speckMod:R()<(b.speckRate??(o.breed==='Treeing Walker'?.6:.2))?Math.round(R()*70)/100:0,featherMod:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherMod+gauss()*.06,0,1)*100)/100:Math.round((.1+R()*.5)*100)/100,featherDen:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherDen+gauss()*.06,0,1)*100)/100:Math.round((.2+R()*.6)*100)/100,texture:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.texture+gauss()*.08,0,1)*100)/100:Math.round(R()*35)/100,seed:ri(1,99999)};
   const gf=growFactor(age);STATS.forEach(([k])=>d.stats[k]=Math.min(pot[k],Math.round(pot[k]*gf*(.9+R()*.15))));
   d.morph=pureMorph(o.breed);d.kg=d.morph.t.weight;d.bl=foundationBl(d);
   geneHealth(d);return d;
@@ -353,7 +353,7 @@ function makePuppy(sire,dam){
     kg:r1(clamp((sire.kg+dam.kg)/2+gauss()*2.5,9,62)),ears:pick([sire.ears,dam.ears]),muz:r1((sire.muz+dam.muz)/2),
     temp:R()<.7?pick([sire.temp,dam.temp]):pick(TEMPS),health:100,hcap:100,energy:100,hunt:{n:0,bays:0,catches:0,xp:0},trained:0,
     parents:[snap(sire),snap(dam)],gen:Math.max(sire.gen,dam.gen)+1,base:Math.round((sire.base+dam.base)/2),mut,cool:0,lastShow:0,lastTrial:0};
-  d.coatInt=clamp(((sire.coatInt??.5)+(dam.coatInt??.5))/2+gauss()*.06,0,1);{const ep=R()<.5?pick([[sire.eyes||'Auto',sire.eyes2||sire.eyes||'Auto'],[dam.eyes||'Auto',dam.eyes2||dam.eyes||'Auto']]):['Auto','Auto'];d.eyes=ep[0];d.eyes2=ep[1]}d.merleMod=Math.round(clamp(((sire.merleMod??.5)+(dam.merleMod??.5))/2+gauss()*.08,0,1)*100)/100;d.tickMod=Math.round(clamp(((sire.tickMod??.5)+(dam.tickMod??.5))/2+gauss()*.08,0,1)*100)/100;d.speckMod=Math.round(clamp(((sire.speckMod||0)+(dam.speckMod||0))/2+gauss()*.08,0,1)*100)/100;{const inh=(k,def,sdv)=>Math.round(clamp(((sire[k]??def)+(dam[k]??def))/2+gauss()*sdv,0,1)*100)/100;d.featherMod=inh('featherMod',.3,.12);d.featherDen=inh('featherDen',.5,.12);d.texture=inh('texture',.1,.1)}d.seed=ri(1,99999);
+  d.coatInt=clamp(((sire.coatInt??.5)+(dam.coatInt??.5))/2+gauss()*.06,0,1);{const ep=R()<.5?pick([[sire.eyes||'Auto',sire.eyes2||sire.eyes||'Auto'],[dam.eyes||'Auto',dam.eyes2||dam.eyes||'Auto']]):['Auto','Auto'];d.eyes=ep[0];d.eyes2=ep[1]}d.merleMod=Math.round(clamp(((sire.merleMod??.5)+(dam.merleMod??.5))/2+gauss()*.08,0,1)*100)/100;d.tickMod=Math.round(clamp(((sire.tickMod??.5)+(dam.tickMod??.5))/2+gauss()*.08,0,1)*100)/100;d.speckMod=(sire.speckMod||dam.speckMod)?Math.round(clamp(((sire.speckMod||0)+(dam.speckMod||0))/2+gauss()*.08,0,1)*100)/100:0;{const inh=(k,def,sdv)=>Math.round(clamp(((sire[k]??def)+(dam[k]??def))/2+gauss()*sdv,0,1)*100)/100;d.featherMod=inh('featherMod',.3,.12);d.featherDen=inh('featherDen',.5,.12);d.texture=inh('texture',.1,.1)}d.seed=ri(1,99999);
   d.whiteMod=clamp(((sire.whiteMod||0)+(dam.whiteMod||0))/2+gauss()*.05,-.2,.2);d.patMod=clamp(((sire.patMod??.5)+(dam.patMod??.5))/2+gauss()*.1,0,1);
   finishPuppy(d,sire,dam);
   const q2=v=>Math.round(v*100)/100;d.whiteMod=q2(d.whiteMod);d.patMod=q2(d.patMod);d.coatInt=q2(d.coatInt);
@@ -512,7 +512,7 @@ const TEMPLATES={
   'American Bulldog':{code:'AMBD',body:'bulldog_stack_v1',freq:{E:{Em:.15,eg:0,E:.6,e:.25},A:{ay:.5,as:.1,at:.2,a:.2},K:{K:.3,br:.4,y:.3},S:{S:.1,sp:.4,sw:.5},M:{M:.04,m:.96},T:{T:.08,t:.92},B:{B:.7,b:.3},D:{D:.85,d:.15}}},
   'Catahoula Leopard Dog':{code:'CATA',body:'catahoula_stack_v1',freq:{M:{M:.5,m:.5},K:{K:.55,br:.12,y:.33},A:{ay:.3,as:.1,at:.45,a:.15},E:{Em:.1,eg:0,E:.7,e:.2},S:{S:.7,sp:.2,sw:.1},B:{B:.75,b:.25},D:{D:.8,d:.2},T:{T:.1,t:.9}}},
   'Treeing Walker':{code:'TWC',body:'walker_stack_v1',aliases:['Treeing Walker Coonhound','Walker','Walker Coonhound'],freq:{S:{S:.05,sp:.55,sw:.4},K:{K:.15,br:.05,y:.8},A:{ay:.15,as:.3,at:.5,a:.05},E:{Em:.03,eg:0,E:.85,e:.12},T:{T:.45,t:.55},M:{M:.01,m:.99},B:{B:.92,b:.08},D:{D:.95,d:.05}}},
-  'Dogo Argentino':{code:'DOGO',body:'dogo_stack_v1',lineBase:{S:['sw','sw']},freq:{L:{L:1,l:0},R:{R:0,r:1},B:{B:.95,b:.05},D:{D:.97,d:.03},E:{Em:.03,eg:0,E:.9,e:.07},K:{K:.95,br:0,y:.05},A:{ay:.4,as:.1,at:.3,a:.2},S:{S:0,sp:.06,sw:.94},M:{M:0,m:1},T:{T:.08,t:.92}}},
+  'Dogo Argentino':{code:'DOGO',body:'dogo_stack_v1',lineBase:{S:['sw','sw']},freq:{L:{L:1,l:0},R:{R:0,r:1},B:{B:.95,b:.05},D:{D:.97,d:.03},E:{Em:.03,eg:0,E:.9,e:.07},K:{K:.95,br:0,y:.05},A:{ay:.4,as:.1,at:.3,a:.2},S:{S:0,sp:0,sw:1},M:{M:0,m:1},T:{T:0,t:1}}},
   'Cane Corso':{code:'CORS',body:'bulldog_stack_v1',proxy:true},
   'Plott Hound':{code:'PLOT',body:'walker_stack_v1',proxy:true},
   'Blue Lacy':{code:'LACY',body:'cur_stack_v1',proxy:true},
@@ -1009,9 +1009,8 @@ const LINEUPS={
   'Speckled tri':{K:['y','y'],A:['at','at'],S:['sp','sw'],speckMod:.85,eyes:'Hazel'},'Saddle':{K:['y','y'],A:['as','as'],S:['sp','sw'],whiteMod:-.2,eyes:'Brown'},
   'Piebald':{S:['sp','sp'],whiteMod:.1,eyes:'Brown'},'Masked':{K:['y','y'],E:['Em','E'],S:['S','sp'],eyes:'Brown'},'Brindle mix':{K:['br','br'],S:['sp','sw'],whiteMod:-.2,eyes:'Amber'},
   'Reverse brindle mix':{K:['br','br'],patMod:.92,S:['S','sw'],eyes:'Brown'},'Blue and white':{D:['d','d'],S:['sp','sw'],eyes:'Amber'},'Merle mix':{M:['M','m'],K:['y','y'],A:['at','at'],S:['sp','sw'],whiteMod:-.2,eyes:'Blue',eyes2:'Brown'}},
- 'Dogo Argentino':{'Pure white':{whiteMod:.1,eyes:'Brown'},'White, dark eye patch':{whiteMod:0,eyes:'Brown'},'White, patch & amber eyes':{whiteMod:.03,eyes:'Amber'},
-  'White with patches':{S:['sp','sw'],whiteMod:.05,eyes:'Brown'},'White, light ticking':{T:['T','t'],tickMod:.15,whiteMod:.02,eyes:'Hazel'},'White, ticked':{T:['T','T'],tickMod:.45,whiteMod:.02,eyes:'Brown'},
-  'White, liver patch':{B:['b','b'],coatInt:.4,whiteMod:-.03,eyes:'Amber'},'Odd eyes':{whiteMod:.1,eyes:'Brown',eyes2:'Blue'}},
+ 'Dogo Argentino':{'Pure white':{whiteMod:.3,eyes:'Brown'},'White, amber eyes':{whiteMod:.3,eyes:'Amber'},'White, hazel eyes':{whiteMod:.3,eyes:'Hazel'},'Odd eyes':{whiteMod:.3,eyes:'Brown',eyes2:'Blue'},
+  'White, liver nose':{B:['b','b'],coatInt:.4,whiteMod:.3,eyes:'Amber'},'Patch carrier':{S:['sp','sw'],whiteMod:.35,eyes:'Brown'},'Liver carrier':{B:['B','b'],whiteMod:.3,eyes:'Brown'}},
  'Gordon Setter':{'Black & tan':{K:['y','y'],A:['at','at']},'Black':{},'Liver & tan':{K:['y','y'],A:['at','at'],B:['b','b'],coatInt:.4},'Liver':{B:['b','b'],coatInt:.4},'Chocolate':{B:['b','b'],coatInt:.8},
   'Red':{E:['e','e'],B:['b','b']},'Black with white markings':{S:['S','sp']},'Light tan points':{K:['y','y'],A:['at','at'],patMod:.15},'Heavy tan points':{K:['y','y'],A:['at','at'],patMod:.9},
   'White spotting':{K:['y','y'],A:['at','at'],S:['sp','sw']},'Ticked':{K:['y','y'],A:['at','at'],S:['sp','sw'],T:['T','T']},'Blue roan':{S:['sp','sw'],R:['R','R']},
