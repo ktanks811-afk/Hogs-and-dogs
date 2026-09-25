@@ -1105,6 +1105,7 @@ function migrate(){
     const L=Coat.LINEUPS['Dogo Argentino'];if(S.lineups&&(S.lineups['Dogo Argentino']||[]).some(d=>!L[d.lineup]))S.lineups['Dogo Argentino']=Object.keys(L).map(n=>makeLineupDog('Dogo Argentino',n));
     S.dogoWhite=true}
   if(S.land&&!S.land.origin){worldMigrate(S.land);addLog(`${S.land.name} now sits in real wilderness near ${S.land.place}. Everything you built came with it.`)}
+  if(!S.st.bestHog&&S.st.best>0)S.st.bestHog={w:S.st.best,name:S.st.bestName||'Hog',key:null,area:'',dogs:'',day:0};
   if(!S.land){legacyProperty();addLog(`Your ranch now sits on the ${S.land.name} (${LAND_TIERS[S.land.tier].name}). Visit Land & property to build.`)}
   syncLandLevel();
   save();
@@ -1897,6 +1898,8 @@ function huntPlay(){const h=UI.hunt;if(h.phase==='sim'&&h.sim)return huntPlayLiv
    <div style="margin-top:8px">${r.lines.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
    <div style="margin-top:12px" class="row"><button class="btn" data-act="hagain">Hunt again</button><button class="btn ghost" data-act="tab" data-t="home">Return to ranch</button></div></div>
   <h3>Hunt log</h3><div class="panel log">${h.log.slice(0,40).map(l=>`<div>${esc(l)}</div>`).join('')}</div>`}
+// every catch goes to the online biggest-hog board (quietly; the local record stands either way)
+async function recordHogOnline(h,dogs){if(inClaude)return;try{await sbRpc('hd_record_hog',{...(await A2()),p_ranch:S.name,p_hog:h.hogKey,p_weight:h.hog.w,p_area:h.area.id,p_dogs:dogs});UI.hogBoard={}}catch(e){console.warn('hog board',e)}}
 function finishHunt(win,lines){
   const h=UI.hunt;h.phase='done';const S2=h.sim;
   const bays=h.bay.map(huntDog).filter(Boolean),cd=h.catch.map(huntDog).filter(Boolean);
@@ -1921,7 +1924,10 @@ function finishHunt(win,lines){
     const rt=S2&&S2.bayAt!==undefined&&S2.relAt!==undefined?S2.relAt-S2.bayAt:999,rd=S2&&S2.relDist!==undefined?S2.relDist:999;
     bonus=Math.min(.25,(rd<60?.1:rd<150?.05:0)+(rt<180?.1:rt<420?.05:0)+(S2&&S2.t<1800?.05:0));
     pay=Math.round(h.hog.w*4*h.hog.mult*(1+(h.area.land-1)*.08+bonus));
-    const pen=S.land&&S.land.penHogs&&(S.land.hogs||[]).length<hogCap();if(pen)S.land.hogs.push({w:h.hog.w,pay});else earn(pay);h.lastPay=pay;S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}if(h.hogKey==='ghost'){S.ach._ghost=1;S.st.bestName='Ghost boar'}
+    const pen=S.land&&S.land.penHogs&&(S.land.hogs||[]).length<hogCap();if(pen)S.land.hogs.push({w:h.hog.w,pay});else earn(pay);h.lastPay=pay;S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}
+    const catchers=(S2?S2.dogs.filter(g=>g.role==='catch'&&g.m.catchT>0).map(g=>g.name):cd.map(d=>d.name)).join(' & ');
+    if(!S.st.bestHog||h.hog.w>S.st.bestHog.w){if(S.st.bestHog)lines.push(`New personal best! Your old record was ${S.st.bestHog.w} lb.`);S.st.bestHog={w:h.hog.w,name:h.hog.name,key:h.hogKey,area:h.area.id,dogs:catchers,day:S.day}}
+    recordHogOnline(h,catchers);if(h.hogKey==='ghost'){S.ach._ghost=1;S.st.bestName='Ghost boar'}
     const holder=(S2&&S2.dogs.filter(g=>g.role==='catch').sort((a,b)=>b.m.catchT-a.m.catchT)[0])||{name:cd[0].name};
     lines.unshift(`${holder.name} caught the ${h.hog.w} lb ${h.hog.name.toLowerCase()}. ${pen?`Penned to fatten; it sells tomorrow for ${fmt(Math.round(pay*1.25))}.`:`Sold for ${fmt(pay)}.`}`);
     pxp=Math.round(15+h.hog.w/5+bonus*40);addLog(`Caught a ${h.hog.w} lb ${h.hog.name.toLowerCase()} in ${h.area.name} for ${fmt(pay)}.`);
@@ -3051,13 +3057,42 @@ SCREENS.profile=()=>`<h2>Player profile</h2>
  <div class="grid">${ACH.map(([id,n,d])=>`<div class="panel ${S.ach[id]?'':'lock'}"><b>${S.ach[id]?'🏅':'🔒'} ${n}</b><div class="small muted">${d}</div></div>`).join('')}</div>
  <h3>Settings</h3><div class="row"><button class="btn sm ghost" data-act="sound">Sound: ${S.sound?'on':'off'}</button><button class="btn sm ghost" data-act="theme">Theme: ${S.theme||'auto'}</button><button class="btn sm ghost" data-act="reset" style="color:var(--bad)">Start a new ranch</button></div>
  <p class="small muted">Progress saves automatically in this browser.</p>`;
+// rival ranches have a record hog too (steady per ranch, grows a little with their score)
+const rivalHog=r=>{const h=hashStr(r.name+'|hog'),keys=['feral','razor','spotted','russian','ghost'],k=keys[Math.min(4,Math.floor((h%1000)/1000*3+r.score/30000))],H=HOGS[k];
+  return{ranch:r.name,hog_name:H.name,hog_key:k,weight:Math.round(H.w[0]+(H.w[1]-H.w[0])*((h>>>10)%100)/100),area:AREAS[(h>>>4)%4].id,dogs:'',rival:true}};
+function myBestHog(){const b=S.st.bestHog;return b?{ranch:S.name,hog_name:b.name,hog_key:b.key,weight:b.w,area:b.area,dogs:b.dogs||'',caught_at:null,day:b.day,me:true}:null}
+UI.lb='ranch';UI.lbPeriod='all';UI.hogBoard={};
+async function loadHogBoard(period,force){const c=UI.hogBoard[period];if(c&&!force&&Date.now()-c.t<60000&&!c.err)return;
+  UI.hogBoard[period]={rows:c?c.rows:null,t:Date.now(),loading:true};
+  try{const rows=await sbRpc('hd_hog_board',{p_period:period,p_limit:50});UI.hogBoard[period]={rows:rows||[],t:Date.now()}}
+  catch(e){UI.hogBoard[period]={rows:null,t:Date.now(),err:e.message}}
+  if(UI.tab==='leaders'&&UI.lb==='hog')render()}
+function hogBoardHtml(){const per=UI.lbPeriod,c=UI.hogBoard[per],online=!inClaude&&c&&c.rows,me=myBestHog(),pid=S.online&&S.online.pid;
+  if(!inClaude&&!c)loadHogBoard(per);
+  const area=k=>{const a=AREAS.find(x=>x.id===k);return a?a.name:''};
+  let rows,note;
+  if(online){rows=c.rows.map(r=>({...r,ranch:r.ranch_name,me:r.player_id===pid}));note=per==='week'?'Each player’s biggest hog caught in the last 7 days.':'Each player’s biggest hog ever caught. Every hog you catch is sent here automatically.'}
+  else{rows=[...S.rivals.map(rivalHog),...(me?[me]:[])].sort((a,b)=>b.weight-a.weight);note=inClaude?'Online rankings work on the public website; this is your county.':c&&c.err?'Couldn’t reach the online board, so this is your county for now.':'Loading the online board…'}
+  const mine=rows.findIndex(r=>r.me);
+  return `<div class="seg" style="margin:8px 0">${[['all','All time'],['week','This week']].map(([k,l])=>`<button class="${per===k?'on':''}" data-act="lbper" data-k="${k}">${l}</button>`).join('')}</div>
+  <div class="panel" style="margin-bottom:10px"><div class="spread"><div><b>Your biggest hog</b><div class="small muted">${me?`${esc(me.hog_name)} · ${esc(area(me.area))}${me.dogs?' · caught by '+esc(me.dogs):''}`:'No hog caught yet. Go hunt one!'}</div></div>
+   <div style="text-align:right"><div class="num" style="font-size:22px;font-weight:800;white-space:nowrap">${me?me.weight+' lb':'—'}</div>${mine>=0?`<div class="small muted">Rank #${mine+1}</div>`:''}</div></div></div>
+  <p class="small muted">${note}</p>
+  <div class="panel tablewrap"><table><tr><th>#</th><th>Ranch</th><th>Hog</th><th style="text-align:right">Weight</th></tr>
+   ${rows.slice(0,50).map((r,i)=>`<tr style="${r.me?'font-weight:700;color:var(--blaze)':''}"><td>${i<3?['🥇','🥈','🥉'][i]:i+1}</td><td>${esc(r.ranch)}${r.me?' (you)':''}</td>
+    <td>${esc(r.hog_name)}<div class="small muted">${esc(area(r.area))}${r.dogs?' · '+esc(r.dogs):''}${r.caught_at?' · '+new Date(r.caught_at).toLocaleDateString():''}</div></td><td class="num" style="text-align:right"><b>${r.weight} lb</b></td></tr>`).join('')||`<tr><td colspan="4" class="muted">${per==='week'?'No hogs caught this week yet. Be the first!':'No hogs on the board yet. Be the first!'}</td></tr>`}</table></div>
+  ${online?`<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="lbrefresh">Refresh</button></div>`:''}`}
 SCREENS.leaders=()=>{const rows=[...S.rivals.map(r=>({n:r.name,s:r.score})),{n:S.name,s:netWorth()+S.st.hogs*200,me:1}].sort((a,b)=>b.s-a.s);
- return `<h2>Leaderboard</h2><p class="sub">County ranch rankings by net worth and hunting record. Rivals grow a little every day.</p>
- <div class="panel tablewrap"><table><tr><th>#</th><th>Ranch</th><th style="text-align:right">Score</th></tr>${rows.map((r,i)=>`<tr style="${r.me?'font-weight:700;color:var(--blaze)':''}"><td>${i+1}</td><td>${esc(r.n)}${r.me?' (you)':''}</td><td class="num" style="text-align:right">${Math.round(r.s).toLocaleString()}</td></tr>`).join('')}</table></div>`};
+ return `<h2>Leaderboard</h2><div class="seg" style="margin:6px 0">${[['ranch','Ranch rankings'],['hog','🐗 Biggest hog']].map(([k,l])=>`<button class="${UI.lb===k?'on':''}" data-act="lbtab" data-k="${k}">${l}</button>`).join('')}</div>
+ ${UI.lb==='hog'?hogBoardHtml():`<p class="sub">County ranch rankings by net worth and hunting record. Rivals grow a little every day.</p>
+ <div class="panel tablewrap"><table><tr><th>#</th><th>Ranch</th><th style="text-align:right">Score</th></tr>${rows.map((r,i)=>`<tr style="${r.me?'font-weight:700;color:var(--blaze)':''}"><td>${i+1}</td><td>${esc(r.n)}${r.me?' (you)':''}</td><td class="num" style="text-align:right">${Math.round(r.s).toLocaleString()}</td></tr>`).join('')}</table></div>`}`};
 
 // ---------- actions ----------
 const A={
  tab:d=>{UI.tab=d.t;closeSheet();render();window.scrollTo(0,0)},
+ lbtab:d=>{UI.lb=d.k;render()},
+ lbper:d=>{UI.lbPeriod=d.k;render()},
+ lbrefresh:()=>loadHogBoard(UI.lbPeriod,true),
  closeSheet:()=>closeSheet(),
  endDay:()=>endDay(),
  kf:d=>{UI.kf=d.k;render()},
