@@ -1,4 +1,5 @@
 # Classify the reference painting into the land system's terrain tiles (2 image px per 5-yd tile).
+# Then run encode.py to build the elevation and the strings pasted into index.html as WORLD_TILES_B64 / WORLD_ELEV_B64.
 from PIL import Image,ImageDraw;import numpy as np;from scipy import ndimage as ndi
 im=np.array(Image.open('ref.png').convert('RGB')).astype(np.float32)
 H,W,_=im.shape;r,g,b=im[...,0],im[...,1],im[...,2]
