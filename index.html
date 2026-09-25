@@ -258,7 +258,7 @@ function freshState(){
     up:{kennel:1,yard:1,barn:1,gear:1,land:1,storage:1},inv:{feed:30,vitamins:0,liniment:1,vest:0,collar:0},
     horses:[],horseMarket:[],cattle:0,lastCattleShow:0,preg:[],ach:{},log:[],sound:true,theme:'',
     st:{hogs:0,best:0,bestName:'',litters:0,pups:0,sold:0,earned:0,races:0,raceWins:0,shows:0,showWins:0,hunts:0},
-    rivals:RIVALS.map(n=>({name:n,score:ri(9000,42000)})),welcomed:false};
+    rivals:RIVALS.map(n=>({name:n,score:ri(9000,42000)})),welcomed:false,dogoWhite:true};
   S.dogs.push(makeDog({breed:'Black Mouth Cur',sex:'F',age:22,name:'Dixie'}));
   S.dogs.push(makeDog({breed:'Mountain Cur',sex:'M',age:30,name:'Boone'}));
   S.dogs.push(makeDog({breed:'American Bulldog',sex:'M',age:26,name:'Tank'}));
@@ -1089,8 +1089,16 @@ function migrate(){
   [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{fix(d)}catch(e){console.error('fix',d&&d.id,e)}});
   [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{if(!d.bl&&d.pot)d.bl=foundationBl(d)}catch(e){}});
   setTimeout(()=>{try{[...S.dogs,...S.market,...S.featured].forEach(classifyCategory);save();render()}catch(e){}},0);
-  [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{if(!d.morph)d.morph=legacyMorph(d);if(d.breed==='Cross')d.cross=crossLabel(d.morph.anc)}catch(e){console.error('morph',d&&d.id,e)}});S.preg.forEach(p=>{if(p.sireSnap&&!p.sireSnap.morph)p.sireSnap.morph=legacyMorph(p.sireSnap)});S.preg.forEach(p=>fix(p.sireSnap));save();
+  [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{if(!d.morph)d.morph=legacyMorph(d);if(d.breed==='Cross')d.cross=crossLabel(d.morph.anc)}catch(e){console.error('morph',d&&d.id,e)}});S.preg.forEach(p=>{if(p.sireSnap&&!p.sireSnap.morph)p.sireSnap.morph=legacyMorph(p.sireSnap)});S.preg.forEach(p=>fix(p.sireSnap));
+  // one time: Dogos from before the white-genetics change become solid white; hidden liver/mask/fawn carriers stay
+  if(!S.dogoWhite){[...S.dogs,...S.market,...S.featured,...S.preg.map(p=>p.sireSnap)].forEach(whitenDogo);
+    const L=Coat.LINEUPS['Dogo Argentino'];if(S.lineups&&(S.lineups['Dogo Argentino']||[]).some(d=>!L[d.lineup]))S.lineups['Dogo Argentino']=Object.keys(L).map(n=>makeLineupDog('Dogo Argentino',n));
+    S.dogoWhite=true}
+  save();
 }
+function whitenDogo(d){if(!d||d.breed!=='Dogo Argentino'||d.cross||!d.genes)return;const g=d.genes;
+  g.S=['sw','sw'];g.T=['t','t'];g.R=['r','r'];if(g.M&&g.M.includes('M')){g.M=['m','m'];d.hcap=100}if(g.K&&g.K.includes('br'))g.K=sortPair('K',g.K.map(a=>a==='br'?'K':a));
+  d.speckMod=0;d.whiteMod=Math.max(d.whiteMod||0,.25)}
 
 // ---------- PROCEDURAL MIX-BREED GENETICS ----------
 // Every breed has a standardized profile. Add a breed = add one row here (+ a coat template in the engine).
