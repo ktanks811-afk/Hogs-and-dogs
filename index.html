@@ -429,7 +429,7 @@ function horseSVG(h,w=110){
 }
 
 // ---------- market ----------
-function unlockedBreeds(){return Object.keys(BREEDS).filter(b=>BREEDS[b].lvl<=S.level)}
+function unlockedBreeds(){return Object.keys(BREEDS)}
 function refreshMarket(){
   const bs=unlockedBreeds(),n=8+Math.min(6,S.level);
   S.market=[];for(let i=0;i<n;i++){const d=makeDog({breed:pick(bs),age:ri(3,48)});d.price=Math.round(dogValue(d)*(1.05+R()*.3)/5)*5;S.market.push(d)}
@@ -459,8 +459,7 @@ const xpNeed=l=>Math.round(100*Math.pow(l,1.55));
 function gainXP(n){
   S.xp+=Math.round(n);
   while(S.xp>=xpNeed(S.level)){S.xp-=xpNeed(S.level);S.level++;
-    const nb=Object.keys(BREEDS).filter(b=>BREEDS[b].lvl===S.level);
-    toast(`Level ${S.level}!`+(nb.length?' New breeds: '+nb.join(', '):''));addLog(`Reached ranch level ${S.level}.`);sfx.win()}
+    toast(`Level ${S.level}!`);addLog(`Reached ranch level ${S.level}.`);sfx.win()}
 }
 function earn(n,why){S.money+=n;S.st.earned+=n}
 const ACH=[
