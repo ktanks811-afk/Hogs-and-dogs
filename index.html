@@ -2181,6 +2181,7 @@ function finishHunt(win,lines){
     PR.offer(h,S2,pay);h.lastPay=pay;h.catchCard={name:h.hog.name,w:h.hog.w,pay,day:S.day,areaName:h.area.name,dogs:'Caught by '+(S2?S2.dogs.filter(g=>g.role==='catch').map(g=>g.name).join(' & '):'the dogs'),sp:S.pendingHog.sp,end:S.pendingHog.end,aggr:S.pendingHog.aggr,pend:{...S.pendingHog}};S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}
     const catchers=(S2?S2.dogs.filter(g=>g.role==='catch'&&g.m.catchT>0).map(g=>g.name):cd.map(d=>d.name)).join(' & ');
     if(!S.st.bestHog||h.hog.w>S.st.bestHog.w){if(S.st.bestHog)lines.push(`New personal best! Your old record was ${S.st.bestHog.w} lb.`);S.st.bestHog={w:h.hog.w,name:h.hog.name,key:h.hogKey,area:h.area.id,dogs:catchers,day:S.day}}
+    TROPHY.note(h,S2);
     recordHogOnline(h,catchers);if(h.hogKey==='ghost'){S.ach._ghost=1;S.st.bestName='Ghost boar'}
     const holder=(S2&&S2.dogs.filter(g=>g.role==='catch').sort((a,b)=>b.m.catchT-a.m.catchT)[0])||{name:cd[0].name};
     lines.unshift(`${holder.name} caught the ${h.hog.w} lb ${h.hog.name.toLowerCase()}. Worth ${fmt(pay)}.`);
@@ -4523,7 +4524,7 @@ const HOGG={
       (UI.newLitter=UI.newLitter||[]).push(...keep.map(x=>x.id))}},
   sell(h){const v=h.price;earn(v);S.hogs=S.hogs.filter(x=>x!==h);(S.hogRecords=S.hogRecords||[]).unshift({...HOGG.snap(h),sold:S.day,price:v});S.hogRecords=S.hogRecords.slice(0,300);
     addLog(`Sold ${h.name} (${h.id}, ${h.w} lb) for ${fmt(v)}.`);return v},
-  find(id){return S.hogs.find(h=>h.id===id)||(UI.hogPreview||[]).find(h=>h.id===id)||(UI.pendingHogView&&UI.pendingHogView.id===id?UI.pendingHogView:null)},
+  find(id){return S.hogs.find(h=>h.id===id)||(UI.hogPreview||[]).find(h=>h.id===id)||(UI.pendingHogView&&UI.pendingHogView.id===id?UI.pendingHogView:null)||(UI.trophyHogs||{})[id]||null},
   // older saves: training hogs become Hog Pin hogs with genes that fit them; an unanswered catch gets a seed and a sex
   migrate(){S.hogs=S.hogs||[];S.hogPin=S.hogPin||{ration:'standard'};S.hogPreg=undefined;
     const P=S.land;if(P&&P.trainHogs&&P.trainHogs.length){for(const t of P.trainHogs){const h=HOGG.fromWild({seed:hashStr(t.id||t.name)||ri(1,2e9),key:t.key,w:t.w,sp:t.sp,end:t.end,aggr:t.aggr,aware:t.aware,sex:/boar/i.test(t.name)?'M':undefined,area:(S.land&&accessArea(S.land))||'creek',day:t.day});h.cond=t.cond??100;h.uses=t.uses||0;S.hogs.push(h)}P.trainHogs=[]}
@@ -4700,7 +4701,7 @@ const GOALS={
     return G},
   // a new real day: the streak grows if you played yesterday, starts over if you missed a day
   login(){const G=GOALS.ensure(),t=GOALS.today(),S0=G.streak;if(S0.last===t)return;const y=new Date();y.setDate(y.getDate()-1);const ys=`${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
-    S0.n=S0.last===ys?S0.n+1:1;S0.last=t;save()},
+    S0.n=S0.last===ys?S0.n+1:1;S0.best=Math.max(S0.best||0,S0.n);S0.last=t;save()},
   streakReward(n){return{cash:Math.round(100*Math.min(n,7)*(1+S.level*.1)/10)*10,item:n%7===0?['vitamins',1]:null}},
   starter(){const G=GOALS.ensure();return STARTER.find(g=>!G.done[g.id])||null},
   prog(g){return Math.max(0,gst(g.c)-g.base)},
@@ -4928,8 +4929,31 @@ const FAIR={
 SCREENS.fair=()=>FAIR.screen();
 const FAIR_ACTIONS={fairEnter:d=>{const E=FAIR_EV[d.k],pool=E.pool(),id=UI['fair_'+d.k]||(pool[0]&&pool[0].id);FAIR.enter(d.k,id)},fairAuction:()=>FAIR.auction()};
 
+// =========================================================
+// TROPHY WALL: the record hog and big catches as mounts (drawn from the hog's own genes), giant boars, fair ribbons,
+// tournament badges, achievements and the ranch's lifetime records.
+// =========================================================
+const TROPHY={
+  // big catches are kept with the hog's seed so the mount is that exact hog
+  note(h,S2){const o=S.pendingHog;if(!o)return;const t={w:o.w,name:o.name,key:o.key,day:S.day,area:h.area.name,giant:!!(S2&&S2.target&&S2.target.giant),dogs:(S2?S2.dogs.filter(g=>g.role==='catch').map(g=>g.name).join(' & '):''),pend:{...o}};
+    if(S.st.bestHog&&S.st.bestHog.w===o.w&&S.st.bestHog.day===S.day)S.st.bestHog.pend={...o};
+    if(o.w>=250||t.giant){const L=S.trophies=S.trophies||[];L.push(t);L.sort((a,b)=>b.w-a.w);S.trophies=L.slice(0,12)}},
+  mount(t,i){const v=HOGG.preview({...t.pend,id:'TR'+i});v.id='TR-'+i+'-'+t.pend.seed;(UI.trophyHogs=UI.trophyHogs||{})[v.id]=v;return v},
+  screen(){const b=S.st.bestHog,list=S.trophies||[],rib=S.ribbons||[],bad=S.badges||[],ach=ACH.filter(([id])=>S.ach[id]),st=S.st;
+    const plaque=(t,i,big)=>{const v=t.pend?TROPHY.mount(t,i):null;return`<div class="panel" style="text-align:center;${big?'border:2px solid var(--gold)':''}">${v?HOGG.art(v,big?300:200):'<div style="font-size:48px">🐗</div>'}
+      <div style="font:600 ${big?20:16}px var(--display);text-transform:uppercase">${t.w} lb ${esc(t.name)}</div><div class="small muted">${t.giant?'The giant boar · ':''}${esc(t.area||areaName(t.area||'creek'))} · day ${t.day}${t.dogs?` · ${esc(t.dogs)}`:''}</div></div>`};
+    return`<h2>Trophy wall</h2><p class="sub">Everything ${esc(S.name)} has to show for itself.</p>
+     ${b?`<h3>Record hog</h3>${plaque({...b,area:areaName(b.area)},'best',true)}`:'<div class="panel small muted">Your first catch goes up here.</div>'}
+     ${list.length?`<h3>Big catches</h3><div class="grid">${list.map((t,i)=>plaque(t,i,false)).join('')}</div>`:''}
+     <h3>Records</h3><div class="panel"><table class="small">${[['Hunts',st.hunts],['Hogs caught',st.hogs],['Giant boars',st.giants||0],['Rabbits caught',st.rabbits||0],['Litters bred',st.litters],['Pups sold to ranches',st.pupsSold||0],['Foals',st.foals||0],['Hog litters',st.hogLitters||0],['Landowner jobs done',st.jobs||0],['Race wins',st.raceWins],['Fair ribbons',st.ribbons||0],['Longest streak',`${(S.goals&&S.goals.streak.best)||(S.goals&&S.goals.streak.n)||0} days`]].map(([a,v])=>`<tr><td class="muted">${a}</td><td class="num">${v||0}</td></tr>`).join('')}</table></div>
+     <h3>Ribbons</h3>${rib.length?`<div class="panel small">${rib.slice(0,20).map(x=>`<div>${['🥇','🥈','🥉'][x.place-1]} ${esc(FAIR_EV[x.ev].name)} · ${esc(x.who)} · ${esc(x.fair)}</div>`).join('')}</div>`:'<div class="panel small muted">Win a ribbon at the county fair.</div>'}
+     <h3>Tournament badges</h3>${bad.length?`<div class="panel small">${bad.slice(0,20).map(x=>`<div>${['🥇','🥈','🥉'][x.place-1]} ${esc(TOURN_EV[x.event].name)} · week of ${esc(x.week)}</div>`).join('')}</div>`:'<div class="panel small muted">Finish top three in a weekly tournament.</div>'}
+     <h3>Achievements</h3><div class="panel small">${ach.length?ach.map(([id,n])=>`<div>🏅 ${esc(n)}</div>`).join(''):'<span class="muted">None yet.</span>'}</div>`}
+};
+SCREENS.trophies=()=>TROPHY.screen();
+
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['fair','🎡','County fair','Every season: dog show, barrel racing, cutting, hog weigh-off'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['fair','🎡','County fair','Every season: dog show, barrel racing, cutting, hog weigh-off'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['trophies','🏆','Trophy wall','Record hogs, ribbons, badges and records'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
