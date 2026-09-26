@@ -2751,15 +2751,15 @@ function hwMakeHog(area,lh,x,y,st){const key=hwPickHogType(area),H=HOGS[key],w=M
 function hsAdd(S2,k,p){const key=((p.x/12)|0)*4096+((p.y/12)|0);let a=S2.hash.get(key);if(!a)S2.hash.set(key,a=[]);a.push(k*1e6+S2.tracks[k].pts.length);S2.tracks[k].pts.push(p)}
 function hsLay(S2,k,x,y,t){const tr=S2.tracks[k],l=tr.pts[tr.pts.length-1];if(l&&Math.hypot(l.x-x,l.y-y)<1.5)return;hsAdd(S2,k,{x,y,t,f:SCENT_HOLD[hwT(x,y)]})}
 const scentOf=(p,now)=>Math.exp(-(now-p.t)/1500)*p.f;
-function hsBest(S2,x,y,r,now,skip){let best=null,bs=0;const x0=((x-r)/12)|0,x1=((x+r)/12)|0,y0=((y-r)/12)|0,y1=((y+r)/12)|0;
-  for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=S2.hash.get(gx*4096+gy);if(!a)continue;for(const e of a){const k=(e/1e6)|0,i=e%1e6;if(skip===k)continue;const p=S2.tracks[k].pts[i],d=Math.hypot(p.x-x,p.y-y);
+function hsBest(S2,x,y,r,now,skip,only){let best=null,bs=0;const x0=((x-r)/12)|0,x1=((x+r)/12)|0,y0=((y-r)/12)|0,y1=((y+r)/12)|0;
+  for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=S2.hash.get(gx*4096+gy);if(!a)continue;for(const e of a){const k=(e/1e6)|0,i=e%1e6;if(skip===k||(only!==undefined&&k!==only))continue;const p=S2.tracks[k].pts[i],d=Math.hypot(p.x-x,p.y-y);
     if(d>r)continue;const s=scentOf(p,now)*(1-d/(r+1));if(s>bs){bs=s;best={k,i,s}}}}return best}
 // walk a hog from where it fed to where it lies now, laying the scent the dogs will find
 function hwHistory(S2,h,k,rest){const a=R()*6.283,d=60+R()*170;let x=clamp(h.x+Math.cos(a)*d,5,HW.N-6),y=clamp(h.y+Math.sin(a)*d,5,HW.N-6);const pts=[];let hd=Math.atan2(h.y-y,h.x-x);
   for(let n=0;n<900;n++){const want=Math.atan2(h.y-y,h.x-x);hd+=clamp(Math.atan2(Math.sin(want-hd),Math.cos(want-hd)),-.5,.5)+(R()-.5)*.9;x+=Math.cos(hd)*1.5;y+=Math.sin(hd)*1.5;pts.push([x,y]);if(Math.hypot(h.x-x,h.y-y)<2)break}
   const T0=-rest-pts.length*1.5/.3;pts.forEach(([px,py],i)=>hsLay(S2,k,px,py,T0+i*1.5/.3))}
 
-function huntWorldStart(a,bay,ctch,lh,own){const ent=hwEntry(a.id,own),S2={t:0,speed:4,hash:new Map(),tracks:[],hogs:[],dogs:[],events:[],ev:{},known:{},
+function huntWorldStart(a,bay,ctch,lh,own){const ent=hwEntry(a.id,own),S2={t:0,speed:4,stick:false,quarry:null,qSeen:0,hash:new Map(),tracks:[],hogs:[],dogs:[],events:[],ev:{},known:{},
   limit:(90+10*(S.up.gear-1)+(S.inv.collar?15:0)+10*lh.turns)*60,player:{x:ent.x,y:ent.y,hd:0,tx:null,ty:null,path:[[ent.x,ent.y]],dist:0},entry:ent,hold:100,ctl:0,phase:'search',banner:null};
   // the hog this hunt is about, a few more in the area, and others far off across the world
   const far=own?.75:1,ang=R()*6.283,dist=(130+R()*250)*far;const[hx,hy]=hwCover(clamp(ent.x+Math.cos(ang)*dist,20,HW.N-20),clamp(ent.y+Math.sin(ang)*dist,20,HW.N-20),40);
@@ -2824,7 +2824,7 @@ function hwHogStep(S2,h,dt){const t=hwT(h.x,h.y);
   if(h===S2.target&&h.rev&&was!==h.st&&h.st==='run'&&was==='stand')hwEvent(S2,'break','Hog broke bay and is running!',10)}
 function hwJump(S2,h){h.alert=3;if(!S2.target||S2.target===h){S2.target=h}hwEvent(S2,'spook',h.rev?'The hog is up and moving.':'Something spooked the dogs.',30)}
 // the hog the dogs have found becomes the hunt's hog: its marker shows from now on
-function hwReveal(S2,h,why){S2.target=h;const uh=UI.hunt;uh.found=true;uh.hog={name:h.name,w:h.w,mult:h.mult,rar:h.rar};uh.hogKey=h.key;if(h.rev)return;h.rev=true;
+function hwReveal(S2,h,why){const q=hwQuarry(S2);if(q&&h!==q){if(!h.seenOther){h.seenOther=1;hwEvent(S2,'other','You saw a different hog. The dogs are staying on theirs.',60)}return}S2.target=h;const uh=UI.hunt;uh.found=true;uh.hog={name:h.name,w:h.w,mult:h.mult,rar:h.rar};uh.hogKey=h.key;if(h.rev)return;h.rev=true;
   hwEvent(S2,'located',`HOG LOCATED: ${why}`,1);hwBanner(S2,'HOG LOCATED');sfx.bark()}
 
 function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tired=g.sta<.12?.55:1;
@@ -2841,7 +2841,7 @@ function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tir
   const hog=g.hog;
   if(g.st==='cast'||g.st==='recast'||g.st==='join'){
     // winding a hog close by takes them straight to it
-    for(const h of S2.hogs){if(!h.full)continue;const d=Math.hypot(h.x-g.x,h.y-g.y),rr=(4+g.at.air*10)*(.5+.5*g.at.nose);if(d<rr&&hwT(h.x,h.y)!==T_WATER&&R()<dt*1.5*(1-d/rr)){g.st='hot';g.hog=h;hwStrike(S2,g,.9,true);return}}}
+    const q=hwQuarry(S2);for(const h of S2.hogs){if(!h.full||(q&&h!==q))continue;const d=Math.hypot(h.x-g.x,h.y-g.y),rr=(4+g.at.air*10)*(.5+.5*g.at.nose);if(d<rr&&hwT(h.x,h.y)!==T_WATER&&R()<dt*1.5*(1-d/rr)){g.st='hot';g.hog=h;hwStrike(S2,g,.9,true);return}}}
   if(g.st==='cast'){drain(1);g.next-=dt;
     if(g.goTrack&&Math.hypot(g.ctx-g.x,g.cty-g.y)<3){const{k,i}=g.goTrack,tr=S2.tracks[k];g.goTrack=null;g.st='track';g.k=k;g.i=i;g.hog=tr.h>=0?S2.hogs[tr.h]:null;g.s0=scentOf(tr.pts[i],S2.t);
       g.dir=R()<.6+g.at.int*.3+(g.at.nose-1)*.2?1:-1;hwEvent(S2,'on'+g.id,`${g.name} is on the scent.`,20);return}
@@ -2881,7 +2881,8 @@ function hwSmell(S2,g,dt){if(g.st==='leash')return;g.sm=(g.sm||0)-dt;if(g.sm>0)r
   for(let gx=((g.x-r)/12)|0;gx<=((g.x+r)/12)|0;gx++)for(let gy=((g.y-r)/12)|0;gy<=((g.y+r)/12)|0;gy++){const a=S2.hash.get(gx*4096+gy);if(!a)continue;
     for(const e of a){const k=(e/1e6)|0,i=e%1e6,p=S2.tracks[k].pts[i];if(Math.hypot(p.x-g.x,p.y-g.y)<=r&&scentOf(p,S2.t)>thr)hwKnow(S2,k,i)}}}
 // the player points at a scent line: free bay dogs go to it and start trailing (if they listen)
-function hwPutOnScent(S2,k,i){const p=S2.tracks[k].pts[i],sent=[],ign=[],busy=[];
+function hwPutOnScent(S2,k,i){const p=S2.tracks[k].pts[i],sent=[],ign=[],busy=[],th=S2.tracks[k].h>=0?S2.hogs[S2.tracks[k].h]:null;
+  if(th&&S2.quarry&&th!==S2.quarry&&S2.stick)hwLock(S2,th,null,'You switched the dogs to a different hog.');
   for(const g of huntDogs(S2,'bay')){if(g.st==='hot'||g.st==='bay'||(g.st==='track'&&g.k===k)){busy.push(g.name);continue}
     if(R()<.45+g.at.obd*.6){g.st='cast';g.ctx=p.x;g.cty=p.y;g.next=9999;g.goTrack={k,i};sent.push(g.name)}else ign.push(g.name)}
   S2.mark={x:p.x,y:p.y,t:S2.t};const s=scentOf(p,S2.t),age=s>.35?'fresh':s>.12?'fair':'old';
@@ -2889,11 +2890,18 @@ function hwPutOnScent(S2,k,i){const p=S2.tracks[k].pts[i],sent=[],ign=[],busy=[]
   if(ign.length)hwEvent(S2,'ign',`${ign.join(' and ')} ignored you and kept hunting.`,1);
   if(!sent.length&&!ign.length)hwEvent(S2,'busy',`${busy.join(' and ')} ${busy.length>1?'are':'is'} already on a hog.`,1);huntHud()}
 function hwSniff(S2,g,dt,bonus){g.sn=(g.sn||0)-dt;if(g.sn>0)return false;g.sn=.5;
-  const b=hsBest(S2,g.x,g.y,(1.5+g.at.air*5)*(.6+.4*g.at.nose),S2.t);if(!b)return false;const rate=1.8*g.at.nose*g.at.nose*bonus*b.s;if(R()>1-Math.exp(-rate*.5))return false;
+  const q=hwQuarry(S2),b=hsBest(S2,g.x,g.y,(1.5+g.at.air*5)*(.6+.4*g.at.nose),S2.t,undefined,q?q.k:undefined);if(!b)return false;const rate=1.8*g.at.nose*g.at.nose*bonus*b.s;if(R()>1-Math.exp(-rate*.5))return false;
   g.st='track';g.goTrack=null;g.k=b.k;g.i=b.i;g.s0=b.s;const tr=S2.tracks[b.k];g.hog=tr.h>=0?S2.hogs[tr.h]:null;
   // which way is fresher? smarter, keener dogs usually get it right
   g.dir=R()<.6+g.at.int*.3+(g.at.nose-1)*.2?1:-1;hwStrike(S2,g,b.s,false);return true}
+// stay on one hog: once the pack strikes a live hog, that's the hog they run until they lose it for good
+const hwQuarry=S2=>S2.stick&&S2.quarry?S2.quarry:null;
+function hwLock(S2,h,g,why){if(!S2.stick||!h||S2.quarry===h)return;const was=S2.quarry;S2.quarry=h;S2.qSeen=S2.t;if(!S2.target||!S2.target.rev||S2.target===was)S2.target=h;
+  hwEvent(S2,why?'switch':'lock',why||`The dogs are locked onto this hog${g?' ('+g.name+'’s strike)':''}; they’ll stay on it.`,1);
+  // dogs off on another hog come back to the pack
+  for(const o of huntDogs(S2,'bay'))if(o!==g&&o.hog&&o.hog!==h&&(o.st==='track'||o.st==='hot')){if(g){o.st='join';o.lead=g.id}else{o.st='cast';o.next=0}}}
 function hwStrike(S2,g,s,hot){g.m.strike++;const first=!S2.struck;if(first){S2.struck=true;g.m.first=true}
+  if(g.hog&&(hot||s>.12))hwLock(S2,g.hog,g);
   hwEvent(S2,'strike'+g.id,hot?`${g.name} winded a hog close by!`:s>.35?`${g.name} struck a fresh track!`:s>.08?`${g.name}: scent detected.`:`${g.name} is working an old track.`,30);
   if(hot)hwEvent(S2,'fresh','Fresh track!',30);
   // the pack honours the strike dog if they can hear it
@@ -2907,7 +2915,10 @@ function huntRelease(){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim;if(S2
   S2.relDist=Math.hypot(S2.player.x-S2.target.x,S2.player.y-S2.target.y);huntDogs(S2,'catch').forEach(g=>g.st='run');
   hwEvent(S2,'release',`Catch dogs released, ${yd(S2.relDist)} yd from the hog.`,1);sfx.bark();huntHud(true)}
 
-function hwStep(S2,dt){S2.t+=dt;const P=S2.player,h=S2.target;
+function hwStep(S2,dt){S2.t+=dt;const P=S2.player;
+  if(S2.quarry){const q=S2.quarry;if(S2.dogs.some(g=>g.role==='bay'&&g.hog===q&&(g.st==='track'||g.st==='hot'||g.st==='bay'||g.st==='recast'||g.st==='join')))S2.qSeen=S2.t;
+    else if(S2.t-S2.qSeen>600&&!q.rev){S2.quarry=null;hwEvent(S2,'unlock','The dogs lost that hog for good and are hunting for another.',1)}}
+  const h=S2.target;
   // the hunter walks where you tap; faster on roads and trails
   if(P.tx!==null){const d=Math.hypot(P.tx-P.x,P.ty-P.y);if(d<.8){P.tx=null}else hwMove(P,P.tx-P.x,P.ty-P.y,.68,dt,'man')}
   else if(HV.follow==='walk'&&h&&h.rev)hwMove(P,h.x-P.x,h.y-P.y,.68,dt,'man');
@@ -3016,7 +3027,7 @@ function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=
   $('hDogs').innerHTML=S2.dogs.map(g=>`<div class="spread small"><span><i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${DOG_ST[g.goTrack?'go':g.st]||g.st}</span><span class="muted">${g.st==='leash'?'':yd(Math.hypot(g.x-P.x,g.y-P.y))+' yd · '}${Math.round(g.sta*100)}%</span></div>`).join('')+
     (H0&&H0.rev?`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${esc(H0.name)}</b> ~${H0.w} lb</span><span class="muted">${yd(Math.hypot(H0.x-P.x,H0.y-P.y))} yd</span></div>`:'');
   $('hLog').innerHTML=S2.events.slice(0,14).map(e=>`<div>${esc(e.txt)}</div>`).join('')||'<div class="muted">The dogs are casting for scent.</div>';
-  if(full){document.querySelectorAll('[data-act="hfollow"]').forEach(b=>b.classList.toggle('on',b.dataset.k===HV.follow));document.querySelectorAll('[data-act="hspeed"]').forEach(b=>b.classList.toggle('on',+b.dataset.k===S2.speed));const sb=$('hScentBtn');if(sb){sb.classList.toggle('on',HV.scent!==false);sb.textContent=HV.scent!==false?'Scent trails: on':'Scent trails: off'}}}
+  if(full){document.querySelectorAll('[data-act="hfollow"]').forEach(b=>b.classList.toggle('on',b.dataset.k===HV.follow));document.querySelectorAll('[data-act="hspeed"]').forEach(b=>b.classList.toggle('on',+b.dataset.k===S2.speed));const kb=$('hStickBtn');if(kb){kb.classList.toggle('on',S2.stick);kb.textContent=S2.stick?'Stay on one hog: on':'Stay on one hog: off'}const sb=$('hScentBtn');if(sb){sb.classList.toggle('on',HV.scent!==false);sb.textContent=HV.scent!==false?'Scent trails: on':'Scent trails: off'}}}
 function huntPlayLive(){const h=UI.hunt,S2=h.sim;
   return `<h2>${esc(h.area.name)}</h2><p class="sub">${HW_ACRES.toLocaleString()}-acre hunting grounds · you parked on ${esc(S2.entry.label)} · <b id="hTime">0:00:00</b> · <span id="hLeft"></span></p>
   <div class="panel small" style="margin-bottom:6px"><b id="hStat">Dogs searching</b></div>
@@ -3025,7 +3036,7 @@ function huntPlayLive(){const h=UI.hunt,S2=h.sim;
    <div class="landzoom"><button class="btn sm ghost" data-act="hzoom" data-k="in" aria-label="Zoom in">+</button><button class="btn sm ghost" data-act="hzoom" data-k="out" aria-label="Zoom out">−</button><button class="btn sm ghost" data-act="hzoom" data-k="world" aria-label="Whole map">🗺</button></div></div>
   <p class="small muted" style="margin:4px 0">Tap the map to walk there, or tap a scent trail to put the bay dogs on it. Drag to look around, pinch or scroll to zoom.</p>
   <div class="seg" style="margin:4px 0">${[['me','Follow me'],['dogs','Follow dogs'],['hog','Follow hog'],['walk','Walk to the hog']].map(([k,l])=>`<button data-act="hfollow" data-k="${k}">${l}</button>`).join('')}</div>
-  <div class="seg" style="margin:4px 0">${[1,4,10].map(k=>`<button data-act="hspeed" data-k="${k}">${k}× time</button>`).join('')}<button data-act="hscent" id="hScentBtn">Scent trails</button></div>
+  <div class="seg" style="margin:4px 0">${[1,4,10].map(k=>`<button data-act="hspeed" data-k="${k}">${k}× time</button>`).join('')}<button data-act="hstick" id="hStickBtn">Stay on one hog</button><button data-act="hscent" id="hScentBtn">Scent trails</button></div>
   <div id="hMeters" style="margin:6px 0"></div>
   <button class="btn big" id="hRelease" data-act="hrelease" disabled>RELEASE CATCH DOGS</button>
   <h3>Dogs</h3><div class="panel" id="hDogs"></div>
@@ -3181,6 +3192,7 @@ const A={
  hpick:d=>{const s=UI.huntSel[d.role],i=s.indexOf(d.id),max=d.role==='bay'?3:(S.up.gear>=3?3:2);if(i>=0)s.splice(i,1);else if(s.length<max)s.push(d.id);else return toast(`Max ${max} ${d.role} dogs.`);render()},
  hstart:()=>huntStart(),
  hquit:()=>{const h=UI.hunt;if(h&&h.sim&&!h.sim.over&&confirm('Call the dogs in and end the hunt?'))hwEnd(h.sim,false,['You called the dogs in.'])},
+ hstick:()=>{const S2=UI.hunt&&UI.hunt.sim;if(!S2)return;S2.stick=!S2.stick;if(S2.stick&&!S2.quarry){const g=huntDogs(S2,'bay').find(x=>x.hog&&(x.st==='track'||x.st==='hot'||x.st==='bay'));if(g)hwLock(S2,g.hog,g)}hwEvent(S2,'stickset',S2.stick?'The dogs will stay on one hog.':'The dogs will take any hog they strike.',1);huntHud(true)},
  hscent:()=>{HV.scent=HV.scent===false;huntHud(true)},
  hfollow:d=>{HV.follow=d.k;if(d.k==='walk'&&UI.hunt&&UI.hunt.sim)UI.hunt.sim.player.tx=null;huntHud(true)},
  hspeed:d=>{if(UI.hunt&&UI.hunt.sim){UI.hunt.sim.speed=+d.k;huntHud(true)}},
