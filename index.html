@@ -1340,7 +1340,7 @@ const tplBreed=b=>Coat.TEMPLATES[b]&&Coat.TEMPLATES[b].body&&!Coat.TEMPLATES[b].
 const pupStage=d=>isAdult(d)?6:clamp(Math.floor(d.age/2),0,5);
 function pupMorph(d){const vm=visualMorph(d),st=pupStage(d);if(st>=6)return vm;
   const f=Math.pow(1-st/6,1.1),body=Coat.TEMPLATES[tplBreed(coatBreed(d))].body,base=vm||{parts:{torso:body,head:body,front:body,hind:body,tail:body},k:{}},k0=base.k||{},q=v=>Math.round(v*100)/100;
-  return{parts:base.parts,k:{tx:q((k0.tx||1)*(1-.22*f)),ty:q((k0.ty||1)*(1+.1*f)),leg:q((k0.leg||1)*(1-.34*f)),head:q((k0.head||1)*(1-.3*f)),hs:q(1+.5*f),tl:q(1-.5*f)}}}
+  return{parts:base.parts,k:{tx:q((k0.tx||1)*(1-.22*f)),ty:q((k0.ty||1)*(1+.1*f)),leg:q((k0.leg||1)*(1-.34*f)),head:q((k0.head||1)*(1-.15*f)),hs:q(1+.12*f),tl:q(1-.5*f)}}}
 function visualMorph(d){
   const m=d.morph;if(!m)return null;const body=b=>Coat.TEMPLATES[tplBreed(b)].body,nat=b=>profileOf(NATIVE_OF[body(b)]),t=m.t;
   const H=topOf(m.reg.head),Bd=topOf(m.reg.body),Lg=topOf(m.reg.legs),Tl=topOf(m.reg.tail),q=v=>Math.round(v*100)/100;
@@ -4352,7 +4352,7 @@ const PATCH_NOTES=[{v:'1.1.1',title:'Horses, landowner jobs and a faster start',
   ['Landowner jobs','Farmers and ranchers now post paid hog work on the Hunt screen: clear hogs off a place, bring in a big boar, catch a sounder before it moves on, or collect the parish bounty on the giant boar. Finish on time for the pay and reputation; miss a deadline and word gets around.'],
   ['Much faster loading','The dog and horse artwork now loads as separate cached files instead of being packed into the game page. The game opens in about a second and a half instead of ten on a phone, and pictures come from your cache on every visit after the first. Nothing about the art changed.'],
   ['Thoroughbreds get their own look','Thoroughbreds now have their own body: taller, leaner and longer-legged than the Quarter Horse, with every coat colour, pattern and marking painted onto it from their genes.'],
-  ['Puppies look like puppies','Every breed now has a puppy look drawn from its own picture: a big round head, short muzzle, short legs and a small plump body that grow into the adult shape over the first year. Long coats grow in as they age. There is no limit on how many dogs you keep, and other ranches in the county bid on your pups.'],
+  ['Puppies look like puppies','Every breed now has a puppy look drawn from its own picture: a short muzzle, short legs and a small plump body that grow into the adult shape over the first year. Long coats grow in as they age. There is no limit on how many dogs you keep, and other ranches in the county bid on your pups.'],
   ['New loading screen','The game opens on new key art with a live loading bar that follows the real work: the game itself, then the dog and horse pictures on your first screen.'],
   ['Horse profiles and training','Open any horse for its genetic ID, genetics, stats, pedigree and record. Train a stat once a day, DNA test to reveal hidden genes, rename, sell or breed from the profile.']]}];
 function patchNotesHTML(){return PATCH_NOTES.map(n=>`<h2>What's new in ${n.v}</h2><p class="sub">${esc(n.title)}</p>${n.items.map(([t,d])=>`<div class="panel" style="margin-bottom:8px"><b>${esc(t)}</b><div class="small" style="margin-top:2px">${esc(d)}</div></div>`).join('')}`).join('')}
