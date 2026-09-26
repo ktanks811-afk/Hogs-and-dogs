@@ -1709,7 +1709,7 @@ const ACCOUNT_ACTIONS={
       if(r.save){const local=S.day>1||S.st.hunts>0;
         if(local&&!confirm(`Load ${r.save.name} (day ${r.save.day}) from your account? It replaces ${S.name} (day ${S.day}) on this device.`)){sbRpc('hd_logout',{p_pid:cred.pid,p_sec:cred.sec}).catch(()=>{});btn.disabled=false;return}
         return useCloudSave(r.save,cred,r.save_updated)}
-      S.online=cred;S.welcomed=true;save();await cloudSave();closeSheet();toast(`Signed in as ${r.username}.`);render()}
+      S.online=cred;S.welcomed=true;save();await cloudSave();closeSheet();toast(`Signed in as ${r.username}.`);render();checkAdmin().then(a=>{if(a)render()})}
     catch(e){btn.disabled=false;toast(e.message)}},
   accSignUp:async(d,btn)=>{const u=document.getElementById('upUser').value.trim(),pw=document.getElementById('upPass').value;
     if(!/^[A-Za-z0-9_]{3,20}$/.test(u))return toast('Usernames are 3–20 letters, numbers or underscores.');if(pw.length<6)return toast('Passwords need at least 6 characters.');
@@ -3205,7 +3205,7 @@ function huntPlayLive(){const h=UI.hunt,S2=h.sim;
 
 
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
@@ -3392,9 +3392,73 @@ document.addEventListener('change',e=>{const f=e.target.dataset.f;if(!f)return;c
   if(f.startsWith('mk.'))UI.mk[f.slice(3)]=v;else UI[f]=v;render()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
+// ---------- admin (owner tools) ----------
+// Only accounts listed in the server's hd_admins table see this. The server is asked again before every admin action,
+// so a copied save or a flag set in the browser does not unlock it. The tools change only this ranch's own save.
+async function checkAdmin(){
+  if(!signedIn()||inClaude){UI.admin=false;return false}
+  try{UI.admin=(await sbRpc('hd_is_admin',await A2()))===true}catch(e){UI.admin=false}
+  return UI.admin}
+function adminLegend(o){for(let i=0;i<400;i++){const d=makeDog({...o,boost:25,mut:true});if(isLegend(d))return d}return null}
+function adminMaxUpgrades(){const P=S.land;
+  for(let pass=0;pass<3;pass++)for(const k of Object.keys(LAND_UP))while(!Prop.upgradeProblem(k)){const l=landLevel(P,k);
+    if(k==='acreage'){const n=landSize(P);P.up[k]=l+1;landReframe(P,n);Prop.addParcel('acreage',0)}else P.up[k]=l+1}
+  Prop.commit()}
+const admNum=id=>{const v=Number((document.getElementById(id)||{}).value);return Number.isFinite(v)?v:null};
+SCREENS.admin=()=>{
+  if(!UI.admin)return `<h2>Admin</h2><p class="sub">This menu is only for the game's owner account.</p>`;
+  const opt=(a,sel)=>a.map(x=>`<option ${x===sel?'selected':''}>${esc(x)}</option>`).join('');
+  const row=(label,inner)=>`<div class="spread" style="gap:8px;margin:6px 0;flex-wrap:wrap"><span>${label}</span><div class="row" style="gap:6px;flex-wrap:wrap">${inner}</div></div>`;
+  const b=(k,t,x='')=>`<button class="btn sm" data-act="adm" data-k="${k}" ${x}>${t}</button>`;
+  const inp=(id,v,w=110)=>`<input id="${id}" type="number" value="${v}" style="width:${w}px">`;
+  UI.admBreed=UI.admBreed||Object.keys(BREEDS)[0];UI.admHorse=UI.admHorse||Object.keys(HORSE_BREEDS)[0];
+  return `<h2>🛠️ Admin</h2><p class="sub">Signed in as ${esc(S.online.user)}. These tools change only ${esc(S.name)}. Each one is checked with the server first.</p>
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Money & progress</h3>
+   ${row(`Money <b class="num">${fmt(S.money)}</b>`,`${b('money','+$10k','data-n="10000"')}${b('money','+$100k','data-n="100000"')}${b('money','+$1M','data-n="1000000"')}`)}
+   ${row('Set money',`${inp('admMoney',Math.round(S.money),130)}${b('setMoney','Set')}`)}
+   ${row(`Ranch level <b class="num">${S.level}</b>`,`${inp('admLevel',S.level,70)}${b('setLevel','Set')}`)}
+   ${row(`Reputation <b class="num">${Math.round(S.rep)}</b>`,`${inp('admRep',Math.round(S.rep),70)}${b('setRep','Set')}`)}
+   ${row(`Day <b class="num">${S.day}</b>`,`${b('skip','Skip 1 day','data-n="1"')}${b('skip','Skip 7 days','data-n="7"')}`)}
+  </div>
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Dogs</h3>
+   ${row('Breed',`<select data-f="admBreed">${opt(Object.keys(BREEDS),UI.admBreed)}</select>`)}
+   ${row('Sex & age',`<select data-f="admSex"><option value="F">Female</option><option value="M" ${UI.admSex==='M'?'selected':''}>Male</option></select><select data-f="admAge"><option value="24">Adult</option><option value="8" ${UI.admAge==='8'?'selected':''}>Puppy</option></select>`)}
+   ${row('Add to kennel',`${b('dog','Add dog')}${b('dog','Add legendary','data-legend="1"')}`)}
+   ${row(`Kennel <b class="num">${S.dogs.length}/${dogCap()}</b>`,`${b('heal','Heal & rest all dogs')}`)}
+  </div>
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Horses & livestock</h3>
+   ${row('Horse breed',`<select data-f="admHorse">${opt(Object.keys(HORSE_BREEDS),UI.admHorse)}</select>${b('horse','Add horse')}`)}
+   ${row(`Cattle <b class="num">${S.cattle}</b>`,`${b('cattle','+5 cattle','data-n="5"')}`)}
+  </div>
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Supplies & property</h3>
+   ${row(`Feed <b class="num">${S.inv.feed}/${feedCap()}</b>`,`${b('feed','Fill feed')}${b('items','+10 of every item')}`)}
+   ${row('Property upgrades',`${b('maxUp','Max every upgrade')}`)}
+  </div>`};
+const ADMIN_OPS={
+  money:d=>{const n=+d.n;S.money+=n;addLog(`Admin: added ${fmt(n)}.`)},
+  setMoney:()=>{const n=admNum('admMoney');if(n===null||n<0)return'Enter an amount of 0 or more.';S.money=Math.round(n);addLog(`Admin: money set to ${fmt(S.money)}.`)},
+  setLevel:()=>{const n=admNum('admLevel');if(n===null||n<1||n>99)return'Level must be 1 to 99.';S.level=Math.round(n);S.xp=0;addLog(`Admin: ranch level set to ${S.level}.`)},
+  setRep:()=>{const n=admNum('admRep');if(n===null||n<0||n>100)return'Reputation must be 0 to 100.';S.rep=Math.round(n)},
+  skip:d=>{for(let i=0;i<+d.n;i++)endDay()},
+  dog:d=>{const o={breed:UI.admBreed,sex:UI.admSex||'F',age:+(UI.admAge||24)};
+    const dog=d.legend?adminLegend(o):makeDog(o);if(!dog)return`A ${o.breed} can't come out legendary straight from the kennel (its standard coat is too common). Breed for a rarer coat instead.`;
+    S.dogs.push(dog);addLog(`Admin: added ${dog.name} (${dog.breed}).`);toast(`${dog.name} joined the kennel${d.legend?' (legendary)':''}.`)},
+  heal:()=>{for(const x of S.dogs){x.health=x.hcap||100;x.energy=100}},
+  horse:()=>{const h=makeHorse(UI.admHorse,{age:48});S.horses.push(h);toast(`${h.name} is in the stable.`)},
+  cattle:d=>{S.cattle+=+d.n},
+  feed:()=>{S.inv.feed=Math.max(S.inv.feed,feedCap())},
+  items:()=>{for(const k of Object.keys(S.inv))if(k!=='feed'&&k!=='collar')S.inv[k]+=10;S.inv.collar=Math.max(1,S.inv.collar||0)},
+  maxUp:()=>{adminMaxUpgrades();addLog('Admin: every property upgrade maxed.')}
+};
+const ADMIN_ACTIONS={
+  adm:async(d,btn)=>{const f=ADMIN_OPS[d.k];if(!f)return;btn.disabled=true;
+    const ok=await checkAdmin();btn.disabled=false;if(!ok){toast('Admin tools are only for the owner account.');UI.tab='more';return render()}
+    const err=f(d);if(err)return toast(err);checkAch();save();render()}
+};
+
 // ---------- boot ----------
 if(!load()||!S||S.v!==1)freshState();else{try{migrate()}catch(e){console.error('migrate',e)}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS);S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
 try{purgeLegendShops()}catch(e){console.error('legend shops',e)}
