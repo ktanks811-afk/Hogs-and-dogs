@@ -472,19 +472,29 @@ function horseSVG(h,w=110){
 
 // ---------- market ----------
 function unlockedBreeds(){return Object.keys(BREEDS)}
+// Legendary dogs only come from breeding: nothing the game sells (market, featured, breed lines, specials, online sales) is Legendary
+const LEGEND=4,isLegend=d=>{try{return rarTier(d)>=LEGEND}catch(e){return false}};
+function notLegendary(make){let d;for(let i=0;i<40;i++){d=make();if(!isLegend(d))return d}
+  d.mut=false;for(let g=0;g<30&&isLegend(d);g++)STATS.forEach(([k])=>{d.pot[k]=Math.max(20,d.pot[k]-2);d.stats[k]=Math.min(d.stats[k],d.pot[k])});return d}
+// older saves: any Legendary dog sitting in a shop is swapped for a fresh one of the same breed (or colour line)
+function purgeLegendShops(){
+  S.market=(S.market||[]).map(d=>isLegend(d)?Object.assign(notLegendary(()=>makeDog({breed:d.breed==='Cross'?pick(unlockedBreeds()):d.breed,age:ri(3,48)})),{}):d);
+  S.market.forEach(d=>{if(!d.price)d.price=Math.round(dogValue(d)*(1.05+R()*.3)/5)*5});
+  S.featured=(S.featured||[]).map(d=>{if(!isLegend(d))return d;const x=notLegendary(()=>makeDog({breed:d.breed==='Cross'?pick(unlockedBreeds()):d.breed,age:ri(10,30),boost:ri(6,12),rare:true}));x.price=Math.round(dogValue(x)*1.25/5)*5;return x});
+  for(const[b,arr]of Object.entries(S.lineups||{}))arr.forEach((d,i)=>{if(isLegend(d))arr[i]=makeLineupDog(b,d.lineup)})}
 function refreshMarket(){
   const bs=unlockedBreeds(),n=8+Math.min(6,S.level);
-  S.market=[];for(let i=0;i<n;i++){const d=makeDog({breed:pick(bs),age:ri(3,48)});d.price=Math.round(dogValue(d)*(1.05+R()*.3)/5)*5;S.market.push(d)}
-  S.featured=[];for(let i=0;i<3;i++){const d=makeDog({breed:pick(bs),age:ri(10,30),boost:ri(6,12),rare:true,mut:R()<.25});
+  S.market=[];for(let i=0;i<n;i++){const d=notLegendary(()=>makeDog({breed:pick(bs),age:ri(3,48)}));d.price=Math.round(dogValue(d)*(1.05+R()*.3)/5)*5;S.market.push(d)}
+  S.featured=[];for(let i=0;i<3;i++){const mut=R()<.25,d=notLegendary(()=>makeDog({breed:pick(bs),age:ri(10,30),boost:ri(6,12),rare:true,mut}));
     d.price=Math.round(dogValue(d)*1.25/5)*5;S.featured.push(d)}
   ensureFeaturedBreed('Gordon Setter');
-  if(R()<.3){const d=makeBandog();d.price=Math.round(dogValue(d)*1.2/5)*5;S.featured[S.featured.length-1]=d}
+  if(R()<.3){const d=notLegendary(makeBandog);d.price=Math.round(dogValue(d)*1.2/5)*5;S.featured[S.featured.length-1]=d}
 }
 function ensureFeaturedBreed(b){
   if(!BREEDS[b])return;
   const cnt=S.market.filter(d=>d.breed===b).length;
-  for(let i=cnt;i<2;i++){const d=makeDog({breed:b,age:ri(8,36)});d.price=Math.round(dogValue(d)*(1.05+R()*.2)/5)*5;S.market.unshift(d)}
-  if(!S.featured.some(d=>d.breed===b)){const d=makeDog({breed:b,age:ri(12,30),boost:ri(6,12),rare:true});d.price=Math.round(dogValue(d)*1.25/5)*5;S.featured[0]=d}
+  for(let i=cnt;i<2;i++){const d=notLegendary(()=>makeDog({breed:b,age:ri(8,36)}));d.price=Math.round(dogValue(d)*(1.05+R()*.2)/5)*5;S.market.unshift(d)}
+  if(!S.featured.some(d=>d.breed===b)){const d=notLegendary(()=>makeDog({breed:b,age:ri(12,30),boost:ri(6,12),rare:true}));d.price=Math.round(dogValue(d)*1.25/5)*5;S.featured[0]=d}
 }
 function refreshHorseMarket(){S.horseMarket=[];for(let i=0;i<3;i++)S.horseMarket.push(makeHorse(pick(Object.keys(HORSE_BREEDS))))}
 function makeHorse(breed,o={}){
@@ -1132,7 +1142,8 @@ function hydrateCoats(){
       document.querySelectorAll(`img.coatimg[data-cid="${id}"][data-sc="${sc}"]`).forEach(i=>{if(coatKey(findDog(id)||d,sc)===key)i.src=COAT_IMG[key]});await new Promise(r=>setTimeout(r,0))}).catch(()=>{delete COAT_PENDING[key]});
   });
 }
-function makeLineupDog(breed,name){
+function makeLineupDog(breed,name){return notLegendary(()=>makeLineupDog0(breed,name))}
+function makeLineupDog0(breed,name){
   const l=Coat.lineup(breed,name),d=makeDog({breed,age:ri(12,30)});
   d.genes={};for(const L in LOCI)d.genes[L]=(l.g[L]||['m','m']).slice();
   Object.assign(d,{whiteMod:l.m.whiteMod,patMod:l.m.patMod,coatInt:l.m.coatInt,eyes:l.m.eyes,eyes2:l.m.eyes2,merleMod:l.m.merleMod,tickMod:l.m.tickMod,speckMod:l.m.speckMod,featherMod:l.m.featherMod,featherDen:l.m.featherDen,texture:l.m.texture,seed:ri(1,99999),hcap:100,health:100});geneHealth(d);
@@ -1621,19 +1632,20 @@ const ONLINE_ACTIONS=({
   onCancelTrade:async d=>{try{await sbRpc('hd_cancel_trade',{...(await A2()),p_id:+d.id});await syncOnline();UI.od={};render()}catch(e){toast(e.message)}},
   onListing:d=>{const x=UI.remote[d.id];if(!x)return;const L=(UI.od.market.d.l||[]).find(y=>'L'+y.id===x.viewKey);if(!L)return;
     if(L.seller===myPid())return remoteDogSheet(x,`<div class="panel"><b>Your ${L.kind==='stud'?'stud listing':'listing'} — ${fmt(L.price)}</b>${L.kind==='stud'?`<div class="small muted">Used ${L.uses} time${L.uses!==1?'s':''}.</div>`:''}<button class="btn sm ghost" data-act="onCancelListing" data-id="${L.id}" style="margin-top:6px">Take it down</button></div>`);
+    if(L.kind==='sale'&&isLegend(x))return remoteDogSheet(x,`<div class="panel"><b>Not for sale</b><div class="small muted">Legendary dogs can only be bred, not bought. Look for them at stud instead.</div></div>`);
     if(L.kind==='sale')return remoteDogSheet(x,`<div class="panel"><b>${fmt(L.price)}</b> from ${esc(L.seller_ranch||'')}<div style="margin-top:6px"><button class="btn" data-act="onBuy" data-id="${L.id}" ${S.money>=L.price&&S.dogs.length<dogCap()?'':'disabled'}>Buy</button></div></div>`);
     const dams=S.dogs.filter(z=>z.sex==='F'&&isAdult(z)&&z.health>=40&&!z.cool&&!S.preg.some(p=>p.dam===z.id)&&!z.guest);
     remoteDogSheet(x,`<div class="panel"><b>Stud fee ${fmt(L.price)}</b> — ${esc(L.seller_ranch||'')}<div class="small muted">Breed one of your females to ${esc(x.name)}. Pups arrive in 2 days, just like a home breeding.</div>
       <div class="row" style="margin-top:6px"><select id="studDam">${dams.map(z=>`<option value="${z.id}">${esc(z.name)} — ${esc(breedName(z))}</option>`).join('')}</select><button class="btn sm" data-act="onStud" data-id="${L.id}" ${dams.length&&S.money>=L.price&&S.preg.length<S.up.barn?'':'disabled'}>Breed</button></div>
       ${!dams.length?'<p class="small muted">You need an adult female who isn’t resting or expecting.</p>':''}</div>`)},
-  onBuy:async d=>{const L=(UI.od.market.d.l||[]).find(y=>y.id==d.id);if(!L||S.money<L.price)return;
+  onBuy:async d=>{const L=(UI.od.market.d.l||[]).find(y=>y.id==d.id);if(!L||S.money<L.price)return;if(L.dog&&isLegend(L.dog))return toast('Legendary dogs can only be bred, not bought.');
     try{const r=await sbRpc('hd_buy_listing',{...(await A2()),p_id:L.id});const dog=importDog(r.dog,r.seller_ranch);S.money-=r.price;S.dogs.push(dog);gainXP(10);addLog(`Bought ${dog.name} from ${r.seller_ranch} online.`);
       save();closeSheet();toast(`${dog.name} joined your kennel!`);UI.od={};render()}catch(e){toast(e.message)}},
   onStud:async d=>{const L=(UI.od.market.d.l||[]).find(y=>y.id==d.id),dam=S.dogs.find(z=>z.id===document.getElementById('studDam').value);if(!L||!dam)return;
     try{const r=await sbRpc('hd_buy_listing',{...(await A2()),p_id:L.id});const sire=importDog(r.dog,r.seller_ranch);S.money-=r.price;S.preg.push({dam:dam.id,sireSnap:sire,due:S.day+2});dam.cool=6;gainXP(25);
       addLog(`Bred ${dam.name} to ${sire.name} of ${r.seller_ranch}. Pups due day ${S.day+2}.`);save();closeSheet();toast(`${dam.name} is expecting!`);render()}catch(e){toast(e.message)}},
   onCancelListing:async d=>{try{const r=await sbRpc('hd_cancel_listing',{...(await A2()),p_id:+d.id});if(r.kind==='sale'){S.dogs.push(importDog(r.dog,S.name));toast(`${r.dog.name} is back in your kennel.`)}save();closeSheet();UI.od={};render()}catch(e){toast(e.message)}},
-  sellOnline:async d=>{const dog=S.dogs.find(z=>z.id===d.id);if(!dog)return;const p=Math.round(+prompt(`Asking price for ${dog.name}? (Market value ${fmt(dogValue(dog))})`,Math.round(dogValue(dog)))||0);if(!p)return;
+  sellOnline:async d=>{const dog=S.dogs.find(z=>z.id===d.id);if(!dog)return;if(isLegend(dog))return toast('Legendary dogs can only be bred, not sold on the market. You can stand them at stud.');const p=Math.round(+prompt(`Asking price for ${dog.name}? (Market value ${fmt(dogValue(dog))})`,Math.round(dogValue(dog)))||0);if(!p)return;
     try{await sbRpc('hd_list_dog',{...(await A2()),p_kind:'sale',p_dog:leanDog(dog),p_price:p,p_ranch:S.name});S.dogs=S.dogs.filter(z=>z!==dog);addLog(`Listed ${dog.name} online for ${fmt(p)}.`);save();closeSheet();toast('Listed on the online market.');UI.od={};render()}catch(e){toast(e.message)}},
   studOnline:async d=>{const dog=S.dogs.find(z=>z.id===d.id);if(!dog)return;const p=Math.round(+prompt(`Stud fee for ${dog.name}?`,Math.round(dogValue(dog)*.25))||0);if(!p)return;
     try{await sbRpc('hd_list_dog',{...(await A2()),p_kind:'stud',p_dog:leanDog(dog),p_price:p,p_ranch:S.name});addLog(`${dog.name} is standing at stud online for ${fmt(p)}.`);save();toast(`${dog.name} is now offered at stud.`);UI.od={}}catch(e){toast(e.message)}},
@@ -1888,12 +1900,12 @@ SCREENS.market=()=>{
   const sorters={price:(a,b)=>a.price-b.price,priceD:(a,b)=>b.price-a.price,bay:(a,b)=>bayScore(b)-bayScore(a),catch:(a,b)=>catchScore(b)-catchScore(a),rar:(a,b)=>rarPts(b)-rarPts(a)};
   list.sort(sorters[f.sort]);
   const breeds=[...new Set(S.market.map(breedName))].sort();
-  return `<h2>Dog market</h2><p class="sub">Stock rotates daily. Prices reflect breed, genetics, stats, rarity, training, age and pedigree.</p>
+  return `<h2>Dog market</h2><p class="sub">Stock rotates daily. Prices reflect breed, genetics, stats, rarity, training, age and pedigree. Legendary dogs are never for sale: you have to breed them.</p>
   <h3>Featured today</h3><div class="dogpick" style="gap:10px">${S.featured.map(d=>`<div style="flex:0 0 200px">${dogCard(d,'mview',fmt(d.price))}</div>`).join('')}</div>
   <h3>All listings</h3><div class="row" style="margin-bottom:10px">
    <select data-f="mk.breed"><option value="">All breeds</option>${breeds.map(b=>`<option ${f.breed===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
    <select data-f="mk.sex"><option value="">Any sex</option><option value="M" ${f.sex==='M'?'selected':''}>Male</option><option value="F" ${f.sex==='F'?'selected':''}>Female</option></select>
-   <select data-f="mk.rar"><option value="">Any rarity</option>${RAR.map((r,i)=>i?`<option value="${i}" ${f.rar===String(i)?'selected':''}>${r[0]}+</option>`:'').join('')}</select>
+   <select data-f="mk.rar"><option value="">Any rarity</option>${RAR.map((r,i)=>i&&i<LEGEND?`<option value="${i}" ${f.rar===String(i)?'selected':''}>${r[0]}+</option>`:'').join('')}</select>
    <input type="number" inputmode="numeric" placeholder="Max $" style="width:90px" data-f="mk.max" value="${esc(f.max)}">
    <select data-f="mk.sort">${[['price','Cheapest'],['priceD','Priciest'],['bay','Best bay'],['catch','Best catch'],['rar','Rarest']].map(([k,l])=>`<option value="${k}" ${f.sort===k?'selected':''}>${l}</option>`).join('')}</select></div>
   ${list.length?`<div class="grid">${list.map(d=>dogCard(d,'mview',fmt(d.price))).join('')}</div>`:'<div class="panel">Nothing matches those filters today.</div>'}
@@ -3246,6 +3258,7 @@ const A={
  mview:d=>marketView(d.id),
  buy:d=>{const i=S.market.findIndex(x=>x.id===d.id),j=S.featured.findIndex(x=>x.id===d.id),q=findLineup(d.id);const dog=i>=0?S.market[i]:j>=0?S.featured[j]:q?q.arr[q.i]:null;
   if(!dog||S.money<dog.price||S.dogs.length>=dogCap())return sfx.bad();
+  if(isLegend(dog))return toast('Legendary dogs can only be bred, not bought.');
   S.money-=dog.price;if(i>=0)S.market.splice(i,1);else if(j>=0)S.featured.splice(j,1);else q.arr[q.i]=makeLineupDog(q.b,dog.lineup);delete dog.price;delete dog.lineup;S.dogs.push(dog);
   gainXP(10);addLog(`Bought ${dog.name}, a ${breedName(dog)}.`);toast(`${dog.name} joined your kennel.`);sfx.coin();checkAch();save();closeSheet();render()},
  sell:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog)return;const g=buildGrade(dog);if(!confirm(`Sell ${dog.name} for ${fmt(salePrice(dog))}?`+(g.k==='poor'||g.k==='defect'?` Selling a ${g.label.toLowerCase()} dog will hurt your reputation.`:'')))return;
@@ -3316,6 +3329,7 @@ if(!load()||!S||S.v!==1)freshState();else{try{migrate()}catch(e){console.error('
 Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS);S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
+try{purgeLegendShops()}catch(e){console.error('legend shops',e)}
 applyTheme();render();
 if(S.welcomed&&!signedIn())setTimeout(()=>askSignIn(`Welcome back to ${S.name}. Sign in or create a free account to keep your ranch safe and play on any device.`),1200);
 if(!S.welcomed)openSheet(`<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>Welcome to Hogs & Dogs</h2><p>You’ve got a small ranch, three working dogs and $3,000. Breed better bloodlines, train your pack, and hunt hogs to grow into the top outfit in the county.</p>
