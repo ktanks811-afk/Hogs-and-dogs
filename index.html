@@ -351,6 +351,20 @@ function makeDog(o){
   if(b.noPiebald&&d.genes.S[0]==='sp'&&d.genes.S[1]==='sp')d.genes.S=['S','sp'];
   geneHealth(d);return d;
 }
+// A mix assembled from very differently sized breeds (a mastiff torso on hound legs, a hound head on a mastiff frame)
+// has a mismatched frame: lower max health, more injuries on hunts, and a chance of dying young.
+const MIS_REG=['head','legs','chest'],MIS_W={head:.8,legs:1.3,chest:.5};
+function frameParts(d){const m=d.morph;if(!m||!m.reg)return null;const o={body:topOf(m.reg.body)};for(const r of MIS_REG)o[r]=topOf(m.reg[r])||o.body;return o}
+function frameMismatch(d){if(d.breed!=='Cross')return 0;const p=frameParts(d);if(!p)return 0;const W=b=>(BREED_PROFILES[b]||BREED_PROFILES['Black Mountain Cur']).weight,wb=W(p.body);
+  // about a 40% size difference between breeds is normal for a mix; only the gap beyond it counts
+  return MIS_REG.reduce((s,r)=>s+MIS_W[r]*Math.max(0,Math.abs(Math.log(W(p[r])/wb))-.35),0)}
+const frailOf=d=>Math.round(clamp((frameMismatch(d)-.45)/.7,0,1)*100)/100;
+function applyFrail(d){d.frail=frailOf(d);if(d.frail>0){d.hcap=Math.min(d.hcap,Math.round(100-35*d.frail));d.health=Math.min(d.health,d.hcap)}}
+// the worst-matched part, in words: "Corso frame on Walker legs"
+function frameText(d){const p=frameParts(d);if(!p)return'mismatched frame';const W=b=>(BREED_PROFILES[b]||BREED_PROFILES['Black Mountain Cur']).weight,sh=b=>(BREEDS[b]&&BREEDS[b].short)||b;
+  const worst=MIS_REG.map(r=>[r,MIS_W[r]*Math.abs(Math.log(W(p[r])/W(p.body)))]).sort((a,b)=>b[1]-a[1])[0][0];
+  return worst==='head'?`${sh(p.head)} head on a ${sh(p.body)} frame`:worst==='legs'?`${sh(p.body)} frame on ${sh(p.legs)} legs`:`${sh(p.chest)} chest on a ${sh(p.body)} frame`}
+const FRAIL_DAILY=.012,frailSurvive=d=>Math.round(Math.pow(1-(d.frail||0)*FRAIL_DAILY,Math.max(0,31-d.age))*100);
 function geneHealth(d){if(homo(d.genes,'M','M')){d.hcap=80;d.health=Math.min(d.health,80)}}
 function snap(d){return{id:d.id,name:d.name,breed:breedName(d),coat:coatName(d),parents:d.parents?d.parents.map(p=>p.name):null}}
 function crossName(a,b){
@@ -373,7 +387,7 @@ function makePuppy(sire,dam){
   finishPuppy(d,sire,dam);
   const q2=v=>Math.round(v*100)/100;d.whiteMod=q2(d.whiteMod);d.patMod=q2(d.patMod);d.coatInt=q2(d.coatInt);
   STATS.forEach(([k])=>d.stats[k]=Math.round(pot[k]*.3));
-  geneHealth(d);return d;
+  geneHealth(d);applyFrail(d);return d;
 }
 function bayScore(d){const s=d.stats;return s.trk*.4+s.sta*.3+s.int*.2+s.spd*.1}
 function catchScore(d){const s=d.stats;return s.str*.4+s.grip*.4+s.spd*.2+(d.temp==='Gritty'?5:0)}
@@ -910,6 +924,12 @@ async function rigFor(body){
   return RIGC[body]={rig,W,bbox,M};
 }
 const MORPH_CACHE={};
+// a similarity transform's scale kept inside [lo,hi], scaling about a fixed point (the neck or tail base on the torso)
+function clampScale(M,c,lo,hi){const s=Math.hypot(M[0],M[1]),f=clamp(s,lo,hi)/s;return Math.abs(f-1)<1e-3?M:aff.mul(aff.about(c[0],c[1],f,f),M)}
+// separable box blur (running sums), used to feather markings across part seams
+function boxBlur(a,w,h,r){const t=new Float32Array(a.length),o=new Float32Array(a.length),n=2*r+1;
+  for(let y=0;y<h;y++){let s=0;const b=y*w;for(let x=-r;x<=r;x++)s+=a[b+clamp(x,0,w-1)];for(let x=0;x<w;x++){t[b+x]=s/n;s+=a[b+Math.min(w-1,x+r+1)]-a[b+Math.max(0,x-r)]}}
+  for(let x=0;x<w;x++){let s=0;for(let y=-r;y<=r;y++)s+=t[clamp(y,0,h-1)*w+x];for(let y=0;y<h;y++){o[y*w+x]=s/n;s+=t[Math.min(h-1,y+r+1)*w+x]-t[Math.max(0,y-r)*w+x]}}return o}
 async function morphMaps(mo,scale){
   const key=JSON.stringify(mo)+'@'+scale;if(MORPH_CACHE[key])return MORPH_CACHE[key];
   const P=mo.parts,k=mo.k||{},rg={};for(const b of new Set(Object.values(P)))rg[b]=await rigFor(b);
@@ -917,10 +937,12 @@ async function morphMaps(mo,scale){
   const Mt=aff.about(center[0],center[1],k.tx||1,k.ty||1),Q=p=>aff.ap(Mt,p);
   const xf={torso:Mt};
   {const H=rg[P.head].rig,mid=[(H.neck[0][0]+H.neck[1][0])/2,(H.neck[0][1]+H.neck[1][1])/2],pre=aff.about(mid[0],mid[1],k.head||1,1);
-    xf.head=aff.mul(aff.sim(aff.ap(pre,H.neck[0]),aff.ap(pre,H.neck[1]),Q(tr.neck[0]),Q(tr.neck[1])),pre)}
+    xf.head=aff.mul(aff.sim(aff.ap(pre,H.neck[0]),aff.ap(pre,H.neck[1]),Q(tr.neck[0]),Q(tr.neck[1])),pre);
+    if(P.head!==P.torso)xf.head=clampScale(xf.head,Q([(tr.neck[0][0]+tr.neck[1][0])/2,(tr.neck[0][1]+tr.neck[1][1])/2]),.86,1.14)}
   for(const part of['front','hind']){const Lg=rg[P[part]].rig,seg=Lg[part],tseg=tr[part],S0=aff.sim(seg[0],seg[1],Q(tseg[0]),Q(tseg[1])),s0=Math.hypot(S0[0],S0[1]);
     const pre=aff.about((seg[0][0]+seg[1][0])/2,seg[0][1],1,(k.leg||1)/Math.max(.6,s0));xf[part]=aff.mul(aff.sim(aff.ap(pre,seg[0]),aff.ap(pre,seg[1]),Q(tseg[0]),Q(tseg[1])),pre)}
-  {const Tl=rg[P.tail].rig;xf.tail=aff.sim(Tl.tail[0],Tl.tail[1],Q(tr.tail[0]),Q(tr.tail[1]))}
+  {const Tl=rg[P.tail].rig;xf.tail=aff.sim(Tl.tail[0],Tl.tail[1],Q(tr.tail[0]),Q(tr.tail[1]));
+    if(P.tail!==P.torso)xf.tail=clampScale(xf.tail,Q([(tr.tail[0][0]+tr.tail[1][0])/2,(tr.tail[0][1]+tr.tail[1][1])/2]),.82,1.02)}
   // fit into the frame (world = master half-res units, 768x512)
   let bb=[1e9,1e9,-1e9,-1e9];
   for(const part of['torso','head','front','hind','tail']){const b=rg[P[part]].bbox[part];if(b[2]<b[0])continue;
@@ -928,13 +950,14 @@ async function morphMaps(mo,scale){
   const fs=Math.min(1,.97*768/(bb[2]-bb[0]),.965*512/(bb[3]-bb[1])),ox=384-fs*(bb[0]+bb[2])/2,oy=.975*512-fs*bb[3];
   const k2=scale/MS,FIT=[fs*k2,0,0,fs*k2,ox*k2,oy*k2];
   const w=Math.round(1536*scale),h=Math.round(1024*scale),N=w*h;
-  const oA=new Float32Array(N),oS=new Float32Array(N),oI=new Float32Array(N),oW=new Float32Array(N),oR=new Uint8Array(N),oSa=new Float32Array(N),oTa=new Float32Array(N),oMk=new Float32Array(N),oFb=new Uint8Array(N);
+  const oA=new Float32Array(N),oS=new Float32Array(N),oI=new Float32Array(N),oW=new Float32Array(N),oR=new Uint8Array(N),oSa=new Float32Array(N),oTa=new Float32Array(N),oMk=new Float32Array(N),oFb=new Uint8Array(N),oP=new Uint8Array(N);
+  const srcs=[...new Set(Object.values(P))];
   for(const part of['torso','hind','front','tail','head']){
     const src=rg[P[part]],SM=src.M,sw=SM.w,sh=SM.h,Wt=src.W[part],b=src.bbox[part];if(b[2]<b[0])continue;
     const Mf=aff.mul(FIT,xf[part]),Mi=aff.inv(Mf);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     for(const c of[[b[0],b[1]],[b[2]+1,b[1]],[b[0],b[3]+1],[b[2]+1,b[3]+1]]){const q=aff.ap(Mf,c);x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])}
     x0=Math.max(0,Math.floor(x0));y0=Math.max(0,Math.floor(y0));x1=Math.min(w-1,Math.ceil(x1));y1=Math.min(h-1,Math.ceil(y1));
-    const isT=part==='torso';
+    const isT=part==='torso',pid=srcs.indexOf(P[part])+1;
     for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
       const sx=Mi[0]*(x+.5)+Mi[2]*(y+.5)+Mi[4],sy=Mi[1]*(x+.5)+Mi[3]*(y+.5)+Mi[5],ix=sx|0,iy=sy|0;if(ix<0||iy<0||ix>=sw||iy>=sh)continue;
       const si=iy*sw+ix,wt=Wt[si];if(wt<=0)continue;const p4=si*4,sa=SM.m3[p4]/255;
@@ -943,8 +966,25 @@ async function morphMaps(mo,scale){
       const o=y*w+x,oa=oA[o],na=oa*(1-wt)+sa*wt;if(na<=0){oA[o]=0;continue}
       const f0=oa*(1-wt)/na,f1=sa*wt/na;
       oS[o]=oS[o]*f0+SM.m1[p4]*f1;oI[o]=oI[o]*f0+ink*f1;oW[o]=oW[o]*f0+SM.m1[p4+2]*f1;oSa[o]=oSa[o]*f0+SM.m2[p4+1]*f1;oTa[o]=oTa[o]*f0+SM.m2[p4+2]*f1;oMk[o]=oMk[o]*f0+mk*f1;
-      if(sa*wt>=oa*(1-wt)){oR[o]=reg;oFb[o]=SM.m3[p4+2]}oA[o]=na;
+      if(sa*wt>=oa*(1-wt)){oR[o]=reg;oFb[o]=SM.m3[p4+2];oP[o]=pid}oA[o]=na;
     }
+  }
+  if(srcs.length>1){
+    // where parts from different breeds meet, feather the white spread, saddle and tan-point fields so markings flow across the join
+    const R=Math.max(3,Math.round(46*scale)),seam=new Float32Array(N),aw=new Float32Array(N);
+    for(let i=0;i<N;i++){if(oA[i]<.5)continue;aw[i]=1;const x=i%w;if(x<w-1&&oA[i+1]>=.5&&oP[i+1]!==oP[i]){seam[i]=1;seam[i+1]=1}if(i+w<N&&oA[i+w]>=.5&&oP[i+w]!==oP[i]){seam[i]=1;seam[i+w]=1}}
+    const near=boxBlur(seam,w,h,R),den=boxBlur(aw,w,h,R),k=(2*R+1)*.9;
+    for(const f of[oW,oSa,oTa]){const fa=new Float32Array(N);for(let i=0;i<N;i++)fa[i]=f[i]*aw[i];const bl=boxBlur(fa,w,h,R);
+      for(let i=0;i<N;i++){if(!aw[i])continue;const s=Math.min(1,near[i]*k);if(s>0)f[i]=f[i]*(1-s)+bl[i]/Math.max(1e-6,den[i])*s}}
+  }
+  {
+    // drop small pieces left floating where parts were cut (ear tips, stray limb edges) or stray specks in a master
+    // solid pieces are found at half opacity so faint edge pixels can't bridge a loose piece to the body; soft edges stay only beside a kept piece
+    const lab=new Int32Array(N),q=new Int32Array(N),sizes=[0];
+    for(let i=0;i<N;i++){if(lab[i]||oA[i]<.5)continue;const id=sizes.length;let qh=0,qt=0,n=0;lab[i]=id;q[qt++]=i;
+      while(qh<qt){const j=q[qh++],x=j%w;n++;for(const t of[x>0?j-1:-1,x<w-1?j+1:-1,j-w,j+w]){if(t<0||t>=N||lab[t]||oA[t]<.5)continue;lab[t]=id;q[qt++]=t}}sizes.push(n)}
+    const big=Math.max(...sizes),kept=new Float32Array(N);for(let i=0;i<N;i++){if(!lab[i])continue;if(sizes[lab[i]]<big*.04)oA[i]=0;else kept[i]=1}
+    const nearKept=boxBlur(kept,w,h,2);for(let i=0;i<N;i++)if(oA[i]>0&&oA[i]<.5&&nearKept[i]<=0)oA[i]=0;
   }
   const m1=new Uint8ClampedArray(N*4),m2=new Uint8ClampedArray(N*4),m3=new Uint8ClampedArray(N*4);
   for(let i=0;i<N;i++){const p=i*4,a=oA[i];m3[p]=a>.02?a*255:0;m3[p+1]=oMk[i];m3[p+2]=oFb[i];m3[p+3]=255;m1[p]=oS[i];m1[p+1]=oI[i];m1[p+2]=oW[i];m1[p+3]=255;m2[p]=oR[i]*20;m2[p+1]=oSa[i];m2[p+2]=oTa[i];m2[p+3]=255}
@@ -1112,7 +1152,8 @@ function migrate(){
   [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{fix(d)}catch(e){console.error('fix',d&&d.id,e)}});
   [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{if(!d.bl&&d.pot)d.bl=foundationBl(d)}catch(e){}});
   setTimeout(()=>{try{[...S.dogs,...S.market,...S.featured].forEach(classifyCategory);save();render()}catch(e){}},0);
-  [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{if(!d.morph)d.morph=legacyMorph(d);if(d.breed==='Cross')d.cross=crossLabel(d.morph.anc)}catch(e){console.error('morph',d&&d.id,e)}});S.preg.forEach(p=>{if(p.sireSnap&&!p.sireSnap.morph)p.sireSnap.morph=legacyMorph(p.sireSnap)});S.preg.forEach(p=>fix(p.sireSnap));
+  [...S.dogs,...S.market,...S.featured,...allLineup()].forEach(d=>{try{if(!d.morph)d.morph=legacyMorph(d);if(d.breed==='Cross')d.cross=crossLabel(d.morph.anc)}catch(e){console.error('morph',d&&d.id,e)}});
+  S.dogs.forEach(d=>{if(d.frail===undefined&&d.breed==='Cross'){d.frail=frailOf(d);if(d.frail>0&&d.age<=30){d.hcap=Math.min(d.hcap,Math.round(100-35*d.frail));d.health=Math.min(d.health,d.hcap)}}});S.preg.forEach(p=>{if(p.sireSnap&&!p.sireSnap.morph)p.sireSnap.morph=legacyMorph(p.sireSnap)});S.preg.forEach(p=>fix(p.sireSnap));
   // one time: Dogos from before the white-genetics change become solid white; hidden liver/mask/fawn carriers stay
   if(!S.dogoWhite){[...S.dogs,...S.market,...S.featured,...S.preg.map(p=>p.sireSnap)].forEach(whitenDogo);
     const L=Coat.LINEUPS['Dogo Argentino'];if(S.lineups&&(S.lineups['Dogo Argentino']||[]).some(d=>!L[d.lineup]))S.lineups['Dogo Argentino']=Object.keys(L).map(n=>makeLineupDog('Dogo Argentino',n));
@@ -1676,6 +1717,9 @@ function endDay(){
     const gf=growFactor(d.age);if(d.age<=36)STATS.forEach(([k])=>d.stats[k]=Math.max(d.stats[k],Math.min(d.pot[k],Math.round(d.pot[k]*gf))));
     if(d.age>96)STATS.forEach(([k])=>{if(R()<.3)d.stats[k]=Math.max(10,d.stats[k]-1)});
     if(d.age===12)msgs.push(`${d.name} is grown and ready to work.`)}
+  for(const d of[...S.dogs]){if(!(d.frail>0)||d.age>30||R()>=d.frail*FRAIL_DAILY)continue;S.dogs=S.dogs.filter(x=>x!==d);
+    for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);if(UI.sire===d.id)UI.sire='';if(UI.dam===d.id)UI.dam='';
+    msgs.push(`${d.name} died young. The ${frameText(d)} gave out.`);addLog(`${d.name} (${breedName(d)}) died at ${d.age} months: ${frameText(d)}.`)}
   const due=S.preg.filter(p=>p.due<=S.day);S.preg=S.preg.filter(p=>p.due>S.day);
   for(const p of due){const dam=S.dogs.find(d=>d.id===p.dam);const sire=p.sireSnap;
     if(!dam){msgs.push('A litter was lost when the dam left the kennel.');continue}
@@ -1688,6 +1732,7 @@ function endDay(){
     S.st.litters++;S.st.pups+=n;gainXP(30);
     const best=pups.reduce((a,b)=>rarTier(b)>rarTier(a)?b:a);
     msgs.push(`${dam.name} whelped ${n} pup${n>1?'s':''}! Best of the litter: ${best.name} (${RAR[rarTier(best)][0]}, ${coatName(best)}).`);sfx.bark();
+    const frail=keep.filter(x=>x.frail>0);if(frail.length)msgs.push(`${frail.map(x=>x.name).join(', ')} ${frail.length>1?'have':'has'} a mismatched frame and may not live long.`);
     litterResearch(pups);
     {const rv=litterRep(pups,sire,dam);if(Math.abs(rv)>=1)msgs.push(`Reputation ${rv>0?'+':''}${Math.round(rv*10)/10}: ${repTier(repOf()).toLowerCase()}.`)}
     if(sameLine(sire,dam))S.st.sameLitters=(S.st.sameLitters||0)+1;const lh=litterHint(pups,sire,dam);if(lh)msgs.push(lh)}
@@ -1773,7 +1818,7 @@ function dogProfile(id){
   <div class="dcard" style="--rc:var(${RAR[t][1]});padding:0;border-width:0 0 4px"><div class="art">${dogArt(d,300)}</div></div>
   <div class="row" style="margin:8px 0">${rarTag(d)}${gradeTag(d)}${d.mut?'<span class="tag" style="background:var(--gold);color:#fff">✦ Mutation</span>':''}<span class="tag">${esc(breedName(d))}</span><span class="tag">${ageStr(d.age)}</span><span class="tag">${d.kg} kg</span><span class="tag">${esc(d.temp)}</span></div>
   <div class="panel"><div class="spread"><span>Market value</span><b class="pill-val num">${fmt(dogValue(d))}</b></div>
-  <div class="spread small"><span>Health</span><span class="num">${d.health}/${d.hcap}</span></div><div class="meter" style="height:8px"><i style="width:${d.health}%;background:var(--good)"></i></div>
+  <div class="spread small"><span>Health</span><span class="num">${d.health}/${d.hcap}</span></div>${d.frail>0?`<div class="small" style="color:var(--bad);margin:2px 0 4px">Mismatched frame (${esc(frameText(d))}): max health ${d.hcap}, more injuries on hunts${d.age<=30?`, about ${frailSurvive(d)}% chance to reach 2½ years`:'. It made it through the risky early years'}.</div>`:''}<div class="meter" style="height:8px"><i style="width:${d.health}%;background:var(--good)"></i></div>
   <div class="spread small" style="margin-top:4px"><span>Energy</span><span class="num">${d.energy}</span></div><div class="meter" style="height:8px"><i style="width:${d.energy}%;background:var(--gold)"></i></div>
   <p class="small muted" style="margin:6px 0 0">Temperament: ${esc(TEMP_FX[d.temp])}</p></div>
   ${mixSection(d)}
@@ -1926,7 +1971,7 @@ function finishHunt(win,lines){
   cd.forEach(d=>{const H=hx(d),g=sd(d.id),notes=[];let xp=2;
     if(released){H.n++;if(win)H.catches++;d.stats.grip=Math.min(d.pot.grip,d.stats.grip+1);if(H.n%5===0)d.pot.grip=Math.min(99,d.pot.grip+1);xp+=4;
       if(g&&g.m.catchT>0){xp+=win?12:5;notes.push(`on the hog ${Math.round(g.m.catchT)} s`)}if(g)notes.push(`${yd(g.dist).toLocaleString()} yd covered`);
-      let risk=(win?.12:.32)*(1-(S.up.gear-1)*.1)*(1+landHunt(h.area.id).injury)*(d.temp==='Hot-headed'?1.5:1)*(h.hog.w/180)*(1-blOf(d).hardy*.04);
+      let risk=(win?.12:.32)*(1-(S.up.gear-1)*.1)*(1+landHunt(h.area.id).injury)*(d.temp==='Hot-headed'?1.5:1)*(h.hog.w/180)*(1-blOf(d).hardy*.04)*(1+(d.frail||0));
       if(vests>0){risk*=.4;vests--}
       if(R()<risk){const dmg=ri(10,28);d.health=Math.max(5,d.health-dmg);lines.push(`${d.name} got cut by a tusk (−${dmg} health).`);notes.push('cut')}}
     else notes.push('stayed on the leash');
@@ -2747,7 +2792,7 @@ function huntProfile(d){const anc=(d.morph&&d.morph.anc)||{[d.breed]:1},out={};l
   for(const[b,f]of Object.entries(anc)){const p=HUNT_STYLE[b]||HUNT_STYLE._;for(const k in out)out[k]+=p[k]*f;w+=f}for(const k in out)out[k]/=w||1;return out}
 function huntAttrs(d,lh){const s=d.stats,p=huntProfile(d),hx=d.hunt||{n:0,xp:0},exp=1+Math.min(.3,(hx.xp||0)/600+(hx.n||0)/150),t=d.temp,bl=blOf(d)||{};
   return{nose:s.trk/70*p.nose*exp*(1+(lh.clue||0))*(t==='Sharp'?1.12:1),air:p.air,trail:p.trail*(t==='Steady'?1.1:1)*(.7+s.int/250)*exp,spd:(.72+s.spd/220)*p.speed*(t==='Eager'?1.05:1),
-    end:(.55+s.sta/110)*p.end*(1+(bl.hardy||0)*.02),int:s.int/100,obd:s.obd/100,range:p.range*(1.25-s.obd/250)*(t==='Hot-headed'?1.2:t==='Loyal'?.85:1),voice:p.voice,
+    end:(.55+s.sta/110)*p.end*(1+(bl.hardy||0)*.02)*(1-.3*(d.frail||0)),int:s.int/100,obd:s.obd/100,range:p.range*(1.25-s.obd/250)*(t==='Hot-headed'?1.2:t==='Loyal'?.85:1),voice:p.voice,
     grit:p.grit*(t==='Bold'||t==='Gritty'?1.12:t==='Calm'||t==='Loyal'?1.06:1)*(.7+s.sta/300),catch:(s.str*.45+s.grip*.45+s.sta*.1)/70*p.catch*exp*(t==='Gritty'?1.1:t==='Hot-headed'?1.08:1),exp}}
 
 // ---------- setting out: entry point, hogs and the scent already on the ground ----------
@@ -3174,7 +3219,7 @@ const A={
  guestRole:d=>{UI.guestRole=d.k;render()},
  previewLitter:()=>{const sire=S.dogs.find(x=>x.id===UI.sire),dam=S.dogs.find(x=>x.id===UI.dam);if(!sire||!dam)return;UI.previewPups=previewLitter(sire,dam,4);
   openSheet(`<h2>Possible puppies</h2><p class="sub">Four random outcomes from ${esc(sire.name)} × ${esc(dam.name)}. Each pup draws its own mix of genes, so every litter is different. These are previews — they aren’t added to your kennel.</p>
-  <div class="grid">${UI.previewPups.map(p=>`<div>${dogCard(p,'pview',sizeLabel(p.morph.t.weight))}<div class="small" style="margin-top:4px">${['head','body','legs'].map(r=>{const e=Object.entries(p.morph.reg[r]);return `${r[0].toUpperCase()+r.slice(1)}: ${Math.round(e[0][1]*100)}% ${esc(shortOf(e[0][0]))}`}).join('<br>')}</div></div>`).join('')}</div>
+  <div class="grid">${UI.previewPups.map(p=>`<div>${dogCard(p,'pview',sizeLabel(p.morph.t.weight)+(p.frail>0?' · ⚠ mismatched frame':''))}<div class="small" style="margin-top:4px">${['head','body','legs'].map(r=>{const e=Object.entries(p.morph.reg[r]);return `${r[0].toUpperCase()+r.slice(1)}: ${Math.round(e[0][1]*100)}% ${esc(shortOf(e[0][0]))}`}).join('<br>')}</div></div>`).join('')}</div>
   <div style="margin-top:10px"><button class="btn alt" data-act="previewLitter">Roll again</button></div>`)},
  pview:d=>{const p=(UI.previewPups||[]).find(x=>x.id===d.id);if(!p)return;openSheet(`<h2>${esc(breedName(p))}</h2><div class="dcard" style="padding:0;border-width:0 0 4px"><div class="art">${dogArt(p,300)}</div></div>${mixSection(p)}<div style="margin-top:10px"><button class="btn ghost" data-act="previewLitter">Back to previews</button></div>`)},
  dog:d=>dogProfile(d.id),
