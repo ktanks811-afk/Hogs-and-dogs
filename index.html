@@ -2108,13 +2108,13 @@ SCREENS.hunt=()=>{
   if(UI.hunt)return huntPlay();
   if(UI.huntMode==='rabbit')return RB.setup();
   const sel=UI.huntSel,elig=S.dogs.filter(d=>isAdult(d));
-  const maxBay=3,maxCatch=landLevel(S.land,'gear')>=2?3:2;
+  const maxBay=3+VEH.box(),maxCatch=(landLevel(S.land,'gear')>=2?3:2)+VEH.box();
   const card=(d,role)=>{const on=sel[role].includes(d.id),other=sel[role==='bay'?'catch':'bay'].includes(d.id);const ok=d.energy>=35&&d.health>=40;
     return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
   const byBay=[...elig].sort((a,b)=>bayScore(b)-bayScore(a)),byCatch=[...elig].sort((a,b)=>catchScore(b)-catchScore(a));
   return `<h2>Hog hunt</h2>${RB.modeSeg()}<p class="sub">Turn your dogs out on ${HW_ACRES.toLocaleString()} acres of hunting grounds. Bay dogs cast, strike a track and run it down; you follow on the map. When the hog is bayed, you decide when to release the catch dogs.</p>${WE.huntPanel()}${JB.panel()}${S.land&&(S.land.trainHogs||[]).length?`<button class="btn sm alt" style="margin-bottom:8px" data-act="tab" data-t="practice">Train on your kept hog${S.land.trainHogs.length>1?'s':''}</button>`:''}
-  <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const acc=S.land&&accessArea(S.land)===a.id,lock=Prop.tier()<a.land&&!acc;return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
-   <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}${JB.areaTag(a.id)}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div><div class="small muted">${WE.signText(a.id)}</div></button>`}).join('')}</div>
+  <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const acc=S.land&&accessArea(S.land)===a.id,lock=!VEH.open(a),lease=VEH.lease(a);return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
+   <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}${!lock&&lease?` <span class="tag">Lease ${fmt(lease)}</span>`:''}${JB.areaTag(a.id)}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div><div class="small muted">${WE.signText(a.id)}</div></button>`}).join('')}</div>
   <h3>Bay dogs <span class="small muted">${sel.bay.length}/${maxBay} — track and hold the hog</span></h3><div class="dogpick">${byBay.map(d=>card(d,'bay')).join('')||'<p class="small muted">No adult dogs.</p>'}</div>
   <h3>Catch dogs <span class="small muted">${sel.catch.length}/${maxCatch} — take the hog down</span></h3><div class="dogpick">${byCatch.map(d=>card(d,'catch')).join('')}</div>
   <h3>Hunting group guest <span class="small muted">optional</span></h3>${UI.guest?`<div class="panel"><div class="spread"><div><b>${esc(UI.guest.name)}</b> from ${esc(UI.guest.guest.ranch)}<div class="small muted">${esc(breedName(UI.guest))} · Bay ${Math.round(bayScore(UI.guest))} · Catch ${Math.round(catchScore(UI.guest))}</div></div><button class="btn sm ghost" data-act="dropGuest">Remove</button></div>
@@ -2128,11 +2128,12 @@ function huntStart(opts={}){PR.flush();
   const gst=UI.guest||null,look=id=>gst&&gst.id===id?gst:S.dogs.find(d=>d.id===id);
   const bay=[...sel.bay,...(gst&&UI.guestRole==='bay'?[gst.id]:[])].map(look).filter(Boolean),ctch=[...sel.catch,...(gst&&UI.guestRole==='catch'?[gst.id]:[])].map(look).filter(Boolean);
   if(!bay.length||(!ctch.length&&!opts.search))return;
+  {const fee=VEH.lease(a);if(fee&&!opts.search){if(S.money<fee)return toast(`The day lease on ${a.name} is ${fmt(fee)}.`);S.money-=fee;addLog(`Paid a ${fmt(fee)} day lease to hunt ${a.name}.`)}}
   [...bay,...ctch].forEach(d=>d.energy-=35);
   const lh=landHunt(a.id),own=!!(S.land&&accessArea(S.land)===a.id);
   UI.hunt={area:a,phase:'sim',bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hog:null,hogKey:null,found:false,log:[],result:null,search:opts.search||null};
   const S2=UI.hunt.sim=huntWorldStart(a,bay,ctch,lh,own,opts);
-  HR.start(S2,UI.huntHorse??S.huntHorse);
+  {const pick=UI.huntHorse??S.huntHorse;if(pick==='UTV'){if(VEH.has('utv'))HR.startUTV(S2)}else if(VEH.horseOK(a.id))HR.start(S2,pick);else if(pick)hwEvent(S2,'notrailer','No horse trailer: your horse stayed home. You can ride on your own trail, or buy a trailer.',1)}
   hwEvent(S2,'start',`${bay.map(d=>d.name).join(' and ')} strike off from ${S2.entry.label}.`,1);if(lh.note)hwEvent(S2,'land',lh.note,1);WE.startNotes(S2);if(opts.search)UI.searchFor=null;
   S.st.hunts++;save();sfx.bark();render();window.scrollTo(0,0);
 }
@@ -3374,7 +3375,7 @@ function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=
   $('hDogs').innerHTML=HR.hud(S2)+S2.dogs.map(g=>`<div class="spread small"><span><i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${DOG_ST[g.goTrack?'go':g.st]||g.st}</span><span class="muted">${g.st==='leash'?'':yd(Math.hypot(g.x-P.x,g.y-P.y))+' yd · '}${Math.round(g.sta*100)}%</span></div>`).join('')+
     (H0&&H0.rev?(H0.rabbit?`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${H0.st==='caught'?esc(H0.species):'Rabbit'}</b> ${H0.st==='caught'?H0.w+' lb':'running'}</span><span class="muted">~${Math.round(yd(Math.hypot(RB.markPos(S2,H0).x-P.x,RB.markPos(S2,H0).y-P.y))/10)*10} yd</span></div>`:`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${esc(H0.name)}</b> ~${H0.w} lb</span><span class="muted">${yd(Math.hypot(H0.x-P.x,H0.y-P.y))} yd</span></div>`):'')+(S2.mode==='rabbit'&&S2.rb.found.size?`<div class="small muted">Rabbits found so far: ${S2.rb.found.size}</div>`:'');
   $('hLog').innerHTML=S2.events.slice(0,14).map(e=>`<div>${esc(e.txt)}</div>`).join('')||'<div class="muted">The dogs are casting for scent.</div>';
-  if(full){document.querySelectorAll('[data-act="hfollow"]').forEach(b=>b.classList.toggle('on',b.dataset.k===HV.follow));document.querySelectorAll('[data-act="hspeed"]').forEach(b=>b.classList.toggle('on',+b.dataset.k===S2.speed));const kb=$('hStickBtn');if(kb){kb.classList.toggle('on',S2.stick);kb.textContent=S2.stick?'Stay on one hog: on':'Stay on one hog: off'}const mb=$('hMountBtn');if(mb&&P.horse)mb.textContent=P.mounted?`Tie ${P.horse.name}, go on foot`:`Get back on ${P.horse.name}`;const sb=$('hScentBtn');if(sb){sb.classList.toggle('on',HV.scent!==false);sb.textContent=HV.scent!==false?'Scent trails: on':'Scent trails: off'}}}
+  if(full){document.querySelectorAll('[data-act="hfollow"]').forEach(b=>b.classList.toggle('on',b.dataset.k===HV.follow));document.querySelectorAll('[data-act="hspeed"]').forEach(b=>b.classList.toggle('on',+b.dataset.k===S2.speed));const kb=$('hStickBtn');if(kb){kb.classList.toggle('on',S2.stick);kb.textContent=S2.stick?'Stay on one hog: on':'Stay on one hog: off'}const mb=$('hMountBtn');if(mb&&P.horse)mb.textContent=P.horse.utv?(P.mounted?'Park the UTV, go on foot':'Get back in the UTV'):P.mounted?`Tie ${P.horse.name}, go on foot`:`Get back on ${P.horse.name}`;const sb=$('hScentBtn');if(sb){sb.classList.toggle('on',HV.scent!==false);sb.textContent=HV.scent!==false?'Scent trails: on':'Scent trails: off'}}}
 function huntPlayLive(){const h=UI.hunt,S2=h.sim;
   return `<h2>${h.practice?'Hog training · ':h.rabbit?'Rabbit hunt · ':''}${esc(h.area.name)}</h2><p class="sub">${HW_ACRES.toLocaleString()}-acre hunting grounds · you parked on ${esc(S2.entry.label)} · <b id="hTime">0:00:00</b> · <span id="hLeft"></span> · ${WEATHER[HWX.kind].icon} ${WEATHER[HWX.kind].name}</p>
   <div class="panel small" style="margin-bottom:6px"><b id="hStat">Dogs searching</b></div>
@@ -3526,7 +3527,7 @@ const WE={
     const mud=[.35,.35,.6,0,0,.1,.1,.35,.4,.2,0,.15,.2],m=(kind,t)=>{let f=1+mud[t]*wet*(kind==='man'?1:kind==='dog'?.55:.3);
       if(fl){if(t===T_FORD)f*=1+fl*(kind==='man'?14:kind==='dog'?4:2);if(t===T_WATER)f*=1+fl*(kind==='man'?6:2);if(t===T_MARSH)f*=1+fl}
       if(dr&&(t===T_MUD||t===T_MARSH||t===T_FORD))f*=.8;return f};
-    HNAVW={dog:HNAV.dog.map((c,t)=>c*m('dog',t)),hog:HNAV.hog.map((c,t)=>c*m('hog',t)),man:HNAV.man.map((c,t)=>c*m('man',t)),rab:HNAV.rab.map((c,t)=>c*m('hog',t)),horse:HNAV.horse.map((c,t)=>c*m('dog',t))};
+    HNAVW={dog:HNAV.dog.map((c,t)=>c*m('dog',t)),hog:HNAV.hog.map((c,t)=>c*m('hog',t)),man:HNAV.man.map((c,t)=>c*m('man',t)),rab:HNAV.rab.map((c,t)=>c*m('hog',t)),horse:HNAV.horse.map((c,t)=>c*m('dog',t)),utv:HNAV.utv.map((c,t)=>c*m('man',t))};
     return HWX=X},
   clock(t){const m=390+Math.floor(t/60),h=Math.floor(m/60)%24;return`${(h+11)%12+1}:${String(m%60).padStart(2,'0')} ${h<12?'AM':'PM'}`},
   // hogs from world events join the hunt where they really are; fresh sign is laid as real scent
@@ -3732,7 +3733,7 @@ SCREENS.practice=()=>{const th=trainHogs(),P=UI.prac=UI.prac||{mode:'bay',sel:{}
   <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Your training hogs</h3>${hogs}<div class="small muted">These are the grown hogs in your <a href="#" data-act="tab" data-t="hogpin">Hog Pin</a> (${S.hogs.length}/${HOGG.cap()}). Hogs recover 15% a day.</div></div>
   ${th.length?`<div class="seg"><button class="${P.mode==='bay'?'on':''}" data-act="pmode" data-k="bay">Bay practice</button><button class="${P.mode==='catch'?'on':''}" data-act="pmode" data-k="catch">Catch practice</button></div>
   <p class="small muted" style="margin-top:0">${P.mode==='bay'?`The hog gets a head start. Bay dogs trail it and must hold it at bay for ${PR_BAY_GOAL/60} minutes. Builds tracking, stamina and intelligence; catch dogs can go in at the end for grip work.`:'The hog starts held up close by. Release your catch dogs on it and take it down clean. Builds grip and strength; bay dogs you add start the session baying it.'}</p>
-  <label class="small">Where <select data-f="pracArea">${AREAS.filter(a=>Prop.tier()>=a.land||(S.land&&accessArea(S.land)===a.id)).map(a=>`<option value="${a.id}" ${a.id===P.area?'selected':''}>${a.name}</option>`).join('')}</select></label>
+  <label class="small">Where <select data-f="pracArea">${AREAS.filter(a=>VEH.open(a)).map(a=>`<option value="${a.id}" ${a.id===P.area?'selected':''}>${a.name}</option>`).join('')}</select></label>
   <h3>Dogs <span class="small muted">${n}/${PR_MAX} · tap once for bay, twice for catch, again to leave home</span></h3>
   <div class="dogpick" style="flex-wrap:wrap">${dogs.map(card).join('')||'<p class="small muted">No dogs old enough (8 months).</p>'}</div>
   <div style="margin-top:12px"><button class="btn big" data-act="pstart" ${t&&t.cond>=30&&n?'':'disabled'}>${t&&t.cond<30?`${esc(t.name)} needs rest`:'Turn out the hog'}</button></div>`:''}`};
@@ -4259,31 +4260,32 @@ const HR={
   spookP:h=>clamp((72-h.tmp)/110,.03,.35)*(1-h.bond/250),
   spookWord(h){const p=HR.spookP(h);return p<.07?'rarely spooks':p<.15?'sometimes spooks':'spooks easily'},
   // the choice on the hunt screen
-  setup(){const hs=S.horses.filter(h=>h.age>=24);if(!hs.length)return'';const sel=UI.huntHorse??S.huntHorse??'',cur=hs.find(h=>h.id===sel&&HR.ready(h));
-    return`<h3>Ride in on <span class="small muted">optional</span></h3><div class="panel"><select data-f="huntHorse" style="width:100%"><option value="">On foot</option>${hs.map(h=>`<option value="${h.id}" ${cur&&cur.id===h.id?'selected':''} ${HR.ready(h)?'':'disabled'}>${esc(h.name)} — ${esc(h.breed)}, ${esc(h.coat)}${HR.ready(h)?'':' ('+HR.why(h)+')'}</option>`).join('')}</select>
-     ${cur?`<div class="small" style="margin-top:6px">About ${(HR.pace(cur)/.9).toFixed(1)}× walking speed in the open · ${Math.round(HR.wind(cur)/60)} min before ${cur.sex==='M'?'he':'she'} needs a blow · ${HR.spookWord(cur)}</div>`:'<div class="small muted" style="margin-top:6px">A horse gets you to the bay faster and sees farther. Slow in woods and swamp.</div>'}</div>`},
+  setup(){const hs=S.horses.filter(h=>h.age>=24),utv=VEH.has('utv');if(!hs.length&&!utv)return'';const trl=VEH.horseOK(UI.huntSel.area);const sel=UI.huntHorse??S.huntHorse??'',cur=hs.find(h=>h.id===sel&&HR.ready(h));
+    return`<h3>Ride in on <span class="small muted">optional</span></h3><div class="panel"><select data-f="huntHorse" style="width:100%"><option value="">On foot</option>${utv?`<option value="UTV" ${sel==='UTV'?'selected':''}>Side-by-side UTV</option>`:''}${hs.map(h=>`<option value="${h.id}" ${cur&&cur.id===h.id?'selected':''} ${HR.ready(h)?'':'disabled'}>${esc(h.name)} — ${esc(h.breed)}, ${esc(h.coat)}${HR.ready(h)?'':' ('+HR.why(h)+')'}</option>`).join('')}</select>
+     ${!trl&&hs.length?'<div class="small" style="margin-top:6px;color:var(--bad)">No horse trailer: horses can only go on your own trail. Buy one under More → Trucks & trailers.</div>':''}${sel==='UTV'&&utv?'<div class="small" style="margin-top:6px">Fast on roads, trails and open ground; park it and walk into thick cover and swamp.</div>':''}${cur?`<div class="small" style="margin-top:6px">About ${(HR.pace(cur)/.9).toFixed(1)}× walking speed in the open · ${Math.round(HR.wind(cur)/60)} min before ${cur.sex==='M'?'he':'she'} needs a blow · ${HR.spookWord(cur)}</div>`:'<div class="small muted" style="margin-top:6px">A horse gets you to the bay faster and sees farther. Slow in woods and swamp.</div>'}</div>`},
   start(S2,id){const h=id&&S.horses.find(x=>x.id===id);if(!h||!HR.ready(h))return;S.huntHorse=h.id;
     S2.player.horse={id:h.id,name:h.name,sex:h.sex,pace:HR.pace(h),wind:HR.wind(h),rec:500*(1.4-h.end/100),spook:HR.spookP(h),E:1,dist:0,spooks:0,until:0,tied:null,blown:false};S2.player.mounted=true;
     hwEvent(S2,'horse',`You ride in on ${h.name}.`,1)},
   // speed and ground type for the hunter this step
-  gait(S2){const P=S2.player,H=P.horse;if(!H||!P.mounted)return[.68,'man'];if(H.until>S2.t)return[0,'horse'];return[.68*H.pace*(H.E<.15?.45:H.E<.35?.75:1),'horse']},
-  step(S2,dt,moved){const P=S2.player,H=P.horse;if(!H)return;
+  gait(S2){const P=S2.player,H=P.horse;if(!H||!P.mounted)return[.68,'man'];if(H.utv)return[.68*H.pace,'utv'];if(H.until>S2.t)return[0,'horse'];return[.68*H.pace*(H.E<.15?.45:H.E<.35?.75:1),'horse']},
+  step(S2,dt,moved){const P=S2.player,H=P.horse;if(!H)return;if(H.utv){if(P.mounted)H.dist+=moved;return}
     if(P.mounted&&moved>0){H.dist+=moved;H.E=Math.max(0,H.E-moved/(.68*H.pace)/H.wind*(1+(HWX.kind==='heat'?.35:0)))}else H.E=Math.min(1,H.E+dt/H.rec);
     if(H.E<.15&&!H.blown){H.blown=true;hwEvent(S2,'blown',`${H.name} is blown. Ease up and let ${H.sex==='M'?'him':'her'} get ${H.sex==='M'?'his':'her'} wind back.`,120)}else if(H.E>.45)H.blown=false;
     // a bay, a break or a catch close by can set a hot horse off
     if(S2.phase!==S2.hrPh){S2.hrPh=S2.phase;const t=S2.target;if(P.mounted&&t&&t.rev&&['bay','chase','catch'].includes(S2.phase)&&Math.hypot(t.x-P.x,t.y-P.y)<90&&R()<H.spook){
       H.until=S2.t+4+R()*8;H.spooks++;hwEvent(S2,'spook',`${H.name} spooked at the ${S2.phase==='catch'?'fight':'hog'} and won't go forward. Hold on!`,1)}}},
+  startUTV(S2){S2.player.horse={utv:true,id:'UTV',name:'the UTV',sex:'M',pace:1.9,wind:1e9,rec:1,spook:0,E:1,dist:0,spooks:0,until:0,tied:null,blown:false};S2.player.mounted=true;hwEvent(S2,'horse','You drive in on the side-by-side.',1)},
   toggle(S2){const P=S2.player,H=P.horse;if(!H)return;
-    if(P.mounted){P.mounted=false;H.tied={x:P.x,y:P.y};hwEvent(S2,'tie',`You tied ${H.name} and went on foot.`,1)}
+    if(P.mounted){P.mounted=false;H.tied={x:P.x,y:P.y};hwEvent(S2,'tie',H.utv?'You parked the UTV and went on foot.':`You tied ${H.name} and went on foot.`,1)}
     else if(Math.hypot(H.tied.x-P.x,H.tied.y-P.y)<6){P.mounted=true;H.tied=null;hwEvent(S2,'mount',`Back up on ${H.name}.`,1)}
     else{P.tx=H.tied.x;P.ty=H.tied.y;hwEvent(S2,'walkback',`Walking back to ${H.name}, ${yd(Math.hypot(H.tied.x-P.x,H.tied.y-P.y))} yd.`,1)}},
   // walking back to a tied horse gets you on it
   arrive(S2){const P=S2.player,H=P.horse;if(H&&!P.mounted&&H.tied&&P.tx===null&&Math.hypot(H.tied.x-P.x,H.tied.y-P.y)<3&&S2.hrWalk){S2.hrWalk=false;HR.toggle(S2)}},
   draw(S2,dot,r0,z){const P=S2.player,H=P.horse;if(!H)return;if(H.tied)dot(H.tied.x,H.tied.y,'#a86a32',r0,z>=4?H.name:'')},
-  hud(S2){const P=S2.player,H=P.horse;if(!H)return'';const c=H.E<.15?'var(--bad)':H.E<.35?'var(--gold)':'var(--good)';
+  hud(S2){const P=S2.player,H=P.horse;if(!H)return'';if(H.utv)return`<div class="spread small"><span><i class="hdot" style="background:#a86a32"></i><b>UTV</b> ${P.mounted?'driving':'parked'}</span><span class="muted">${H.tied?yd(Math.hypot(H.tied.x-P.x,H.tied.y-P.y))+' yd':''}</span></div>`;const c=H.E<.15?'var(--bad)':H.E<.35?'var(--gold)':'var(--good)';
     return`<div class="spread small"><span><i class="hdot" style="background:#a86a32"></i><b>${esc(H.name)}</b> ${H.until>S2.t?'spooked':P.mounted?(H.blown?'blown, walking':'under saddle'):'tied'}</span><span class="muted">${H.tied?yd(Math.hypot(H.tied.x-P.x,H.tied.y-P.y))+' yd · ':''}wind ${Math.round(H.E*100)}%</span></div><div class="meter" style="height:6px;margin:2px 0 6px"><i style="width:${Math.round(H.E*100)}%;background:${c}"></i></div>`},
   // after the hunt: bond, a little conditioning, and the wear of a hard day
-  after(hh,S2,lines){const H=S2&&S2.player.horse;if(!H)return null;const h=S.horses.find(x=>x.id===H.id);if(!h)return null;
+  after(hh,S2,lines){const H=S2&&S2.player.horse;if(!H)return null;if(H.utv)return{name:'Side-by-side UTV',note:`${(yd(H.dist)/1760).toFixed(1)} mi driven`};const h=S.horses.find(x=>x.id===H.id);if(!h)return null;
     const mi=yd(H.dist)/1760,notes=[`${mi.toFixed(1)} mi under saddle`];h.lastHunt=S.day;h.lastRide=S.day;h.hunts=(h.hunts||0)+1;h.bond=Math.min(100,h.bond+3+Math.min(4,Math.round(mi)));
     h.tr=h.tr||{};for(const k of['end','sta'])if(mi>1.5&&R()<.5&&h[k]<h.pot[k]){h.tr[k]=(h.tr[k]||0)+1;notes.push(`${k==='end'?'endurance':'stamina'} +1`)}
     if(H.E<.15){h.health=Math.max(30,h.health-8);notes.push('rode hard')}
@@ -4302,7 +4304,7 @@ const JOB_OWNERS=[['Earl Tate','peanut field'],['Mae Boudreaux','rice levees'],[
   ['June Whitfield','golf course'],['Buck Sanders','corn ground'],['Vernon Tully','hay meadow'],['Sister Agnes','church cemetery'],['Wade Fontenot','crawfish ponds'],['Clara Nix','sweet potato rows']];
 const JB={
   ensure(){if(!S.jobs)S.jobs={board:[],active:[],done:0,failed:0,next:1};return S.jobs},
-  open(){return AREAS.filter(a=>Prop.tier()>=a.land||(S.land&&accessArea(S.land)===a.id))},
+  open(){return AREAS.filter(a=>VEH.open(a))},
   maxActive:()=>repOf()>=60?3:2,
   mul(a){return(1+(a.land-1)*.25)*(.85+repOf()/250)},
   make(){const J=JB.ensure(),W=WE.ensure(),open=JB.open(),ids=open.map(a=>a.id),taken=new Set([...J.board,...J.active].map(j=>j.ev).filter(Boolean));if(!open.length)return null;
@@ -4843,8 +4845,46 @@ const APP={
 };
 const APP_ACTIONS={appInstall:()=>APP.install(),appNotify:()=>APP.notifyOn(),appNotifyOff:()=>{S.notify=false;save();render()},appHide:()=>{S.hideInstall=1;save();render()}};
 
+// =========================================================
+// TRUCKS, DOG BOXES, TRAILERS AND THE UTV
+// Every ranch starts with an old farm truck. A better truck reaches hunting leases above your land's tier (a day lease
+// is paid when you hunt one), a dog box carries more dogs, a horse trailer takes a horse off your own trail, and a
+// side-by-side UTV runs the roads, trails and open ground of the hunting grounds fast but can't go into thick cover.
+// =========================================================
+const VEH={
+  truck:{farm:{name:'Old farm truck',price:0,reach:0,desc:'Gets you to your own land and the grounds your land tier opens.'},
+    crew:{name:'Crew-cab pickup',price:6500,reach:1,desc:'Reaches hunting leases one land tier above yours (day lease paid per hunt).'},
+    dually:{name:'Heavy-duty dually',price:14000,reach:4,desc:'Reaches every hunting lease in the county, and can pull a trailer and a dog box at once.'}},
+  gear:{box6:{name:'Six-hole dog box',price:1200,box:1,desc:'+1 bay dog and +1 catch dog on every hunt.'},
+    box10:{name:'Double-deck dog box',price:3000,box:2,need:'crew',desc:'+2 bay dogs and +2 catch dogs. Needs a pickup or better.'},
+    trailer:{name:'Horse trailer',price:3500,need:'crew',desc:'Haul a horse to any hunting ground. Without one, you can only ride on your own trail.'},
+    utv:{name:'Side-by-side UTV',price:4800,desc:'Drive the roads, trails and open ground of the hunting grounds. Fast in the open; it can not go through thick woods, brush or swamp.'}},
+  get(){if(!S.veh)S.veh={truck:'farm',gear:{}};return S.veh},
+  has:k=>!!VEH.get().gear[k],
+  truckLv(){return['farm','crew','dually'].indexOf(VEH.get().truck)},
+  reach(){return VEH.truck[VEH.get().truck].reach},
+  box(){return VEH.has('box10')?2:VEH.has('box6')?1:0},
+  // which hunting grounds you can get to, and what a day's lease costs there
+  own:a=>!!(S.land&&accessArea(S.land)===a.id),
+  open(a){return Prop.tier()>=a.land||VEH.own(a)||Prop.tier()+VEH.reach()>=a.land},
+  lease(a){return Prop.tier()>=a.land||VEH.own(a)?0:150*(a.land-Prop.tier())},
+  horseOK(areaId){return VEH.has('trailer')||!!(S.land&&accessArea(S.land)===areaId)},
+  buy(kind,k){const V=VEH.get(),d=kind==='truck'?VEH.truck[k]:VEH.gear[k];if(!d)return;if(kind==='truck'?V.truck===k:V.gear[k])return;
+    if(d.need&&VEH.truckLv()<1)return toast('You need a crew-cab pickup or better for that.');if(S.money<d.price)return sfx.bad();
+    S.money-=d.price;if(kind==='truck')V.truck=k;else V.gear[k]=S.day;if(k==='box10')delete V.gear.box6;addLog(`Bought a ${d.name.toLowerCase()} for ${fmt(d.price)}.`);toast(`${d.name} is yours.`);sfx.coin();save();render()},
+  screen(){const V=VEH.get(),row=(kind,k,d,own)=>`<div class="panel" style="margin-bottom:8px"><div class="spread"><b>${esc(d.name)}</b>${own?'<span class="tag ok">Owned</span>':`<button class="btn sm" data-act="vehBuy" data-kind="${kind}" data-k="${k}" ${S.money>=d.price&&!(d.need&&VEH.truckLv()<1)&&!(kind==='truck'&&VEH.truckLv()>['farm','crew','dually'].indexOf(k))?'':'disabled'}>${d.price?'Buy '+fmt(d.price):'Free'}</button>`}</div><div class="small muted">${esc(d.desc)}</div></div>`;
+    return`<h2>Trucks & trailers</h2><p class="sub">What you drive decides where you can hunt, how many dogs you can haul and whether your horse comes along.</p>
+     <h3>Truck</h3>${Object.entries(VEH.truck).map(([k,d])=>row('truck',k,d,V.truck===k||(k==='farm'))).join('')}
+     <h3>Gear</h3>${Object.entries(VEH.gear).filter(([k])=>!(k==='box6'&&V.gear.box10)).map(([k,d])=>row('gear',k,d,!!V.gear[k])).join('')}
+     <div class="panel small">Hunting reach: ${AREAS.map(a=>`${esc(a.name)} ${VEH.open(a)?(VEH.lease(a)?`(lease ${fmt(VEH.lease(a))}/hunt)`:'✓'):'🔒'}`).join(' · ')}</div>`}
+};
+SCREENS.garage=()=>VEH.screen();
+const VEH_ACTIONS={vehBuy:d=>VEH.buy(d.kind,d.k)};
+// the UTV on the hunting map: its own ground costs (0 grass 1 dirt 2 mud 3 rock 4 water 5 woods 6 road 7 trail 8 marsh 9 sand 10 ford 11 hardpan 12 brush)
+HNAV.utv=[.9,.85,3,3,60,5,.55,.72,25,1.3,3,1,6];
+
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
@@ -4983,7 +5023,7 @@ const A={
   const g=trainGain(dog,d.k);dog.stats[d.k]=Math.min(dog.pot[d.k],dog.stats[d.k]+g);dog.energy-=cost;S.money-=price;dog.trained++;S.st.trains=(S.st.trains||0)+1;gainXP(5);toast(`${dog.name}: ${STATS.find(s=>s[0]===d.k)[1]} +${g}`);sfx.ok();checkAch();save();render()},
  vit:d=>{const dog=S.dogs.find(x=>x.id===UI.trainDog);if(!dog||!S.inv.vitamins)return;if(dog.pot[d.k]>=99)return toast('Already at the genetic ceiling.');S.inv.vitamins--;dog.pot[d.k]=Math.min(99,dog.pot[d.k]+3);toast(`${dog.name}'s potential rose.`);save();render()},
  harea:d=>{UI.huntSel.area=d.id;render()},
- hpick:d=>{const s=UI.huntSel[d.role],i=s.indexOf(d.id),max=d.role==='bay'?3:(landLevel(S.land,'gear')>=2?3:2);if(i>=0)s.splice(i,1);else if(s.length<max)s.push(d.id);else return toast(`Max ${max} ${d.role} dogs.`);render()},
+ hpick:d=>{const s=UI.huntSel[d.role],i=s.indexOf(d.id),max=d.role==='bay'?3+VEH.box():(landLevel(S.land,'gear')>=2?3:2)+VEH.box();if(i>=0)s.splice(i,1);else if(s.length<max)s.push(d.id);else return toast(`Max ${max} ${d.role} dogs.`);render()},
  hstart:()=>huntStart(),
  hmount:()=>{const S2=UI.hunt&&UI.hunt.sim;if(!S2||!S2.player.horse)return;if(!S2.player.mounted&&S2.player.horse.tied&&Math.hypot(S2.player.horse.tied.x-S2.player.x,S2.player.horse.tied.y-S2.player.y)>=6)S2.hrWalk=true;HR.toggle(S2);huntHud(true)},
  hquit:()=>{const h=UI.hunt;if(h&&h.sim&&!h.sim.over&&confirm('Call the dogs in and end the hunt?'))hwEnd(h.sim,false,['You called the dogs in.'])},
@@ -5116,7 +5156,7 @@ try{SHARE.arrive()}catch(e){}
 try{APP.boot()}catch(e){console.error('app',e)}
 setTimeout(()=>{SHARE.collect();TOURN.claim()},3000);
 try{if(S.pendingHog)PR.flush()}catch(e){console.error('pending hog',e)}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
