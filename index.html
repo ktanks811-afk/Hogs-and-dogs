@@ -1040,11 +1040,13 @@ async function morphMaps(mo,scale){
   const xf={torso:Mt};
   {const H=rg[P.head].rig,mid=[(H.neck[0][0]+H.neck[1][0])/2,(H.neck[0][1]+H.neck[1][1])/2],pre=aff.about(mid[0],mid[1],k.head||1,1);
     xf.head=aff.mul(aff.sim(aff.ap(pre,H.neck[0]),aff.ap(pre,H.neck[1]),Q(tr.neck[0]),Q(tr.neck[1])),pre);
-    if(P.head!==P.torso)xf.head=clampScale(xf.head,Q([(tr.neck[0][0]+tr.neck[1][0])/2,(tr.neck[0][1]+tr.neck[1][1])/2]),.86,1.14)}
+    if(P.head!==P.torso)xf.head=clampScale(xf.head,Q([(tr.neck[0][0]+tr.neck[1][0])/2,(tr.neck[0][1]+tr.neck[1][1])/2]),.86,1.14);
+    if(k.hs&&k.hs!==1){const nm=Q([(tr.neck[0][0]+tr.neck[1][0])/2,(tr.neck[0][1]+tr.neck[1][1])/2]);xf.head=aff.mul(aff.about(nm[0],nm[1],k.hs,k.hs),xf.head)}}
   for(const part of['front','hind']){const Lg=rg[P[part]].rig,seg=Lg[part],tseg=tr[part],S0=aff.sim(seg[0],seg[1],Q(tseg[0]),Q(tseg[1])),s0=Math.hypot(S0[0],S0[1]);
     const pre=aff.about((seg[0][0]+seg[1][0])/2,seg[0][1],1,(k.leg||1)/Math.max(.6,s0));xf[part]=aff.mul(aff.sim(aff.ap(pre,seg[0]),aff.ap(pre,seg[1]),Q(tseg[0]),Q(tseg[1])),pre)}
   {const Tl=rg[P.tail].rig;xf.tail=aff.sim(Tl.tail[0],Tl.tail[1],Q(tr.tail[0]),Q(tr.tail[1]));
-    if(P.tail!==P.torso)xf.tail=clampScale(xf.tail,Q([(tr.tail[0][0]+tr.tail[1][0])/2,(tr.tail[0][1]+tr.tail[1][1])/2]),.82,1.02)}
+    if(P.tail!==P.torso)xf.tail=clampScale(xf.tail,Q([(tr.tail[0][0]+tr.tail[1][0])/2,(tr.tail[0][1]+tr.tail[1][1])/2]),.82,1.02);
+    if(k.tl&&k.tl!==1){const r=Q(tr.tail[0]);xf.tail=aff.mul(aff.about(r[0],r[1],k.tl,k.tl),xf.tail)}}
   // fit into the frame (world = master half-res units, 768x512)
   let bb=[1e9,1e9,-1e9,-1e9];
   for(const part of['torso','head','front','hind','tail']){const b=rg[P[part]].bbox[part];if(b[2]<b[0])continue;
@@ -1201,7 +1203,7 @@ const hasBody=d=>!!(Coat.TEMPLATES[coatBreed(d)]&&Coat.TEMPLATES[coatBreed(d)].b
 const dogSeed=d=>d.seed??(hashStr(d.id)%99991);
 const dogMods=d=>({whiteMod:d.whiteMod||0,patMod:d.patMod??.5,coatInt:d.coatInt??.5,eyes:d.eyes||'Auto',eyes2:d.eyes2||d.eyes||'Auto',merleMod:d.merleMod??.5,tickMod:d.tickMod??.5,speckMod:d.speckMod||0,featherMod:d.featherMod??.3,featherDen:d.featherDen??.5,texture:d.texture||0,seed:dogSeed(d)});
 const COAT_MEMO=new Map();
-function coatKeyBase(d){const m=dogMods(d);const vm=visualMorph(d);return coatBreed(d)+(vm?JSON.stringify(vm):'')+'|'+Object.keys(LOCI).map(L=>(d.genes[L]||[]).join('')).join('.')+'|'+[m.whiteMod,m.patMod,m.coatInt,m.eyes,m.eyes2,m.merleMod,m.tickMod,m.speckMod,m.featherMod,m.featherDen,m.texture,m.seed].join(',')}
+function coatKeyBase(d){const m=dogMods(d);const vm=pupMorph(d);return coatBreed(d)+(vm?JSON.stringify(vm):'')+'|'+Object.keys(LOCI).map(L=>(d.genes[L]||[]).join('')).join('.')+'|'+[m.whiteMod,m.patMod,m.coatInt,m.eyes,m.eyes2,m.merleMod,m.tickMod,m.speckMod,m.featherMod,m.featherDen,m.texture,m.seed].join(',')}
 function gameCoat(d){const k=coatKeyBase(d);if(COAT_MEMO.has(k))return COAT_MEMO.get(k);const s=Coat.fromGenotype(d.genes,dogMods(d),coatBreed(d));if(COAT_MEMO.size>5000)COAT_MEMO.clear();COAT_MEMO.set(k,s);return s}
 const coatName=d=>Coat.describe(gameCoat(d)),coatRar=c=>Coat.rarity(c),describeCoat=c=>Coat.describe(c);
 const geneticId=d=>Coat.encodeId(coatBreed(d),d.genes,dogMods(d));
@@ -1210,7 +1212,8 @@ const coatKey=(d,sc)=>coatKeyBase(d)+'|'+sc;
 function dogArt(d,w=120){
   if(!hasBody(d))return dogSVG(d,w);
   const sc=w>220?.5:w>150?.3:.2,src=COAT_IMG[coatKey(d,sc)];
-  return `<img class="coatimg" data-cid="${d.id}" data-sc="${sc}" ${src?`src="${src}"`:''} width="${w}" height="${Math.round(w*2/3)}" alt="${esc(d.name)}, ${esc(coatName(d))}" style="width:${w}px;max-width:100%;height:auto;aspect-ratio:3/2">`;
+  const pw=Math.round(w*(.72+.28*pupStage(d)/6));
+  return `<img class="coatimg" data-cid="${d.id}" data-sc="${sc}" ${src?`src="${src}"`:''} width="${w}" height="${Math.round(w*2/3)}" alt="${esc(d.name)}, ${esc(coatName(d))}" style="width:${pw}px;max-width:100%;height:auto;aspect-ratio:3/2;margin:0 auto">`;
 }
 const allLineup=()=>Object.values(S.lineups||{}).flat();
 function findDog(id){return S.dogs.find(d=>d.id===id)||(UI.previewPups||[]).find(d=>d.id===id)||S.market.find(d=>d.id===id)||S.featured.find(d=>d.id===id)||allLineup().find(d=>d.id===id)}
@@ -1223,7 +1226,7 @@ function hydrateCoats(){
     const id=img.dataset.cid,sc=+img.dataset.sc,d=findDog(id);if(!d)return;const key=coatKey(d,sc);
     if(COAT_IMG[key]){img.src=COAT_IMG[key];return}
     if(COAT_PENDING[key]){if(urgent.has(img)){const i=COAT_JOBS.findIndex(j=>j.key===key);if(i>0)COAT_JOBS.unshift(...COAT_JOBS.splice(i,1))}return}
-    COAT_PENDING[key]=1;const spec=gameCoat(d),vm=visualMorph(d);
+    COAT_PENDING[key]=1;const spec0=gameCoat(d),st=pupStage(d),spec=st<6&&spec0.coatLen?{...spec0,coatLen:spec0.coatLen*(.25+.75*st/6)}:spec0,vm=pupMorph(d);
     const job={key,run:async()=>{const c=vm?await Coat.renderMorph(spec,vm,sc):await Coat.render(spec,sc);COAT_IMG[key]=c.toDataURL('image/png');delete COAT_PENDING[key];
       document.querySelectorAll(`img.coatimg[data-cid="${id}"][data-sc="${sc}"]`).forEach(i=>{if(coatKey(findDog(id)||d,sc)===key)i.src=COAT_IMG[key]})}};
     if(urgent.has(img))COAT_JOBS.unshift(job);else COAT_JOBS.push(job)});
@@ -1331,6 +1334,13 @@ function inheritMorph(A,B){
   return{anc,reg,t,L,w,mutated};
 }
 const tplBreed=b=>Coat.TEMPLATES[b]&&Coat.TEMPLATES[b].body&&!Coat.TEMPLATES[b].mix?b:'Black Mountain Cur';
+// a pup is drawn from its breed's own picture, reshaped by age: at birth a big round head on a short muzzle, a short
+// plump body, short legs and a short tail; the shape grows out in two-month steps until the dog is grown at 12 months
+// (long coats and feathering grow in over the same months)
+const pupStage=d=>isAdult(d)?6:clamp(Math.floor(d.age/2),0,5);
+function pupMorph(d){const vm=visualMorph(d),st=pupStage(d);if(st>=6)return vm;
+  const f=Math.pow(1-st/6,1.1),body=Coat.TEMPLATES[tplBreed(coatBreed(d))].body,base=vm||{parts:{torso:body,head:body,front:body,hind:body,tail:body},k:{}},k0=base.k||{},q=v=>Math.round(v*100)/100;
+  return{parts:base.parts,k:{tx:q((k0.tx||1)*(1-.22*f)),ty:q((k0.ty||1)*(1+.1*f)),leg:q((k0.leg||1)*(1-.34*f)),head:q((k0.head||1)*(1-.3*f)),hs:q(1+.5*f),tl:q(1-.5*f)}}}
 function visualMorph(d){
   const m=d.morph;if(!m)return null;const body=b=>Coat.TEMPLATES[tplBreed(b)].body,nat=b=>profileOf(NATIVE_OF[body(b)]),t=m.t;
   const H=topOf(m.reg.head),Bd=topOf(m.reg.body),Lg=topOf(m.reg.legs),Tl=topOf(m.reg.tail),q=v=>Math.round(v*100)/100;
@@ -4033,7 +4043,7 @@ const HG={
     const x=HG.create(breed,{name:h.name,sex:h.sex,age:h.age,genes:g,bond:h.bond});S.nextId--;
     Object.assign(x,{id:h.id,wins:h.wins||0,lastRace:h.lastRace||0,lastRide:h.lastRide||0,base:h.base||x.base});
     // keep the speed and stamina it already raced with
-    for(const k of['spd','sta']){const v=h[k]||x[k];x.pot[k]=Math.max(x.pot[k],v);x.tr=x.tr||{};x.tr[k]=Math.max(0,v-Math.round(x.pot[k]*HG.grow(x.age)*.92))}return HG.settle(x)},
+    for(const k of['spd','sta']){const v=h[k]||x[k];x.pot[k]=Math.max(x.pot[k],v);x.tr=x.tr||{};x.tr[k]=v-Math.round(x.pot[k]*HG.grow(x.age)*.92)}return HG.settle(x)},
   migrate(){S.hpreg=S.hpreg||[];for(const list of[S.horses,S.horseMarket])(list||[]).forEach((h,i)=>{if(!h.genes)list[i]=HG.fromLegacy(h)})},
   // ---------- inheritance ----------
   snap(h,depth=3){return{id:h.id,gid:h.gid,name:h.name,breed:h.breed,sex:h.sex,coat:h.coat,gen:h.gen,wins:h.wins||0,parents:depth>1&&h.parents?h.parents.map(p=>p&&HG.trim(p,depth-1)):null}},
@@ -4342,6 +4352,7 @@ const PATCH_NOTES=[{v:'1.1.1',title:'Horses, landowner jobs and a faster start',
   ['Landowner jobs','Farmers and ranchers now post paid hog work on the Hunt screen: clear hogs off a place, bring in a big boar, catch a sounder before it moves on, or collect the parish bounty on the giant boar. Finish on time for the pay and reputation; miss a deadline and word gets around.'],
   ['Much faster loading','The dog and horse artwork now loads as separate cached files instead of being packed into the game page. The game opens in about a second and a half instead of ten on a phone, and pictures come from your cache on every visit after the first. Nothing about the art changed.'],
   ['Thoroughbreds get their own look','Thoroughbreds now have their own body: taller, leaner and longer-legged than the Quarter Horse, with every coat colour, pattern and marking painted onto it from their genes.'],
+  ['Puppies look like puppies','Every breed now has a puppy look drawn from its own picture: a big round head, short muzzle, short legs and a small plump body that grow into the adult shape over the first year. Long coats grow in as they age. There is no limit on how many dogs you keep, and other ranches in the county bid on your pups.'],
   ['New loading screen','The game opens on new key art with a live loading bar that follows the real work: the game itself, then the dog and horse pictures on your first screen.'],
   ['Horse profiles and training','Open any horse for its genetic ID, genetics, stats, pedigree and record. Train a stat once a day, DNA test to reveal hidden genes, rename, sell or breed from the profile.']]}];
 function patchNotesHTML(){return PATCH_NOTES.map(n=>`<h2>What's new in ${n.v}</h2><p class="sub">${esc(n.title)}</p>${n.items.map(([t,d])=>`<div class="panel" style="margin-bottom:8px"><b>${esc(t)}</b><div class="small" style="margin-top:2px">${esc(d)}</div></div>`).join('')}`).join('')}
