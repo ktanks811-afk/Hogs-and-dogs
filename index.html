@@ -1795,8 +1795,8 @@ SCREENS.account=()=>{
   if(inClaude)return `<h2>Account</h2><div class="panel"><p>Accounts work on the public website.</p><p><a href="${SITE_URL}" target="_blank" rel="noopener"><b>${SITE_URL.replace('https://','')}</b></a></p></div>`;
   if(signedIn())return `<h2>Account</h2><div class="panel"><div>Signed in as <b>${esc(S.online.user)}</b></div>
     <div class="small muted" style="margin-top:4px">${esc(S.name)} saves to your account automatically.${S.cloudAt?' Last saved '+new Date(S.cloudAt).toLocaleString()+'.':''} Sign in on another device to pick up where you left off.</div>
-    <div class="row" style="margin-top:10px"><button class="btn sm" data-act="accSave">Save now</button><button class="btn sm ghost" data-act="accSignOut">Sign out</button></div></div>`;
-  return `<h2>Account</h2><p class="sub">Sign in to save your ranch to an account and play it on any device.</p>${accountForms()}`;
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-act="accSave">Save now</button><button class="btn sm ghost" data-act="accSignOut">Sign out</button></div></div>${SHARE.panel()}`;
+  return `<h2>Account</h2><p class="sub">Sign in to save your ranch to an account and play it on any device.</p>${S.refBy&&!S.refDone?`<div class="panel small" style="border:2px solid var(--gold)"><b>${esc(S.refBy)} invited you.</b> Create an account to start with ${fmt(REF_NEW)} and 20 feed.</div>`:''}${accountForms()}${SHARE.panel()}`;
 };
 function accountForms(){const f=(k,btn,act,note)=>`<div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">${btn}</h3>${note?`<p class="small muted" style="margin-top:0">${note}</p>`:''}
     <label class="small"><b>Username</b><br><input type="text" id="${k}User" maxlength="20" autocomplete="username" autocapitalize="none" style="width:100%;margin:3px 0 8px"></label>
@@ -1817,7 +1817,7 @@ const ACCOUNT_ACTIONS={
       if(r.save){const local=S.day>1||S.st.hunts>0;
         if(local&&!confirm(`Load ${r.save.name} (day ${r.save.day}) from your account? It replaces ${S.name} (day ${S.day}) on this device.`)){sbRpc('hd_logout',{p_pid:cred.pid,p_sec:cred.sec}).catch(()=>{});btn.disabled=false;return}
         return useCloudSave(r.save,cred,r.save_updated)}
-      S.online=cred;S.welcomed=true;save();await cloudSave();closeSheet();toast(`Signed in as ${r.username}.`);render();checkAdmin().then(a=>{if(a)render()})}
+      S.online=cred;S.welcomed=true;save();await cloudSave();closeSheet();toast(`Signed in as ${r.username}.`);render();checkAdmin().then(a=>{if(a)render()});SHARE.collect()}
     catch(e){btn.disabled=false;toast(e.message)}},
   accSignUp:async(d,btn)=>{const u=document.getElementById('upUser').value.trim(),pw=document.getElementById('upPass').value;
     if(!/^[A-Za-z0-9_]{3,20}$/.test(u))return toast('Usernames are 3–20 letters, numbers or underscores.');if(pw.length<6)return toast('Passwords need at least 6 characters.');
@@ -1825,7 +1825,7 @@ const ACCOUNT_ACTIONS={
     try{// keep an existing online ID so this ranch's listings, trades and groups stay with it
       if(S.online&&S.online.pid){await sbRpc('hd_claim_account',{p_pid:S.online.pid,p_sec:S.online.sec,p_user:u,p_pass:pw});S.online.user=u}
       else{const r=await sbRpc('hd_signup',{p_user:u,p_pass:pw});S.online={pid:r.id,sec:r.secret,user:r.username}}
-      S.welcomed=true;save();await cloudSave();closeSheet();toast(`Account created. ${S.name} is saved to ${u}.`);render()}
+      S.welcomed=true;save();await cloudSave();closeSheet();toast(`Account created. ${S.name} is saved to ${u}.`);render();SHARE.afterSignup()}
     catch(e){btn.disabled=false;toast(e.message)}},
   accSave:async()=>toast(await cloudSave()?'Saved to your account.':'Could not reach the server. Try again in a moment.'),
   accSignOut:async()=>{if(!confirm(`Sign out? ${S.name} stays saved to your account, and this device starts a fresh ranch. Sign back in to get it back.`))return;
@@ -2014,7 +2014,7 @@ function dogProfile(id){
    <button class="btn sm alt" data-act="goTrain" data-id="${d.id}">Train</button>
    <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>${d.inj?`<button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet: ${esc(d.inj.what)} (${fmt(WE_VET[d.inj.sev])})</button>`:''}
    <button class="btn sm alt" data-act="dnaTest" data-id="${d.id}" ${d.dna||S.money<DNA_TEST?'disabled':''}>${d.dna?'DNA tested':'DNA test ('+fmt(DNA_TEST)+')'}</button>
-   <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>
+   <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>${S.dogs.includes(d)?SHARE.btn('dog',d.id):''}
    <button class="btn sm ghost" data-act="setPair" data-id="${d.id}" ${isAdult(d)?'':'disabled'}>Use for breeding</button>
    <button class="btn sm" data-act="sell" data-id="${d.id}">Sell for ${fmt(salePrice(d))}</button>${!isAdult(d)&&S.dogs.includes(d)?`<button class="btn sm alt" data-act="pupOffers" data-id="${d.id}">Sell to another ranch</button>`:''}${inClaude?'':`<button class="btn sm alt" data-act="sellOnline" data-id="${d.id}">Sell online</button>${d.sex==='M'&&isAdult(d)?`<button class="btn sm alt" data-act="studOnline" data-id="${d.id}">Offer at stud</button>`:''}`}</div>`);
 }
@@ -2140,7 +2140,7 @@ function huntPlay(){const h=UI.hunt;if(h.phase==='sim'&&h.sim)return huntPlayLiv
    <h3>Dog performance</h3><table class="small">${(sm.dogs||[]).map(p=>`<tr><td><i class="hdot" style="background:${p.role==='Bay'?HCOL.bay:HCOL.catch}"></i><b>${esc(p.name)}</b> <span class="muted">${p.role}</span><div class="muted">${esc(p.note)}</div></td><td class="num">+${p.xp} XP</td></tr>`).join('')}${sm.horse?`<tr><td><i class="hdot" style="background:#a86a32"></i><b>${esc(sm.horse.name)}</b> <span class="muted">Horse</span><div class="muted">${esc(sm.horse.note)}</div></td><td></td></tr>`:''}</table>
    <div style="margin-top:8px">${r.lines.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
    ${r.win&&S.pendingHog?PR.choicePanel():''}
-   <div style="margin-top:12px" class="row"><button class="btn" data-act="hagain">Hunt again</button><button class="btn ghost" data-act="tab" data-t="home">Return to ranch</button></div></div>
+   <div style="margin-top:12px" class="row">${r.win&&h.catchCard?SHARE.btn('catch','x'):''}<button class="btn" data-act="hagain">Hunt again</button><button class="btn ghost" data-act="tab" data-t="home">Return to ranch</button></div></div>
   <h3>Hunt log</h3><div class="panel log">${h.log.slice(0,40).map(l=>`<div>${esc(l)}</div>`).join('')}</div>`}
 // every catch goes to the online biggest-hog board (quietly; the local record stands either way)
 async function recordHogOnline(h,dogs){if(inClaude)return;try{await sbRpc('hd_record_hog',{...(await A2()),p_ranch:S.name,p_hog:h.hogKey,p_weight:h.hog.w,p_area:h.area.id,p_dogs:dogs});UI.hogBoard={};UI.countBoard={}}catch(e){console.warn('hog board',e)}}
@@ -2170,7 +2170,7 @@ function finishHunt(win,lines){
     const rt=S2&&S2.bayAt!==undefined&&S2.relAt!==undefined?S2.relAt-S2.bayAt:999,rd=S2&&S2.relDist!==undefined?S2.relDist:999;
     bonus=Math.min(.25,(rd<60?.1:rd<150?.05:0)+(rt<180?.1:rt<420?.05:0)+(S2&&S2.t<1800?.05:0));
     pay=Math.round(h.hog.w*4*h.hog.mult*(1+(h.area.land-1)*.08+bonus));
-    PR.offer(h,S2,pay);h.lastPay=pay;S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}
+    PR.offer(h,S2,pay);h.lastPay=pay;h.catchCard={name:h.hog.name,w:h.hog.w,pay,day:S.day,areaName:h.area.name,dogs:'Caught by '+(S2?S2.dogs.filter(g=>g.role==='catch').map(g=>g.name).join(' & '):'the dogs'),sp:S.pendingHog.sp,end:S.pendingHog.end,aggr:S.pendingHog.aggr,pend:{...S.pendingHog}};S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}
     const catchers=(S2?S2.dogs.filter(g=>g.role==='catch'&&g.m.catchT>0).map(g=>g.name):cd.map(d=>d.name)).join(' & ');
     if(!S.st.bestHog||h.hog.w>S.st.bestHog.w){if(S.st.bestHog)lines.push(`New personal best! Your old record was ${S.st.bestHog.w} lb.`);S.st.bestHog={w:h.hog.w,name:h.hog.name,key:h.hogKey,area:h.area.id,dogs:catchers,day:S.day}}
     recordHogOnline(h,catchers);if(h.hogKey==='ghost'){S.ach._ghost=1;S.st.bestName='Ghost boar'}
@@ -4178,7 +4178,7 @@ const HB={
   profile(id){const h=HG.find(id);if(!h)return;const own=S.horses.includes(h),P=HG.pheno(h),tier=HG.lineTier(h.bl.q),tc=40+S.level*8;
     openSheet(`<div class="small muted">${esc(h.id)} · ${esc(h.gid)} · Generation ${h.gen||0}</div><h2>${esc(h.name)} <span class="${h.sex==='M'?'sexM':'sexF'}">${h.sex==='M'?'♂':'♀'}</span></h2>
      <div style="display:flex;justify-content:center">${HG.art(h,420)}</div>
-     ${own?`<div class="row" style="margin:8px 0"><button class="btn sm ghost" data-act="hrename" data-id="${h.id}">Rename</button>${h.age>=HB_ADULT?`<button class="btn sm alt" data-act="hbreedwith" data-id="${h.id}">Breed ${h.sex==='M'?'him':'her'}</button>`:''}<button class="btn sm ghost" data-act="hdna" data-id="${h.id}" ${S.money>=150&&!HB.allKnown(h)?'':'disabled'}>${HB.allKnown(h)?'DNA tested':'DNA test ($150)'}</button><button class="btn sm ghost" data-act="sellHorse" data-id="${h.id}">Sell ${fmt(horseValue(h)*.85)}</button></div>`:''}
+     ${own?`<div class="row" style="margin:8px 0">${SHARE.btn('horse',h.id)}<button class="btn sm ghost" data-act="hrename" data-id="${h.id}">Rename</button>${h.age>=HB_ADULT?`<button class="btn sm alt" data-act="hbreedwith" data-id="${h.id}">Breed ${h.sex==='M'?'him':'her'}</button>`:''}<button class="btn sm ghost" data-act="hdna" data-id="${h.id}" ${S.money>=150&&!HB.allKnown(h)?'':'disabled'}>${HB.allKnown(h)?'DNA tested':'DNA test ($150)'}</button><button class="btn sm ghost" data-act="sellHorse" data-id="${h.id}">Sell ${fmt(horseValue(h)*.85)}</button></div>`:''}
      <div class="panel">${HB.factTable(HB.facts(h))}</div>
      <h3>Genetics</h3><div class="panel">${HB.genes(h)}</div>
      <h3>Stats</h3><div class="panel">${HB.statRows(h)}<p class="small muted" style="margin:6px 0 0">Bars show current ability against genetic potential. Young horses grow into their potential; training adds on top.</p></div>
@@ -4585,7 +4585,7 @@ const HOGUI={
      ${kids.length?`<div class="small">On the ranch: ${kids.map(x=>`<a href="#" data-act="hogview" data-id="${x.id}">${esc(x.name)}</a>`).join(', ')}</div>`:''}${gone.length?`<div class="small muted">Sold: ${gone.map(x=>esc(x.name)).join(', ')}</div>`:''}${!lit.length&&!kids.length&&!gone.length?'<div class="small muted">No offspring yet.</div>':''}`},
   profile(id){const h=HOGG.find(id);if(!h)return;const own=S.hogs.includes(h);
     openSheet(`<div class="small muted">${esc(h.id)} · ${esc(h.type)} · Generation ${h.gen||0}</div><h2>${esc(h.name)} ${HOGUI.sexIcon(h)}</h2><div style="display:flex;justify-content:center">${HOGG.art(h,420)}</div>
-     ${own?`<div class="row" style="margin:8px 0"><button class="btn sm ghost" data-act="hogrename" data-id="${h.id}">Rename</button>${h.age>=HOG_ADULT[h.sex]?`<button class="btn sm alt" data-act="hogbreedwith" data-id="${h.id}">Breed ${h.sex==='M'?'him':'her'}</button>`:''}<button class="btn sm ghost" data-act="hogdna" data-id="${h.id}" ${S.money>=HOG_DNA&&!Object.keys(HGL).every(l=>(h.known||{})[l])?'':'disabled'}>${Object.keys(HGL).every(l=>(h.known||{})[l])?'DNA tested':`DNA test (${fmt(HOG_DNA)})`}</button><button class="btn sm ghost" data-act="hogsell" data-id="${h.id}">Sell ${fmt(h.price)}</button></div>`:''}
+     ${own?`<div class="row" style="margin:8px 0">${SHARE.btn('hog',h.id)}<button class="btn sm ghost" data-act="hogrename" data-id="${h.id}">Rename</button>${h.age>=HOG_ADULT[h.sex]?`<button class="btn sm alt" data-act="hogbreedwith" data-id="${h.id}">Breed ${h.sex==='M'?'him':'her'}</button>`:''}<button class="btn sm ghost" data-act="hogdna" data-id="${h.id}" ${S.money>=HOG_DNA&&!Object.keys(HGL).every(l=>(h.known||{})[l])?'':'disabled'}>${Object.keys(HGL).every(l=>(h.known||{})[l])?'DNA tested':`DNA test (${fmt(HOG_DNA)})`}</button><button class="btn sm ghost" data-act="hogsell" data-id="${h.id}">Sell ${fmt(h.price)}</button></div>`:''}
      <div class="panel">${HOGUI.table(HOGUI.facts(h))}</div>${h.preg?`<div class="panel small" style="margin-top:6px"><b>${HOGG.stage(h)}</b> by ${esc(h.preg.boar.name)} · due day ${h.preg.due}<div class="meter" style="height:8px;margin-top:4px"><i style="width:${clamp((S.day-h.preg.day)/HOG_GEST*100,4,100)}%;background:var(--gold)"></i></div></div>`:''}
      <h3>Genetics</h3><div class="panel">${HOGUI.genes(h)}</div><h3>Stats</h3><div class="panel">${HOGUI.statRows(h)}<p class="small muted" style="margin:6px 0 0">Bars show today's ability against what the genes allow. Young hogs grow into it; feed and health hold it up.</p></div>
      <h3>Pedigree</h3><div class="panel"><div class="small" style="margin-bottom:6px"><b>${esc(h.bl.line)}</b>${h.bl.gen?` · ${h.bl.gen} generation${h.bl.gen>1?'s':''} bred in line`:''}</div>${HOGUI.pedigree(h)}</div>
@@ -4714,6 +4714,66 @@ const GOALS={
      ${G.daily.goals.map(g=>{const v=GOALS.prog(g),done=G.daily.claimed.includes(g.id);return row(`${done?'✓ ':''}${esc(g.txt)} <span class="muted">${Math.min(v,g.n)}/${g.n}</span>`,v,g.n,done?'<span class="muted">Claimed</span>':v>=g.n?`<button class="btn sm" data-act="goalClaim" data-k="daily" data-id="${g.id}">Claim ${fmt(GOALS.dailyReward(g).cash)}</button>`:'')}).join('')}</div>`}
 };
 const GOAL_ACTIONS={goalClaim:d=>GOALS.claim(d.k,d.id)};
+
+// =========================================================
+// SHARE CARDS AND INVITES
+// Any dog, horse, hog or big catch can be turned into a picture card (1080x1350, the shape social feeds like) with its
+// stats, the ranch name and an invite link. Phones get the share sheet; computers get a download.
+// Invite links carry the player's username: a friend who makes an account from one gets a starting bonus, and the
+// inviter collects a bonus for each friend the next time they play (server: hd_refer, hd_referral_rewards).
+// =========================================================
+const REF_NEW=1000,REF_INVITER=1500;
+const SHARE={
+  link(){return SITE_URL+(signedIn()?'/?ref='+encodeURIComponent(S.online.user):'')},
+  async art(kind,o){if(kind==='dog'){if(!hasBody(o))return null;const vm=pupMorph(o),s0=gameCoat(o),st=pupStage(o),spec=st<6&&s0.coatLen?{...s0,coatLen:s0.coatLen*(.25+.75*st/6)}:s0;return vm?await Coat.renderMorph(spec,vm,.5):await Coat.render(spec,.5)}
+    if(kind==='horse')return HBREED[o.breed]&&HBREED[o.breed].master?await HG.render(o,.5):null;return await HOGG.render(o,.5)},
+  // what goes on the card for each kind of animal
+  facts(kind,o){if(kind==='dog'){const lab=Object.fromEntries(STATS);return{title:o.name,sub:`${breedName(o)} · ${o.sex==='M'?'Male':'Female'} · ${ageStr(o.age)}`,line:coatName(o),
+      stats:[['Bay',Math.round(bayScore(o))],['Catch',Math.round(catchScore(o))],...STATS.slice(0,4).map(([k,l])=>[l,o.stats[k]])],tag:RAR[rarTier(o)][0]}}
+    if(kind==='horse')return{title:o.name,sub:`${o.breed} · ${HB.sexWord(o)} · ${ageStr(o.age)}`,line:`${o.coat} · ${HG.handsTxt(o.hh)} · ${o.gid}`,stats:HSTATS.filter(([k])=>k!=='tmp').slice(0,6).map(([k,l])=>[l,o[k]]),tag:o.wins?`${o.wins} race wins`:HG.lineTier(o.bl.q)+' line'}
+    if(kind==='hog'){const s=HOGG.stats(o);return{title:o.name,sub:`${o.type} · ${HOGG.sexWord(o)} · ${o.w} lb`,line:`${o.coat} · ${o.id}`,stats:[['Strength',s.str],['Speed',s.spd],['Endurance',s.end],['Growth',s.grow],['Size',s.size],['Tusks',s.tusk]],tag:`Generation ${o.gen||0}`}}
+    return{title:`${o.w} lb ${o.name}`,sub:`Caught in the ${o.areaName} · day ${o.day}`,line:`${o.dogs} · worth ${fmt(o.pay)}`,stats:[['Weight',o.w+' lb'],['Speed',Math.round(25+70*clamp(((o.sp||1)-.8)/.45,0,1))],['Endurance',Math.round(25+70*clamp(((o.end||1)-.8)/.65,0,1))],['Aggression',Math.round(25+70*clamp(o.aggr??.5,0,1))]],tag:'Big catch',raw:true}},
+  async card(kind,o,animal){const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),F=this.facts(kind,o);
+    try{await Promise.all(['700 64px Oswald','600 36px Oswald','500 30px Barlow','400 60px "Alfa Slab One"'].map(f=>document.fonts.load(f)))}catch(e){}
+    const bg=g.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#2b2018');bg.addColorStop(1,'#120d09');g.fillStyle=bg;g.fillRect(0,0,W,H);
+    g.strokeStyle='#d8a23a';g.lineWidth=6;g.strokeRect(24,24,W-48,H-48);g.strokeStyle='rgba(216,162,58,.35)';g.lineWidth=2;g.strokeRect(40,40,W-80,H-80);
+    g.fillStyle='#f3e3c2';g.textAlign='center';g.font='400 64px "Alfa Slab One",Georgia,serif';g.fillText('HOGS & DOGS',W/2,130);
+    g.fillStyle='#e8590c';g.font='600 30px Oswald,Arial';g.fillText(S.name.toUpperCase(),W/2,176);
+    // the animal, on a soft ground shadow
+    const art=animal||await this.art(kind==='catch'?'hog':kind,kind==='catch'?HOGG.preview(o.pend):o);
+    if(art){const aw=900,ah=aw*art.height/art.width,ay=210;g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(W/2,ay+ah*.95,aw*.38,26,0,0,7);g.fill();g.drawImage(art,(W-aw)/2,ay,aw,ah)}
+    g.fillStyle='#f3e3c2';g.font='700 72px Oswald,Arial';g.fillText(F.title.toUpperCase(),W/2,850);
+    g.fillStyle='#cdb99a';g.font='500 32px Barlow,Arial';g.fillText(F.sub,W/2,902);g.fillText(F.line.length>60?F.line.slice(0,58)+'…':F.line,W/2,944);
+    g.fillStyle='#d8a23a';g.font='600 28px Oswald,Arial';g.fillText(F.tag.toUpperCase(),W/2,992);
+    // stats: two columns of bars
+    F.stats.forEach(([l,v],i)=>{const col=i%2,row=Math.floor(i/2),x=110+col*450,y=1040+row*70;g.textAlign='left';g.fillStyle='#cdb99a';g.font='600 26px Oswald,Arial';g.fillText(l.toUpperCase(),x,y);
+      g.textAlign='right';g.fillStyle='#f3e3c2';g.fillText(String(v),x+400,y);const n=typeof v==='number'?clamp(v,0,100):100;g.fillStyle='rgba(255,255,255,.12)';g.fillRect(x,y+12,400,12);g.fillStyle='#d8a23a';g.fillRect(x,y+12,400*n/100,12)});
+    g.textAlign='center';g.fillStyle='#e8590c';g.font='600 30px Oswald,Arial';g.fillText('PLAY FREE: '+this.link().replace('https://','').toUpperCase(),W/2,H-70);return c},
+  async share(kind,id){toast('Making your card…');let o;
+    if(kind==='dog')o=S.dogs.find(x=>x.id===id);else if(kind==='horse')o=HG.find(id);else if(kind==='hog')o=HOGG.find(id);else o=UI.hunt&&UI.hunt.catchCard;if(!o)return;
+    const c=await this.card(kind,o),blob=await new Promise(r=>c.toBlob(r,'image/png')),name=`${(kind==='catch'?'catch':o.name).replace(/\W+/g,'-').toLowerCase()}-hogs-and-dogs.png`,file=new File([blob],name,{type:'image/png'});
+    const text=kind==='catch'?`Just caught a ${o.w} lb ${o.name.toLowerCase()} in Hogs & Dogs!`:`Meet ${o.name} from ${S.name} in Hogs & Dogs.`;
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Hogs & Dogs',text:text+' '+this.link()});S.st.shares=(S.st.shares||0)+1;save();return}}catch(e){if(e&&e.name==='AbortError')return}
+    const url=URL.createObjectURL(blob);S.st.shares=(S.st.shares||0)+1;save();
+    openSheet(`<h2>Share card</h2><img src="${url}" alt="${esc(text)}" style="width:100%;border-radius:4px"><div class="row" style="margin-top:10px"><a class="btn" href="${url}" download="${name}">Download picture</a><button class="btn ghost" data-act="copyInvite">Copy invite link</button></div><p class="small muted">${esc(text)}</p>`)},
+  btn(kind,id){return`<button class="btn sm alt" data-act="shareCard" data-k="${kind}" data-id="${id}">Share</button>`},
+  // ---------- invites ----------
+  // arriving from an invite link: remember who sent you (until you make an account)
+  arrive(){try{const q=new URLSearchParams(location.search),r=q.get('ref');if(r&&/^[A-Za-z0-9_]{3,20}$/.test(r)){if(!signedIn()&&!S.refDone)S.refBy=r;history.replaceState(null,'',location.pathname)}}catch(e){}},
+  async afterSignup(){if(!S.refBy||S.refDone||!signedIn())return;try{const r=await sbRpc('hd_refer',{...(await A2()),p_ref:S.refBy});S.refDone=true;
+      if(r==='ok'){S.money+=REF_NEW;S.inv.feed+=20;addLog(`Invited by ${S.refBy}: welcome bonus ${fmt(REF_NEW)} and 20 feed.`);toast(`${S.refBy} invited you: ${fmt(REF_NEW)} and 20 feed to start!`)}save();render()}catch(e){}},
+  async collect(){if(!signedIn()||inClaude)return;try{const r=await sbRpc('hd_referral_rewards',await A2());if(!r)return;S.refTotal=r.total;
+      if(r.new>0){const v=r.new*REF_INVITER;S.money+=v;addLog(`${r.new} friend${r.new>1?'s':''} joined from your invite link: +${fmt(v)}.`);toast(`${r.new} friend${r.new>1?'s':''} joined with your link! +${fmt(v)}`)}save();render()}catch(e){}},
+  panel(){if(inClaude)return'';if(!signedIn())return`<div class="panel small" style="margin-top:10px"><b>Invite friends</b><div class="muted">Make a free account to get your own invite link: ${fmt(REF_INVITER)} for every friend who joins, and they start with ${fmt(REF_NEW)}.</div></div>`;
+    return`<div class="panel" style="margin-top:10px"><b>Invite friends</b><div class="small muted">Every friend who makes an account from your link: you get ${fmt(REF_INVITER)}, they start with ${fmt(REF_NEW)} and 20 feed.</div>
+     <div class="small" style="margin:6px 0;word-break:break-all"><b>${esc(this.link())}</b></div><div class="row"><button class="btn sm" data-act="copyInvite">Copy link</button>${navigator.share?'<button class="btn sm alt" data-act="shareInvite">Share link</button>':''}</div>
+     <div class="small muted" style="margin-top:6px">Friends joined so far: ${S.refTotal||0}</div></div>`}
+};
+const SHARE_ACTIONS={
+  shareCard:d=>SHARE.share(d.k,d.id),
+  copyInvite:async()=>{try{await navigator.clipboard.writeText(SHARE.link());toast('Invite link copied.')}catch(e){prompt('Copy your invite link:',SHARE.link())}},
+  shareInvite:async()=>{try{await navigator.share({title:'Hogs & Dogs',text:`Come run a ranch with me in Hogs & Dogs. Breed hog dogs, horses and hogs, and hunt with me.`,url:SHARE.link()})}catch(e){}}
+};
 
 // ---------- other screens ----------
 SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
@@ -4984,8 +5044,10 @@ try{WE.ensure()}catch(e){console.error('world',e)}
 try{HG.migrate()}catch(e){console.error('horses',e)}
 try{HOGG.migrate()}catch(e){console.error('hogs',e)}
 try{GOALS.login()}catch(e){console.error('goals',e)}
+try{SHARE.arrive()}catch(e){}
+setTimeout(()=>SHARE.collect(),3000);
 try{if(S.pendingHog)PR.flush()}catch(e){console.error('pending hog',e)}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
