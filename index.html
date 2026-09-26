@@ -336,8 +336,8 @@ const HORSE_BREEDS={
  'Mustang':{spd:60,sta:80,price:1700,coats:['Dun','Grulla','Bay','Palomino']}
 };
 const HORSE_HEX={Sorrel:'#9c4a24',Bay:'#6d3b1f',Buckskin:'#c8a064',Grulla:'#7d766b',Chestnut:'#8a3f1d','Dark bay':'#3e2415',Gray:'#a7a7a2',Leopard:'#e6e0d4',Blanket:'#7a4b2c',Snowcap:'#5a3a26',Dun:'#b89060',Palomino:'#d8b56b'};
-// the Quarter Horse master: shading, regions and legs traced from the reference photo (tools/horse/build_qh_master.py)
-const HORSE_MASTERS={quarter:{"w":1024,"h":683,"face":{"a":[885.3333333333333,72.0],"b":[936.0,184.0]},"legs":{"1":{"cor":636.6666666666666,"knee":470.0},"2":{"cor":633.3333333333333,"knee":493.3333333333333},"3":{"cor":641.3333333333333,"knee":513.3333333333333},"4":{"cor":637.3333333333333,"knee":496.66666666666663}},"maps":{"m1":"assets/masters/quarter-m1.1ffb3edd31.webp","m2":"assets/masters/quarter-m2.73236f8cda.webp","m3":"assets/masters/quarter-m3.ee86f7affe.webp"}}};
+// breed masters: shading, regions and legs traced from reference pictures (tools/horse/build_qh_master.py, build_tb_master.py)
+const HORSE_MASTERS={quarter:{"w":1024,"h":683,"face":{"a":[885.3333333333333,72.0],"b":[936.0,184.0]},"legs":{"1":{"cor":636.6666666666666,"knee":470.0},"2":{"cor":633.3333333333333,"knee":493.3333333333333},"3":{"cor":641.3333333333333,"knee":513.3333333333333},"4":{"cor":637.3333333333333,"knee":496.66666666666663}},"maps":{"m1":"assets/masters/quarter-m1.1ffb3edd31.webp","m2":"assets/masters/quarter-m2.73236f8cda.webp","m3":"assets/masters/quarter-m3.ee86f7affe.webp"}},thoroughbred:{"w":1024,"h":683,"face":{"a":[901.3333333333333,64.0],"b":[964.0,178.66666666666666]},"legs":{"1":{"cor":639.3333333333333,"knee":460.0},"2":{"cor":633.3333333333333,"knee":466.66666666666663},"3":{"cor":635.3333333333333,"knee":501.3333333333333},"4":{"cor":640.0,"knee":513.3333333333333}},"maps":{"m1":"assets/masters/thoroughbred-m1.b0bd602893.webp","m2":"assets/masters/thoroughbred-m2.02a8ab701a.webp","m3":"assets/masters/thoroughbred-m3.b7b143f3a8.webp"}}};
 const RIVALS=['Bayou Bend Kennels','Red Clay Curs','Slough Creek Ranch','Palmetto Catch Co.','Lone Pine Hog Dogs','Big Thicket Bay Dogs','Cypress Knee Ranch'];
 const RAR=[['Common','--r0'],['Uncommon','--r1'],['Rare','--r2'],['Epic','--r3'],['Legendary','--r4']];
 
@@ -3909,7 +3909,7 @@ const HBREED={
  'Quarter Horse':{code:'QH',master:'quarter',hh:15.1,lb:1100,gest:11,
    st:{spd:74,str:72,sta:64,agi:76,end:66,int:60,trn:68,tmp:70,wrk:78},
    gf:{E:{E:.62},A:{A:.5,At:.12},Cr:{Cr:.05},D:{D:.04},Ch:{Ch:.006},Z:{Z:.004},G:{G:.07},Rn:{Rn:.04},F:{F:.72},Sb:{Sb1:.012},O:{O:.01},To:{},Lp:{},Pt:{},Sw:{Sw:.006},W:{W:.002},wf:.2,so:.3,it:.5,ht:.5}},
- 'Thoroughbred':{code:'TB',master:'quarter',hh:16.1,lb:1050,gest:11,st:{spd:84,str:60,sta:70,agi:64,end:72,int:58,trn:58,tmp:50,wrk:50},
+ 'Thoroughbred':{code:'TB',master:'thoroughbred',hh:16.1,lb:1050,gest:11,st:{spd:84,str:60,sta:70,agi:64,end:72,int:58,trn:58,tmp:50,wrk:50},
    gf:{E:{E:.6},A:{A:.55,At:.15},Cr:{},D:{},Ch:{},Z:{},G:{G:.08},Rn:{Rn:.01},F:{F:.8},Sb:{Sb1:.03},O:{},To:{},Lp:{},Pt:{},Sw:{},W:{W:.004},wf:.22,so:.35,it:.5,ht:.6}},
  'Appaloosa':{code:'AP',master:'quarter',hh:15,lb:1000,gest:11,st:{spd:66,str:66,sta:72,agi:66,end:76,int:64,trn:66,tmp:66,wrk:70},
    gf:{E:{E:.6},A:{A:.5,At:.08},Cr:{Cr:.05},D:{D:.05},Ch:{},Z:{},G:{G:.05},Rn:{Rn:.02},F:{F:.75},Sb:{},O:{},To:{},Lp:{Lp:.62},Pt:{Pt:.45},Sw:{},W:{},wf:.18,so:.25,it:.5,ht:.45}},
@@ -4311,6 +4311,7 @@ const PATCH_NOTES=[{v:'1.1.1',title:'Horses, landowner jobs and a faster start',
   ['Hunt on horseback','Pick a horse on the Hunt screen and ride in. A horse covers open ground about twice as fast as walking and sees farther, but it is slow in woods and swamp, gets winded, and a hot one can spook at the bay. Tie it up and go in on foot when you need to.'],
   ['Landowner jobs','Farmers and ranchers now post paid hog work on the Hunt screen: clear hogs off a place, bring in a big boar, catch a sounder before it moves on, or collect the parish bounty on the giant boar. Finish on time for the pay and reputation; miss a deadline and word gets around.'],
   ['Much faster loading','The dog and horse artwork now loads as separate cached files instead of being packed into the game page. The game opens in about a second and a half instead of ten on a phone, and pictures come from your cache on every visit after the first. Nothing about the art changed.'],
+  ['Thoroughbreds get their own look','Thoroughbreds now have their own body: taller, leaner and longer-legged than the Quarter Horse, with every coat colour, pattern and marking painted onto it from their genes.'],
   ['New loading screen','The game opens on new key art with a live loading bar that follows the real work: the game itself, then the dog and horse pictures on your first screen.'],
   ['Horse profiles and training','Open any horse for its genetic ID, genetics, stats, pedigree and record. Train a stat once a day, DNA test to reveal hidden genes, rename, sell or breed from the profile.']]}];
 function patchNotesHTML(){return PATCH_NOTES.map(n=>`<h2>What's new in ${n.v}</h2><p class="sub">${esc(n.title)}</p>${n.items.map(([t,d])=>`<div class="panel" style="margin-bottom:8px"><b>${esc(t)}</b><div class="small" style="margin-top:2px">${esc(d)}</div></div>`).join('')}`).join('')}
