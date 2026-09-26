@@ -218,6 +218,7 @@ th{font:600 12px var(--display);text-transform:uppercase;letter-spacing:.08em;co
 #loader .ld-txt{position:absolute;left:0;right:0;top:78.3%;text-align:center;font:600 1.15cqw/1.2 Oswald,'Arial Narrow',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#e9dcc2;text-shadow:0 1px 3px #000}
 @media (max-aspect-ratio:1/1){#loader .ld-txt{font-size:1.6cqw}}
 @media (prefers-reduced-motion:reduce){#loader,#loader .ld-fill i{transition:none}}
+img.coatimg:not([src]),img.horseimg:not([src]),img.hogimg:not([src]){color:transparent}
 </style>
 </head>
 <body>
@@ -1204,7 +1205,7 @@ function coatKeyBase(d){const m=dogMods(d);const vm=visualMorph(d);return coatBr
 function gameCoat(d){const k=coatKeyBase(d);if(COAT_MEMO.has(k))return COAT_MEMO.get(k);const s=Coat.fromGenotype(d.genes,dogMods(d),coatBreed(d));if(COAT_MEMO.size>5000)COAT_MEMO.clear();COAT_MEMO.set(k,s);return s}
 const coatName=d=>Coat.describe(gameCoat(d)),coatRar=c=>Coat.rarity(c),describeCoat=c=>Coat.describe(c);
 const geneticId=d=>Coat.encodeId(coatBreed(d),d.genes,dogMods(d));
-const COAT_IMG={},COAT_PENDING={};let coatQ=Promise.resolve();
+const COAT_IMG={},COAT_PENDING={};
 const coatKey=(d,sc)=>coatKeyBase(d)+'|'+sc;
 function dogArt(d,w=120){
   if(!hasBody(d))return dogSVG(d,w);
@@ -1216,14 +1217,21 @@ function findDog(id){return S.dogs.find(d=>d.id===id)||(UI.previewPups||[]).find
 function hydrateCoats(){
   try{hydrateHorses()}catch(e){console.error('horse art',e)}
   try{hydrateHogs()}catch(e){console.error('hog art',e)}
+  // pictures in an open sheet (a profile, offers, a litter) jump ahead of the kennel so what you're looking at draws first
+  const urgent=new Set(document.querySelectorAll('#sheet:not(.hidden) img.coatimg:not([src])'));
   document.querySelectorAll('img.coatimg:not([src])').forEach(img=>{
     const id=img.dataset.cid,sc=+img.dataset.sc,d=findDog(id);if(!d)return;const key=coatKey(d,sc);
-    if(COAT_IMG[key]){img.src=COAT_IMG[key];return}if(COAT_PENDING[key])return;COAT_PENDING[key]=1;const spec=gameCoat(d);
-    const vm=visualMorph(d);
-    coatQ=coatQ.then(async()=>{const c=vm?await Coat.renderMorph(spec,vm,sc):await Coat.render(spec,sc);COAT_IMG[key]=c.toDataURL('image/png');delete COAT_PENDING[key];
-      document.querySelectorAll(`img.coatimg[data-cid="${id}"][data-sc="${sc}"]`).forEach(i=>{if(coatKey(findDog(id)||d,sc)===key)i.src=COAT_IMG[key]});await new Promise(r=>setTimeout(r,0))}).catch(()=>{delete COAT_PENDING[key]});
-  });
+    if(COAT_IMG[key]){img.src=COAT_IMG[key];return}
+    if(COAT_PENDING[key]){if(urgent.has(img)){const i=COAT_JOBS.findIndex(j=>j.key===key);if(i>0)COAT_JOBS.unshift(...COAT_JOBS.splice(i,1))}return}
+    COAT_PENDING[key]=1;const spec=gameCoat(d),vm=visualMorph(d);
+    const job={key,run:async()=>{const c=vm?await Coat.renderMorph(spec,vm,sc):await Coat.render(spec,sc);COAT_IMG[key]=c.toDataURL('image/png');delete COAT_PENDING[key];
+      document.querySelectorAll(`img.coatimg[data-cid="${id}"][data-sc="${sc}"]`).forEach(i=>{if(coatKey(findDog(id)||d,sc)===key)i.src=COAT_IMG[key]})}};
+    if(urgent.has(img))COAT_JOBS.unshift(job);else COAT_JOBS.push(job)});
+  coatPump();
 }
+const COAT_JOBS=[];let coatBusy=false;
+async function coatPump(){if(coatBusy)return;coatBusy=true;
+  while(COAT_JOBS.length){const j=COAT_JOBS.shift();try{await j.run()}catch(e){delete COAT_PENDING[j.key]}await new Promise(r=>setTimeout(r,0))}coatBusy=false}
 function makeLineupDog(breed,name){return notLegendary(()=>makeLineupDog0(breed,name))}
 function makeLineupDog0(breed,name){
   const l=Coat.lineup(breed,name),d=makeDog({breed,age:ri(12,30)});
@@ -1896,7 +1904,7 @@ const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 function renderChrome(){
   document.getElementById('ranchName').innerHTML=esc(S.name)+'<br><span class="num">Day '+S.day+'</span>';
   const pct=Math.round(S.xp/xpNeed(S.level)*100);
-  document.getElementById('chips').innerHTML=`<span class="chip num">${ico('cash')} <b>${fmt(S.money)}</b></span><span class="chip">Lv <b>${S.level}</b><span class="xpbar"><i style="width:${pct}%"></i></span></span><span class="chip num">${ico('pits')} ${S.dogs.length}/${dogCap()}</span><span class="chip num">${ico('feed')} ${S.inv.feed}</span>`;
+  document.getElementById('chips').innerHTML=`<span class="chip num">${ico('cash')} <b>${fmt(S.money)}</b></span><span class="chip">Lv <b>${S.level}</b><span class="xpbar"><i style="width:${pct}%"></i></span></span><span class="chip num">${ico('pits')} ${S.dogs.length}</span><span class="chip num">${ico('feed')} ${S.inv.feed}</span>`;
   const main=['home','kennel','pits','breed','market','hunt'];
   document.getElementById('tabs').innerHTML=TABS.map(([id,ic,l])=>`<button data-act="tab" data-t="${id}" class="${UI.tab===id||(id==='more'&&!main.includes(UI.tab))?'on':''}" aria-label="${l}"><span class="ic">${ICON[id]?ico(id):ic}</span>${l}</button>`).join('');
 }
@@ -1933,7 +1941,7 @@ SCREENS.home=()=>{
   ${repPanel(false)}${WE.homeCard()}${JB.home()}${S.hogs.length?`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="hogpin"><div class="spread"><b>Hog Pin</b><span class="small">${S.hogs.length}/${HOGG.cap()} hogs</span></div><div class="small muted">${S.hogs.filter(h=>h.preg).length} sow${S.hogs.filter(h=>h.preg).length===1?'':'s'} bred · ${S.hogs.filter(h=>h.age<3).length} piglets · feed ${Math.ceil(HOGG.feedNeed())}/day</div></button>`:''}
   <div class="panel"><div class="spread"><div><b>End the day</b><div class="small muted">Dogs eat ${S.dogs.length} feed, rest to full energy, pups grow, the market restocks.</div></div></div>
   <div style="margin-top:10px"><button class="btn big" data-act="endDay">End day ${S.day}</button></div></div>
-  <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="land"><b>🏡 ${esc(S.land.name)}</b><div class="small muted">${LAND_TIERS[S.land.tier].name} · ${TERRAINS[S.land.terrain].name} · room for ${dogCap()} dogs · value ${fmt(landValue())}</div></button>
+  <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="land"><b>🏡 ${esc(S.land.name)}</b><div class="small muted">${LAND_TIERS[S.land.tier].name} · ${TERRAINS[S.land.terrain].name} · kennel runs for ${kennelRuns()} dogs · value ${fmt(landValue())}</div></button>
   <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="online"><b>🌐 Online ranches</b><div class="small muted">Visit other players, trade dogs, rent studs, enter daily shows and races, and join a hunting group.</div></button>
   <button class="panel" style="text-align:left;width:100%;margin-top:10px;border:2px solid var(--blaze)" data-act="tab" data-t="market"><b>New breed: Gordon Setter</b><div class="small muted">Long-coated setters with inheritable feathering — now in the Market.</div></button>
   <div class="grid" style="margin-top:10px">
@@ -1946,9 +1954,31 @@ SCREENS.home=()=>{
 };
 SCREENS.kennel=()=>{
   const f=UI.kf,list=S.dogs.filter(d=>f==='all'||(f==='bay'&&bayScore(d)>=catchScore(d))||(f==='catch'&&catchScore(d)>bayScore(d))||(f==='pups'&&!isAdult(d))||(f==='M'&&d.sex==='M')||(f==='F'&&d.sex==='F')||(f==='pit'&&d.breed==='American Pit Bull Terrier')||(f==='cur'&&/Cur$/.test(d.breed))||(f==='bd'&&d.breed==='American Bulldog')||(f==='cat'&&d.breed==='Catahoula Leopard Dog')||(f==='tw'&&d.breed==='Treeing Walker')||(f==='gs'&&d.breed==='Gordon Setter')||(f==='dogo'&&d.breed==='Dogo Argentino')||(f==='corso'&&d.breed==='Cane Corso')||(f==='bandog'&&isBandog(d)));
-  return `<h2>Kennel</h2><p class="sub">${S.dogs.length} of ${dogCap()} runs filled. Tap a dog for its full profile.</p>
+  return `<h2>Kennel</h2><p class="sub">${S.dogs.length} dog${S.dogs.length===1?'':'s'} · ${kennelRuns()} kennel runs on your land. There's no limit on how many dogs you keep. Tap a dog for its full profile.</p>${PUPB.panel()}
   <div class="seg">${[['all','All'],['bay','Bay dogs'],['catch','Catch dogs'],['pups','Pups'],['pit','Pit Bulls'],['bd','Bulldogs'],['cat','Catahoulas'],['tw','Walkers'],['gs','Setters'],['dogo','Dogos'],['corso','Corsos'],['bandog','Bandogs'],['cur','Curs'],['M','Males'],['F','Females']].map(([k,l])=>`<button class="${f===k?'on':''}" data-act="kf" data-k="${k}">${l}</button>`).join('')}</div>
   ${list.length?`<div class="grid">${list.map(d=>dogCard(d)).join('')}</div>`:`<div class="panel">No dogs match. <button class="btn sm" data-act="tab" data-t="market">Visit the market</button></div>`}`;
+};
+// a dog leaves the kennel for good: pay, reputation by build grade, and nothing left pointing at it
+function sellDogOut(dog,v,msg){const g=buildGrade(dog);addRep({good:.4,std:0,poor:-.8,defect:-1.5}[g.k],`Sold ${dog.name} (${g.label.toLowerCase()})`);earn(v);S.dogs=S.dogs.filter(x=>x.id!==dog.id);S.preg=S.preg.filter(p=>p.dam!==dog.id);
+  ['sire','dam','trainDog'].forEach(k=>{if(UI[k]===dog.id)UI[k]=''});UI.huntSel.bay=UI.huntSel.bay.filter(x=>x!==dog.id);UI.huntSel.catch=UI.huntSel.catch.filter(x=>x!==dog.id);
+  S.st.sold++;gainXP(10);addLog(msg);toast(msg);sfx.coin();save();closeSheet();render()}
+// pup buyers: other ranches in the county make offers on your pups. Each ranch wants something (bay prospects, catch
+// prospects, a breed it runs), so offers differ; your reputation lifts them all. Offers change day to day.
+const PUP_BUYERS=[...RIVALS,'Sabine River Hounds','Tensas Bottom Kennels','Hurricane Creek Curs','Pearl River Catch Dogs','Oak Ridge Ranch'];
+const PUPB={
+  offers(d){const rng=mulberry(hashStr(d.id+'|'+S.day)),names=[...PUP_BUYERS].sort(()=>rng()-.5).slice(0,3),role=bayScore(d)>=catchScore(d)?'bay':'catch',base=dogValue(d)*repMult();
+    return names.map(n=>{const want=rng()<.4?'breed':rng()<.5?'bay':'catch',hit=want==='breed'?true:want===role;const why=want==='breed'?`runs ${esc(breedName(d).replace(/s$/,'se').replace(/([^s])$/,'$1'))}s`:want==='bay'?'wants bay-dog prospects':'wants catch-dog prospects';
+      return{ranch:n,why,price:Math.max(25,Math.round(base*(.78+rng()*.3)*(hit?1.15:.95)/5)*5)}}).sort((a,b)=>b.price-a.price)},
+  best(d){return PUPB.offers(d)[0]},
+  sheet(id){const d=S.dogs.find(x=>x.id===id);if(!d)return;if(isLegend(d))return toast('Legendary dogs can only be bred, not sold. You can stand them at stud.');const O=PUPB.offers(d);
+    openSheet(`<h2>Offers for ${esc(d.name)}</h2><div style="display:flex;justify-content:center">${dogArt(d,240)}</div><p class="sub">${esc(breedName(d))} ${d.sex==='M'?'male':'female'} pup, ${ageStr(d.age)} · ${esc(coatName(d))}. Other ranches in the county bid on your pups; offers change every day.</p>
+     ${O.map((o,i)=>`<div class="panel spread" style="margin-bottom:6px;gap:8px"><div><b>${esc(o.ranch)}</b><div class="small muted">${o.why}</div></div><button class="btn sm" data-act="pupSell" data-id="${d.id}" data-k="${i}">Sell for ${fmt(o.price)}</button></div>`).join('')}
+     <div class="small muted">Or keep ${d.sex==='M'?'him':'her'}: there's no limit on how many dogs you can own.</div>`)},
+  sell(id,i){const d=S.dogs.find(x=>x.id===id);if(!d||isLegend(d))return;const o=PUPB.offers(d)[+i];if(!o)return;S.st.pupsSold=(S.st.pupsSold||0)+1;sellDogOut(d,o.price,`Sold ${d.name} to ${o.ranch} for ${fmt(o.price)}.`)},
+  // the kennel's pup panel: every pup with its best offer
+  panel(){const pups=S.dogs.filter(d=>!isAdult(d)&&!d.guest);if(!pups.length)return'';const open=UI.pupPanel;
+    return`<div class="panel" style="margin:8px 0"><div class="spread"><b>Pups for sale</b><button class="btn sm ghost" data-act="pupPanel">${open?'Hide':`${pups.length} pup${pups.length>1?'s':''}: see offers`}</button></div>
+     ${open?pups.map(d=>{const b=isLegend(d)?null:PUPB.best(d);return`<div class="spread small" style="gap:8px;margin-top:6px"><span><a href="#" data-act="dog" data-id="${d.id}"><b>${esc(d.name)}</b></a> · ${esc(breedName(d))} ${d.sex==='M'?'♂':'♀'} · ${ageStr(d.age)}</span>${b?`<span><span class="muted">${esc(b.ranch)}</span> <button class="btn sm" data-act="pupOffers" data-id="${d.id}">${fmt(b.price)}</button></span>`:'<span class="muted">Legendary: keep or stand at stud</span>'}</div>`}).join(''):'<div class="small muted">Sell pups to other ranches instead of keeping them.</div>'}</div>`}
 };
 function dogProfile(id){
   const d=S.dogs.find(x=>x.id===id);if(!d)return;const t=rarTier(d);
@@ -1976,7 +2006,7 @@ function dogProfile(id){
    <button class="btn sm alt" data-act="dnaTest" data-id="${d.id}" ${d.dna||S.money<DNA_TEST?'disabled':''}>${d.dna?'DNA tested':'DNA test ('+fmt(DNA_TEST)+')'}</button>
    <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>
    <button class="btn sm ghost" data-act="setPair" data-id="${d.id}" ${isAdult(d)?'':'disabled'}>Use for breeding</button>
-   <button class="btn sm" data-act="sell" data-id="${d.id}">Sell for ${fmt(salePrice(d))}</button>${inClaude?'':`<button class="btn sm alt" data-act="sellOnline" data-id="${d.id}">Sell online</button>${d.sex==='M'&&isAdult(d)?`<button class="btn sm alt" data-act="studOnline" data-id="${d.id}">Offer at stud</button>`:''}`}</div>`);
+   <button class="btn sm" data-act="sell" data-id="${d.id}">Sell for ${fmt(salePrice(d))}</button>${!isAdult(d)&&S.dogs.includes(d)?`<button class="btn sm alt" data-act="pupOffers" data-id="${d.id}">Sell to another ranch</button>`:''}${inClaude?'':`<button class="btn sm alt" data-act="sellOnline" data-id="${d.id}">Sell online</button>${d.sex==='M'&&isAdult(d)?`<button class="btn sm alt" data-act="studOnline" data-id="${d.id}">Offer at stud</button>`:''}`}</div>`);
 }
 SCREENS.breed=()=>{
   const sires=S.dogs.filter(d=>d.sex==='M'&&isAdult(d)&&d.health>=40);
@@ -2030,7 +2060,7 @@ function marketView(id){
   <p class="small"><b>Coat:</b> ${esc(coatName(d))} <span class="gt muted">${Object.keys(LOCI).map(L=>genoText(d,L,'')).join(' ')}</span></p>
   ${statBars(d)}
   <div style="margin-top:12px"><button class="btn big" data-act="buy" data-id="${d.id}" ${S.money>=d.price&&S.dogs.length<dogCap()?'':'disabled'}>Buy for ${fmt(d.price)}</button>
-  ${S.dogs.length>=dogCap()?'<p class="small muted">Your kennel is full. Sell a dog or upgrade the kennel.</p>':S.money<d.price?'<p class="small muted">Not enough cash.</p>':''}</div>`);
+  ${S.money<d.price?'<p class="small muted">Not enough cash.</p>':''}</div>`);
 }
 SCREENS.train=()=>{
   const d=S.dogs.find(x=>x.id===UI.trainDog)||S.dogs.find(isAdult)||S.dogs[0];
@@ -2315,7 +2345,9 @@ function landStats(P=S.land){const m=landMemo(P),kl=1+kennelUp(P);if(m.st&&m.stK
   st.train=Math.min(.6,st.train+st.trainPen+.05*landLevel(P,'training'));st.regen+=2*landLevel(P,'water');st.feed+=50*landLevel(P,'storage');
   st.maint=Math.max(-.5,st.maint-.1*landLevel(P,'security'));m.stKennel=kl;return m.st=st}
 // capacities the rest of the game reads
-const dogCap=()=>S.land?landStats().dogs:cap(1);
+// there is no limit on how many dogs you can own; kennel runs on the land are shown for reference
+const dogCap=()=>Infinity;
+const kennelRuns=()=>S.land?landStats().dogs:cap(1);
 const horseCap=()=>S.land?landStats().horses:0;
 const cowCap=()=>S.land?landStats().cows:0;
 const hogCap=()=>S.land?landStats().hogs:0;
@@ -4296,6 +4328,7 @@ const JB={
     return`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="hunt"><div class="spread"><b>Landowner jobs</b><span class="small">${J.active.length} taken · ${J.board.length} posted</span></div>
      <div class="small muted">${soon?`${esc(JB.title(soon))} for ${esc(soon.who)}: ${soon.got}/${soon.need}, ${soon.due-S.day>0?soon.due-S.day+' day'+(soon.due-S.day>1?'s':'')+' left':'due today'}`:'New hog work is posted. Take a job from the Hunt screen.'}</div></button>`}
 };
+const PUP_ACTIONS={pupOffers:d=>PUPB.sheet(d.id),pupSell:d=>PUPB.sell(d.id,d.k),pupPanel:()=>{UI.pupPanel=!UI.pupPanel;render()}};
 const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass(+d.id);save();render()}};
 
 // =========================================================
@@ -4743,9 +4776,7 @@ const A={
   S.money-=dog.price;if(i>=0)S.market.splice(i,1);else if(j>=0)S.featured.splice(j,1);else q.arr[q.i]=makeLineupDog(q.b,dog.lineup);delete dog.price;delete dog.lineup;S.dogs.push(dog);
   gainXP(10);addLog(`Bought ${dog.name}, a ${breedName(dog)}.`);toast(`${dog.name} joined your kennel.`);sfx.coin();checkAch();save();closeSheet();render()},
  sell:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog)return;const g=buildGrade(dog);if(!confirm(`Sell ${dog.name} for ${fmt(salePrice(dog))}?`+(g.k==='poor'||g.k==='defect'?` Selling a ${g.label.toLowerCase()} dog will hurt your reputation.`:'')))return;
-  const v=salePrice(dog);addRep({good:.4,std:0,poor:-.8,defect:-1.5}[g.k],`Sold ${dog.name} (${g.label.toLowerCase()})`);earn(v);S.dogs=S.dogs.filter(x=>x.id!==dog.id);S.preg=S.preg.filter(p=>p.dam!==dog.id);
-  ['sire','dam','trainDog'].forEach(k=>{if(UI[k]===dog.id)UI[k]=''});UI.huntSel.bay=UI.huntSel.bay.filter(x=>x!==dog.id);UI.huntSel.catch=UI.huntSel.catch.filter(x=>x!==dog.id);
-  S.st.sold++;gainXP(10);addLog(`Sold ${dog.name} for ${fmt(v)}.`);toast(`Sold ${dog.name} for ${fmt(v)}.`);sfx.coin();save();closeSheet();render()},
+  const v=salePrice(dog);sellDogOut(dog,v,`Sold ${dog.name} for ${fmt(v)}.`)},
  dnaTest:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog||dog.dna||S.money<DNA_TEST)return;S.money-=DNA_TEST;dog.dna=true;const u=unknownCarried(dog);
   u.forEach(a=>research(a,1,`DNA test on ${dog.name}`));addLog(`DNA-tested ${dog.name}: ${u.length?u.length+' unknown trait'+(u.length>1?'s':'')+' found':'no unknown traits'}.`);
   toast(u.length?`${dog.name} carries ${u.length} unknown trait${u.length>1?'s':''}. Research advanced.`:`${dog.name} carries no unknown traits.`);save();render();dogProfile(dog.id)},
@@ -4811,6 +4842,8 @@ async function checkAdmin(){
   if(!signedIn()||inClaude){UI.admin=false;return false}
   try{UI.admin=(await sbRpc('hd_is_admin',await A2()))===true}catch(e){UI.admin=false}
   return UI.admin}
+// admin rights can be granted while the game is open: opening More asks the server again (at most every 20 s)
+{const more=SCREENS.more;SCREENS.more=()=>{if(signedIn()&&!inClaude&&Date.now()-(UI.admChk||0)>20000){UI.admChk=Date.now();const was=!!UI.admin;checkAdmin().then(a=>{if(a!==was&&UI.tab==='more')render()})}return more()}}
 function adminLegend(o){for(let i=0;i<400;i++){const d=makeDog({...o,boost:25,mut:true});if(isLegend(d))return d}return null}
 function adminMaxUpgrades(){const P=S.land;
   for(let pass=0;pass<3;pass++)for(const k of Object.keys(LAND_UP))while(!Prop.upgradeProblem(k)){const l=landLevel(P,k);
@@ -4836,7 +4869,7 @@ SCREENS.admin=()=>{
    ${row('Breed',`<select data-f="admBreed">${opt(Object.keys(BREEDS),UI.admBreed)}</select>`)}
    ${row('Sex & age',`<select data-f="admSex"><option value="F">Female</option><option value="M" ${UI.admSex==='M'?'selected':''}>Male</option></select><select data-f="admAge"><option value="24">Adult</option><option value="8" ${UI.admAge==='8'?'selected':''}>Puppy</option></select>`)}
    ${row('Add to kennel',`${b('dog','Add dog')}${b('dog','Add legendary','data-legend="1"')}`)}
-   ${row(`Kennel <b class="num">${S.dogs.length}/${dogCap()}</b>`,`${b('heal','Heal & rest all dogs')}`)}
+   ${row(`Kennel <b class="num">${S.dogs.length} dogs</b>`,`${b('heal','Heal & rest all dogs')}`)}
   </div>
   <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Horses & livestock</h3>
    ${row('Hog type',`<select data-f="admHog">${opt(Object.keys(HOGS),UI.admHog||'feral')}</select><button class="btn sm" data-act="adm" data-k="hog" data-n="M">Add boar</button><button class="btn sm" data-act="adm" data-k="hog" data-n="F">Add sow</button>`)}
@@ -4878,7 +4911,7 @@ const ADMIN_OPS={
 };
 const ADMIN_ACTIONS={
   adm:async(d,btn)=>{const f=ADMIN_OPS[d.k];if(!f)return;btn.disabled=true;
-    const ok=await checkAdmin();btn.disabled=false;if(!ok){toast('Admin tools are only for the owner account.');UI.tab='more';return render()}
+    const ok=await checkAdmin();btn.disabled=false;if(!ok){toast('Admin tools are only for admin accounts.');UI.tab='more';return render()}
     const err=f(d);if(err)return toast(err);checkAch();save();render()}
 };
 
@@ -4888,7 +4921,7 @@ try{WE.ensure()}catch(e){console.error('world',e)}
 try{HG.migrate()}catch(e){console.error('horses',e)}
 try{HOGG.migrate()}catch(e){console.error('hogs',e)}
 try{if(S.pendingHog)PR.flush()}catch(e){console.error('pending hog',e)}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));

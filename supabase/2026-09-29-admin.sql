@@ -19,3 +19,8 @@ grant execute on function public.hd_is_admin(uuid, text) to anon, authenticated;
 insert into public.hd_admins(player_id)
 select id from public.hd_players where lower(username) = 'kingkt'
 on conflict do nothing;
+
+-- a second admin, added at the owner's request
+insert into public.hd_admins(player_id)
+select id from public.hd_players where lower(username) = 'ogsolo'
+on conflict do nothing;
