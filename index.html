@@ -236,7 +236,9 @@ const HOGS={
  razor:{name:'Razorback',w:[120,220],mult:1.3,rar:1},
  spotted:{name:'Spotted boar',w:[150,260],mult:1.8,rar:2},
  russian:{name:'Russian-cross boar',w:[200,350],mult:2.4,rar:3},
- ghost:{name:'Ghost boar',w:[300,460],mult:5,rar:4}
+ ghost:{name:'Ghost boar',w:[300,460],mult:5,rar:4},
+ // only ever from the rare giant-boar world event
+ giant:{name:'Giant boar',w:[480,620],mult:7,rar:4}
 };
 const AREAS=[
  {id:'creek',name:'Creek Bottom',land:1,size:5,hogs:[['feral',75],['razor',25]],desc:'Palmetto thickets and muddy wallows. Good for green dogs.'},
@@ -507,6 +509,7 @@ function gainXP(n){
 }
 function earn(n,why){S.money+=n;S.st.earned+=n}
 const ACH=[
+ ['giant','Giant killer','Catch a rare giant boar',()=>(S.st.giants||0)>=1],
  ['bandog','Ban dog','Own a bandog',()=>S.dogs.some(d=>d.category==='Bandog')],
  ['firstHog','First hog','Catch your first hog',()=>S.st.hogs>=1],
  ['bigHog','Heavyweight','Catch a hog over 250 lb',()=>S.st.best>=250],
@@ -1759,8 +1762,8 @@ function endDay(){
     litterResearch(pups);
     {const rv=litterRep(pups,sire,dam);if(Math.abs(rv)>=1)msgs.push(`Reputation ${rv>0?'+':''}${Math.round(rv*10)/10}: ${repTier(repOf()).toLowerCase()}.`)}
     if(sameLine(sire,dam))S.st.sameLitters=(S.st.sameLitters||0)+1;const lh=litterHint(pups,sire,dam);if(lh)msgs.push(lh)}
-  landDaily(msgs);
-  if(S.cattle){const inc=S.cattle*35;earn(inc);msgs.push(`Cattle brought in ${fmt(inc)}.`)}
+  landDaily(msgs);WE.daily(msgs);
+  if(S.cattle){const inc=Math.round(S.cattle*35*WE.cattleMult());earn(inc);msgs.push(`Cattle brought in ${fmt(inc)}.`)}
   for(const h of S.horses)h.age++;
   S.rivals.forEach(r=>r.score=Math.round(r.score*(1.01+R()*.035)));
   refreshMarket();if(S.day%2===0)refreshHorseMarket();
@@ -1795,7 +1798,7 @@ function closeSheet(){document.getElementById('sheet').classList.add('hidden')}
 function rarTag(d){const t=rarTier(d);return `<span class="tag r" style="--rc:var(${RAR[t][1]})">${RAR[t][0]}</span>`}
 function dogCard(d,act='dog',extra=''){
   const t=rarTier(d);
-  const b=[];if(isBandog(d))b.push('<span class="tag" style="background:#2a211c;color:#f3e3c2">Bandog</span>');if(!isAdult(d))b.push('<span class="tag">Pup</span>');if(d.health<40)b.push('<span class="tag warn">Hurt</span>');
+  const b=[];if(isBandog(d))b.push('<span class="tag" style="background:#2a211c;color:#f3e3c2">Bandog</span>');if(!isAdult(d))b.push('<span class="tag">Pup</span>');if(d.inj)b.push('<span class="tag warn">Injured</span>');else if(d.health<40)b.push('<span class="tag warn">Hurt</span>');
   if(S.preg.some(p=>p.dam===d.id))b.push('<span class="tag ok">Expecting</span>');if(d.mut)b.push('<span class="tag" style="background:var(--gold);color:#fff">✦</span>');
   return `<button class="dcard" style="--rc:var(${RAR[t][1]})" data-act="${act}" data-id="${d.id}">
   <div class="art">${dogArt(d,140)}<div class="badges">${b.join('')}</div></div>
@@ -1812,7 +1815,7 @@ SCREENS.home=()=>{
   const pups=S.dogs.filter(d=>!isAdult(d)).length;
   return `<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>${esc(S.name)}</h2><p class="sub">Day ${S.day} on the ranch. Net worth <b class="num">${fmt(netWorth())}</b>.</p>
   <div class="panel small" style="margin-bottom:10px"><i>${esc(dayPick(HOLLIS[hintStage()],1))}</i><div class="muted" style="margin-top:4px">Tip: ${esc(dayPick(HINTS[hintStage()]))}</div></div>
-  ${repPanel(false)}
+  ${repPanel(false)}${WE.homeCard()}
   <div class="panel"><div class="spread"><div><b>End the day</b><div class="small muted">Dogs eat ${S.dogs.length} feed, rest to full energy, pups grow, the market restocks.</div></div></div>
   <div style="margin-top:10px"><button class="btn big" data-act="endDay">End day ${S.day}</button></div></div>
   <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="land"><b>🏡 ${esc(S.land.name)}</b><div class="small muted">${LAND_TIERS[S.land.tier].name} · ${TERRAINS[S.land.terrain].name} · room for ${dogCap()} dogs · value ${fmt(landValue())}</div></button>
@@ -1854,7 +1857,7 @@ function dogProfile(id){
   <h3>Pedigree</h3>${ped}
   <h3>Actions</h3><div class="row">
    <button class="btn sm alt" data-act="goTrain" data-id="${d.id}">Train</button>
-   <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>
+   <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>${d.inj?`<button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet: ${esc(d.inj.what)} (${fmt(WE_VET[d.inj.sev])})</button>`:''}
    <button class="btn sm alt" data-act="dnaTest" data-id="${d.id}" ${d.dna||S.money<DNA_TEST?'disabled':''}>${d.dna?'DNA tested':'DNA test ('+fmt(DNA_TEST)+')'}</button>
    <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>
    <button class="btn sm ghost" data-act="setPair" data-id="${d.id}" ${isAdult(d)?'':'disabled'}>Use for breeding</button>
@@ -1946,26 +1949,26 @@ SCREENS.hunt=()=>{
   const card=(d,role)=>{const on=sel[role].includes(d.id),other=sel[role==='bay'?'catch':'bay'].includes(d.id);const ok=d.energy>=35&&d.health>=40;
     return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
   const byBay=[...elig].sort((a,b)=>bayScore(b)-bayScore(a)),byCatch=[...elig].sort((a,b)=>catchScore(b)-catchScore(a));
-  return `<h2>Hog hunt</h2><p class="sub">Turn your dogs out on ${HW_ACRES.toLocaleString()} acres of hunting grounds. Bay dogs cast, strike a track and run it down; you follow on the map. When the hog is bayed, you decide when to release the catch dogs.</p>
+  return `<h2>Hog hunt</h2><p class="sub">Turn your dogs out on ${HW_ACRES.toLocaleString()} acres of hunting grounds. Bay dogs cast, strike a track and run it down; you follow on the map. When the hog is bayed, you decide when to release the catch dogs.</p>${WE.huntPanel()}
   <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const acc=S.land&&accessArea(S.land)===a.id,lock=Prop.tier()<a.land&&!acc;return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
-   <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div></button>`}).join('')}</div>
+   <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div><div class="small muted">${WE.signText(a.id)}</div></button>`}).join('')}</div>
   <h3>Bay dogs <span class="small muted">${sel.bay.length}/${maxBay} — track and hold the hog</span></h3><div class="dogpick">${byBay.map(d=>card(d,'bay')).join('')||'<p class="small muted">No adult dogs.</p>'}</div>
   <h3>Catch dogs <span class="small muted">${sel.catch.length}/${maxCatch} — take the hog down</span></h3><div class="dogpick">${byCatch.map(d=>card(d,'catch')).join('')}</div>
   <h3>Hunting group guest <span class="small muted">optional</span></h3>${UI.guest?`<div class="panel"><div class="spread"><div><b>${esc(UI.guest.name)}</b> from ${esc(UI.guest.guest.ranch)}<div class="small muted">${esc(breedName(UI.guest))} · Bay ${Math.round(bayScore(UI.guest))} · Catch ${Math.round(catchScore(UI.guest))}</div></div><button class="btn sm ghost" data-act="dropGuest">Remove</button></div>
    <div class="seg" style="margin-top:6px"><button class="${UI.guestRole==='bay'?'on':''}" data-act="guestRole" data-k="bay">Bay dog</button><button class="${UI.guestRole==='catch'?'on':''}" data-act="guestRole" data-k="catch">Catch dog</button></div></div>`:`<button class="btn sm ghost" data-act="borrowGuest">Borrow a dog from your hunting group</button>`}
-  <div style="margin-top:12px"><button class="btn big" data-act="hstart" ${(sel.bay.length||(UI.guest&&UI.guestRole==='bay'))&&(sel.catch.length||(UI.guest&&UI.guestRole==='catch'))?'':'disabled'}>Turn out the dogs</button>
+  <div style="margin-top:12px"><button class="btn big" data-act="hstart" ${(sel.bay.length||(UI.guest&&UI.guestRole==='bay'))&&(sel.catch.length||(UI.guest&&UI.guestRole==='catch'))?'':'disabled'}>Turn out the dogs</button>${(()=>{const L=UI.searchFor&&WE.ensure().lost.find(l=>l.dog.id===UI.searchFor);return L?`<button class="btn big alt" style="margin-left:6px" data-act="hsearch" ${sel.bay.length&&sel.area===L.area?'':'disabled'}>Search for ${esc(L.dog.name)}</button><p class="small muted">Pick at least one bay dog to trail ${esc(L.dog.name)}; catch dogs are optional.</p>`:''})()}
   <p class="small muted">Each dog spends 35 energy. Vests on hand: ${S.inv.vest}. GPS collar: ${S.inv.collar?'yes':'no'}.</p></div>`;
 };
-function huntStart(){
+function huntStart(opts={}){
   const sel=UI.huntSel,a=AREAS.find(x=>x.id===sel.area);
   const gst=UI.guest||null,look=id=>gst&&gst.id===id?gst:S.dogs.find(d=>d.id===id);
   const bay=[...sel.bay,...(gst&&UI.guestRole==='bay'?[gst.id]:[])].map(look).filter(Boolean),ctch=[...sel.catch,...(gst&&UI.guestRole==='catch'?[gst.id]:[])].map(look).filter(Boolean);
-  if(!bay.length||!ctch.length)return;
+  if(!bay.length||(!ctch.length&&!opts.search))return;
   [...bay,...ctch].forEach(d=>d.energy-=35);
   const lh=landHunt(a.id),own=!!(S.land&&accessArea(S.land)===a.id);
-  UI.hunt={area:a,phase:'sim',bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hog:null,hogKey:null,found:false,log:[],result:null};
-  const S2=UI.hunt.sim=huntWorldStart(a,bay,ctch,lh,own);
-  hwEvent(S2,'start',`${bay.map(d=>d.name).join(' and ')} strike off from ${S2.entry.label}.`,1);if(lh.note)hwEvent(S2,'land',lh.note,1);
+  UI.hunt={area:a,phase:'sim',bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hog:null,hogKey:null,found:false,log:[],result:null,search:opts.search||null};
+  const S2=UI.hunt.sim=huntWorldStart(a,bay,ctch,lh,own,opts);
+  hwEvent(S2,'start',`${bay.map(d=>d.name).join(' and ')} strike off from ${S2.entry.label}.`,1);if(lh.note)hwEvent(S2,'land',lh.note,1);WE.startNotes(S2);if(opts.search)UI.searchFor=null;
   S.st.hunts++;save();sfx.bark();render();window.scrollTo(0,0);
 }
 // a borrowed dog lives on the hunt, never in S.dogs, so it can't be sold, bred or listed mid-hunt
@@ -1997,7 +2000,7 @@ function finishHunt(win,lines){
       if(g&&g.m.catchT>0){xp+=win?12:5;notes.push(`on the hog ${Math.round(g.m.catchT)} s`)}if(g)notes.push(`${yd(g.dist).toLocaleString()} yd covered`);
       let risk=(win?.12:.32)*(1-landLevel(S.land,'gear')*.1)*(1+landHunt(h.area.id).injury)*(d.temp==='Hot-headed'?1.5:1)*(h.hog.w/180)*(1-blOf(d).hardy*.04)*(1+(d.frail||0));
       if(vests>0){risk*=.4;vests--}
-      if(R()<risk){const dmg=ri(10,28);d.health=Math.max(5,d.health-dmg);lines.push(`${d.name} got cut by a tusk (−${dmg} health).`);notes.push('cut')}}
+      if(R()<risk){const dmg=ri(10,28);WE.injure(d,'tusk cut',dmg);lines.push(`${d.name} got cut by a tusk (−${dmg} health).`);notes.push('cut')}}
     else notes.push('stayed on the leash');
     H.xp=(H.xp||0)+xp;perf.push({name:d.name,role:'Catch',xp,note:notes.join(', ')})});
   let pay=0,bonus=0,pxp=8;
@@ -2019,6 +2022,7 @@ function finishHunt(win,lines){
     if(win&&g&&g.guest&&h.lastPay){const share=Math.min(5000,Math.round(h.lastPay*.25));S.money-=share;lines.push(`${g.guest.ranch} gets 25% (${fmt(share)}) for lending ${g.name}.`);
       A2().then(a=>sbRpc('hd_pay_guest',{...a,p_owner:g.guest.owner,p_amount:share,p_reason:`${g.name} helped ${S.name} catch a ${h.hog.w} lb hog`})).catch(()=>{})}
     UI.guest=null}
+  WE.afterHunt(h,S2,win,lines);
   h.summary={time:S2?S2.t:0,reward:pay,bonus,pxp,dogs:perf};
   h.result={win,found,lines};if(S2)h.log=S2.events.map(e=>e.txt);h.log.unshift(win?'HUNT COMPLETE: hog caught.':'Hunt over.');checkAch();save();
 }
@@ -2898,7 +2902,8 @@ function huntAttrs(d,lh){const s=d.stats,p=huntProfile(d),hx=d.hunt||{n:0,xp:0},
     grit:p.grit*(t==='Bold'||t==='Gritty'?1.12:t==='Calm'||t==='Loyal'?1.06:1)*(.7+s.sta/300),catch:(s.str*.45+s.grip*.45+s.sta*.1)/70*p.catch*exp*(t==='Gritty'?1.1:t==='Hot-headed'?1.08:1),exp}}
 
 // ---------- setting out: entry point, hogs and the scent already on the ground ----------
-function hwCover(x,y,r){for(let k=0;k<60;k++){const a=R()*6.283,d=R()*r,X=clamp(Math.round(x+Math.cos(a)*d),4,HW.N-5),Y=clamp(Math.round(y+Math.sin(a)*d),4,HW.N-5),t=hwT(X,Y);if(HOG_COVER[t]>=.5)return[X+.5,Y+.5]}return[x,y]}
+function hwCover(x,y,r){const pf=HWX.pref||WE_PREF[weSeason()];let best=null,bs=.5;for(let k=0;k<60;k++){const a=R()*6.283,d=R()*r,X=clamp(Math.round(x+Math.cos(a)*d),4,HW.N-5),Y=clamp(Math.round(y+Math.sin(a)*d),4,HW.N-5),t=hwT(X,Y),sc=HOG_COVER[t]+pf[t]+R()*.25;
+    if(sc>=bs){bs=sc;best=[X+.5,Y+.5]}if(best&&k>=12)break}return best||[x,y]}
 function hwEntry(areaId,own){const A0=HW_AREAS[areaId];for(let tries=0;tries<6;tries++){const a=R()*6.283,d=R()*A0.r*.6,cx=clamp(A0.x+Math.cos(a)*d,60,HW.N-60),cy=clamp(A0.y+Math.sin(a)*d,60,HW.N-60);
   for(let r=0;r<90;r++)for(let k=0;k<Math.max(1,r*6);k++){const an=k/Math.max(1,r*6)*6.283,x=Math.round(cx+Math.cos(an)*r),y=Math.round(cy+Math.sin(an)*r),t=hwT(x,y);
     if(t===T_ROAD||t===T_TRAIL)return{x:x+.5,y:y+.5,label:own?'the trail off your property':t===T_ROAD?'a logging road':'a woods trail'}}}
@@ -2908,9 +2913,9 @@ function hwMakeHog(area,lh,x,y,st){const key=hwPickHogType(area),H=HOGS[key],w=M
   return{key,name:H.name,mult:H.mult,rar:H.rar,w,x,y,hd:R()*6.283,st,sp:(1.08-sz*.15)*(.9+R()*.2)*(key==='razor'?1.08:1),end:.8+R()*.4+H.rar*.05,
     aggr:clamp(.2+H.rar*.1+sz*.18+R()*.25,0,1),aware:clamp(.35+R()*.4+(key==='ghost'?.25:0),0,1),stam:1,alert:0,k:-1,full:false,wx:x,wy:y,next:0,rev:false,path:[],calm:0}}
 // scent: every hog lays a track of points; a grid hash finds the points near a dog quickly
-function hsAdd(S2,k,p){const key=((p.x/12)|0)*4096+((p.y/12)|0);let a=S2.hash.get(key);if(!a)S2.hash.set(key,a=[]);a.push(k*1e6+S2.tracks[k].pts.length);S2.tracks[k].pts.push(p)}
+function hsAdd(S2,k,p){if(p.t<0)p.f*=HWX.wash;const key=((p.x/12)|0)*4096+((p.y/12)|0);let a=S2.hash.get(key);if(!a)S2.hash.set(key,a=[]);a.push(k*1e6+S2.tracks[k].pts.length);S2.tracks[k].pts.push(p)}
 function hsLay(S2,k,x,y,t){const tr=S2.tracks[k],l=tr.pts[tr.pts.length-1];if(l&&Math.hypot(l.x-x,l.y-y)<1.5)return;hsAdd(S2,k,{x,y,t,f:SCENT_HOLD[hwT(x,y)]})}
-const scentOf=(p,now)=>Math.exp(-(now-p.t)/1500)*p.f;
+const scentOf=(p,now)=>Math.exp(-(now-p.t)/(1500*HWX.tau))*p.f;
 function hsBest(S2,x,y,r,now,skip,only){let best=null,bs=0;const x0=((x-r)/12)|0,x1=((x+r)/12)|0,y0=((y-r)/12)|0,y1=((y+r)/12)|0;
   for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++){const a=S2.hash.get(gx*4096+gy);if(!a)continue;for(const e of a){const k=(e/1e6)|0,i=e%1e6;if(skip===k||(only!==undefined&&k!==only))continue;const p=S2.tracks[k].pts[i],d=Math.hypot(p.x-x,p.y-y);
     if(d>r)continue;const s=scentOf(p,now)*(1-d/(r+1));if(s>bs){bs=s;best={k,i,s}}}}return best}
@@ -2919,14 +2924,15 @@ function hwHistory(S2,h,k,rest){const a=R()*6.283,d=60+R()*170;let x=clamp(h.x+M
   for(let n=0;n<900;n++){const want=Math.atan2(h.y-y,h.x-x);hd+=clamp(Math.atan2(Math.sin(want-hd),Math.cos(want-hd)),-.5,.5)+(R()-.5)*.9;x+=Math.cos(hd)*1.5;y+=Math.sin(hd)*1.5;pts.push([x,y]);if(Math.hypot(h.x-x,h.y-y)<2)break}
   const T0=-rest-pts.length*1.5/.3;pts.forEach(([px,py],i)=>hsLay(S2,k,px,py,T0+i*1.5/.3))}
 
-function huntWorldStart(a,bay,ctch,lh,own){const ent=hwEntry(a.id,own),S2={t:0,speed:4,stick:false,quarry:null,qSeen:0,hash:new Map(),tracks:[],hogs:[],dogs:[],events:[],ev:{},known:{},
-  limit:(90+10*landLevel(S.land,'gear')+(S.inv.collar?15:0)+10*lh.turns)*60,player:{x:ent.x,y:ent.y,hd:0,tx:null,ty:null,path:[[ent.x,ent.y]],dist:0},entry:ent,hold:100,ctl:0,phase:'search',banner:null};
+function huntWorldStart(a,bay,ctch,lh,own,opts){WE.huntMods(a.id);lh={...lh,hogW:(1+(lh.hogW||0))*HWX.hogW-1};const ent=(opts&&opts.search&&WE.searchEntry(opts.search))||hwEntry(a.id,own),S2={t:0,speed:4,stick:false,quarry:null,qSeen:0,hash:new Map(),tracks:[],hogs:[],dogs:[],events:[],ev:{},known:{},
+  limit:(90+HWX.limitAdj+10*landLevel(S.land,'gear')+(S.inv.collar?15:0)+10*lh.turns)*60,player:{x:ent.x,y:ent.y,hd:0,tx:null,ty:null,path:[[ent.x,ent.y]],dist:0},entry:ent,hold:100,ctl:0,phase:'search',banner:null};
   // the hog this hunt is about, a few more in the area, and others far off across the world
-  const far=own?.75:1,ang=R()*6.283,dist=(130+R()*250)*far;const[hx,hy]=hwCover(clamp(ent.x+Math.cos(ang)*dist,20,HW.N-20),clamp(ent.y+Math.sin(ang)*dist,20,HW.N-20),40);
-  S2.hogs.push(hwMakeHog(a,lh,hx,hy,R()<.65?'bed':'wander'));
-  for(let i=0;i<4+ri(0,2);i++){const an=R()*6.283,d=250+R()*550,[x,y]=hwCover(clamp(ent.x+Math.cos(an)*d,20,HW.N-20),clamp(ent.y+Math.sin(an)*d,20,HW.N-20),40);S2.hogs.push(hwMakeHog(a,lh,x,y,R()<.6?'bed':'wander'))}
-  for(let i=0;i<24;i++){const[x,y]=hwCover(20+R()*(HW.N-40),20+R()*(HW.N-40),30);S2.hogs.push(hwMakeHog(a,lh,x,y,'wander'))}
-  S2.hogs.forEach((h,i)=>{h.id=i;if(Math.hypot(h.x-ent.x,h.y-ent.y)<900){h.k=S2.tracks.length;S2.tracks.push({h:i,pts:[]});hwHistory(S2,h,h.k,h.st==='bed'?600+R()*3000:R()*120);h.full=true}});
+  const far=own?.75:1,ang=R()*6.283,dist=(130+R()*250)*far*clamp(1/Math.sqrt(HWX.dens),.8,1.6);const[hx,hy]=hwCover(clamp(ent.x+Math.cos(ang)*dist,20,HW.N-20),clamp(ent.y+Math.sin(ang)*dist,20,HW.N-20),40);
+  S2.hogs.push(hwMakeHog(a,lh,hx,hy,R()<.65+HWX.bed?'bed':'wander'));
+  for(let i=0;i<Math.round((4+ri(0,2))*HWX.dens);i++){const an=R()*6.283,d=250+R()*550,[x,y]=hwCover(clamp(ent.x+Math.cos(an)*d,20,HW.N-20),clamp(ent.y+Math.sin(an)*d,20,HW.N-20),40);S2.hogs.push(hwMakeHog(a,lh,x,y,R()<.6+HWX.bed?'bed':'wander'))}
+  for(let i=0;i<24;i++){const[x,y]=R()<.6?WE.spotIn(WE.pickRegion(S.world),1):hwCover(20+R()*(HW.N-40),20+R()*(HW.N-40),30);S2.hogs.push(hwMakeHog(a,lh,x,y,'wander'))}
+  WE.populate(S2,a,lh,ent,opts);
+  S2.hogs.forEach((h,i)=>{h.id=i;if(Math.hypot(h.x-ent.x,h.y-ent.y)<900){h.k=S2.tracks.length;S2.tracks.push({h:i,pts:[]});hwHistory(S2,h,h.k,h.rest??(h.st==='bed'?600+R()*3000:R()*120));h.full=true}});
   // old tracks from hogs that have moved on
   for(let i=0;i<3+ri(0,3);i++){const k=S2.tracks.length;S2.tracks.push({h:-1,pts:[]});const an=R()*6.283,d=80+R()*500,fake={x:clamp(ent.x+Math.cos(an)*d,10,HW.N-10),y:clamp(ent.y+Math.sin(an)*d,10,HW.N-10)};hwHistory(S2,fake,k,7200+R()*21600)}
   const mk=(d,role,i)=>{const at=huntAttrs(d,lh);return{id:d.id,name:d.name,role,d,at,x:ent.x+(R()-.5)*3,y:ent.y+(R()-.5)*3,hd:R()*6.283,st:role==='bay'?'cast':'leash',sta:1,k:-1,i:0,dir:1,s0:0,
@@ -2944,9 +2950,9 @@ function hwEvent(S2,kind,txt,gap=40){if(S2.ev[kind]!==undefined&&S2.t-S2.ev[kind
 function hwBanner(S2,txt){S2.banner={txt,t:S2.t}}
 // steer toward a heading, picking the cheapest nearby direction; heading turns smoothly so paths curve
 function hwMove(a,dx,dy,speed,dt,kind,wob=0){const want=Math.atan2(dy,dx)+wob;let best=want,bc=1e9;
-  for(const o of[0,-.45,.45,-.9,.9]){const an=want+o,c=HNAV[kind][hwT(a.x+Math.cos(an)*2,a.y+Math.sin(an)*2)]+Math.abs(o)*.9;if(c<bc){bc=c;best=an}}
+  for(const o of[0,-.45,.45,-.9,.9]){const an=want+o,c=HNAVW[kind][hwT(a.x+Math.cos(an)*2,a.y+Math.sin(an)*2)]+Math.abs(o)*.9;if(c<bc){bc=c;best=an}}
   const dh=Math.atan2(Math.sin(best-a.hd),Math.cos(best-a.hd));a.hd+=clamp(dh,-2.5*dt,2.5*dt);
-  const v=Math.min(speed/HNAV[kind][hwT(a.x,a.y)]*dt,Math.hypot(dx,dy)+.01);a.x=clamp(a.x+Math.cos(a.hd)*v,2,HW.N-3);a.y=clamp(a.y+Math.sin(a.hd)*v,2,HW.N-3);
+  const v=Math.min(speed/HNAVW[kind][hwT(a.x,a.y)]*dt,Math.hypot(dx,dy)+.01);a.x=clamp(a.x+Math.cos(a.hd)*v,2,HW.N-3);a.y=clamp(a.y+Math.sin(a.hd)*v,2,HW.N-3);
   if(a.path){a.pd=(a.pd||0)+v;if(a.pd>3){a.pd=0;a.path.push([a.x,a.y]);if(a.path.length>500)a.path.splice(0,100)}}
   a.dist=(a.dist||0)+v;return v}
 function hwNearestDog(S2,h,role){let best=null,bd=1e9;for(const g of S2.dogs){if(role&&g.role!==role)continue;if(g.st==='leash')continue;const d=Math.hypot(g.x-h.x,g.y-h.y);if(d<bd){bd=d;best=g}}return[best,bd]}
@@ -2958,23 +2964,23 @@ function hwHogStep(S2,h,dt){const t=hwT(h.x,h.y);
     const near=Math.min(Math.hypot(h.x-S2.player.x,h.y-S2.player.y),...S2.dogs.map(g=>Math.hypot(h.x-g.x,h.y-g.y)));if(near<500){h.full=true;if(h.k<0){h.k=S2.tracks.length;S2.tracks.push({h:h.id,pts:[]})}}return}
   // hearing: barking dogs carry a long way, silent trailers get close; the player too, if close
   const[g,gd]=hwNearestDog(S2,h,null);let heard=0;
-  for(const d of S2.dogs){if(d.st==='leash')continue;const dd=Math.hypot(d.x-h.x,d.y-h.y),r=(barking(d)?(50+h.aware*90)*(.35+d.at.voice):14+h.aware*10);if(dd<r)heard+=(1-dd/r)*(barking(d)?1:.3)}
+  for(const d of S2.dogs){if(d.st==='leash')continue;const dd=Math.hypot(d.x-h.x,d.y-h.y),r=(barking(d)?(50+h.aware*90)*(.35+d.at.voice)*HWX.hear:14+h.aware*10);if(dd<r)heard+=(1-dd/r)*(barking(d)?1:.3)}
   const pd=Math.hypot(S2.player.x-h.x,S2.player.y-h.y);if(pd<30)heard+=(1-pd/30)*.8;
   h.alert=clamp(h.alert+heard*h.aware*dt*.6-dt*.01,0,3);
   const sz=h.w/180,away=g?Math.atan2(h.y-g.y,h.x-g.x):h.hd;
   const flee=(spd)=>{let best=away,bs=-1e9;for(let k=0;k<8;k++){const an=away+(k-3.5)*.4,X=h.x+Math.cos(an)*8,Y=h.y+Math.sin(an)*8,tt=hwT(X,Y);
-    const edge=Math.min(X,Y,HW.N-X,HW.N-Y),sc=Math.cos(an-away)+HOG_COVER[tt]*.7-HNAV.hog[tt]*.25+(R()-.5)*.6+Math.cos(an-h.hd)*.4-(edge<60?(60-edge)/20:0);if(sc>bs){bs=sc;best=an}}
+    const edge=Math.min(X,Y,HW.N-X,HW.N-Y),sc=Math.cos(an-away)+HOG_COVER[tt]*.7-HNAVW.hog[tt]*.25+(R()-.5)*.6+Math.cos(an-h.hd)*.4-(edge<60?(60-edge)/20:0);if(sc>bs){bs=sc;best=an}}
     return hwMove(h,Math.cos(best)*10,Math.sin(best)*10,spd,dt,'hog')};
   const was=h.st,wasWet=t===T_WATER;
   if(h.st==='bed'){if(gd<9||pd<10){h.st=R()<.1+h.aggr*.35+(sz-.8)*.3?'stand':'run';hwJump(S2,h)}else if(h.alert>1){h.st=R()<h.aggr*.4*sz?'stand':'sneak'}}
-  else if(h.st==='wander'){h.next-=dt;if(h.next<=0||Math.hypot(h.wx-h.x,h.wy-h.y)<2){const[x,y]=hwCover(h.x+(R()-.5)*60,h.y+(R()-.5)*60,20);h.wx=x;h.wy=y;h.next=60+R()*120}
+  else if(h.st==='wander'){h.next-=dt;if(h.next<=0||Math.hypot(h.wx-h.x,h.wy-h.y)<2){const[x,y]=hwCover(h.x+(R()-.5)*WE.hogWander(h),h.y+(R()-.5)*WE.hogWander(h),20);h.wx=x;h.wy=y;h.next=60+R()*120}
     hwMove(h,h.wx-h.x,h.wy-h.y,.32*h.sp,dt,'hog',(R()-.5)*.3);h.stam=Math.min(1,h.stam+dt*.01);
     if(gd<9||pd<10){h.st='run';hwJump(S2,h)}else if(h.alert>1)h.st='sneak'}
   else if(h.st==='sneak'){flee(.75*h.sp);h.stam=Math.max(0,h.stam-dt*.002);if(gd<12||pd<10){h.st='run';hwJump(S2,h)}else if(h.alert<.2){h.st='wander';h.next=0}}
   else if(h.st==='run'){flee(1.95*h.sp*(h.stam>.2?1:.6));h.stam=Math.max(0,h.stam-dt/(70*h.end));
     // a hog stands when it's spent, or turns on dogs pressing it; big mean hogs stand sooner
     const close=S2.dogs.filter(d=>d.role==='bay'&&Math.hypot(d.x-h.x,d.y-h.y)<3.5).length;
-    if(close&&(h.stam<.25||R()<dt*(.03+h.aggr*.08+(sz-.7)*.05)*close))h.st='stand';
+    if(close&&(h.stam<.25||R()<dt*(.03+h.aggr*.08+(sz-.7)*.05)*close*(h.giant?.3:1)))h.st='stand';
     else if(gd>70){h.calm+=dt;if(h.calm>40){h.st='sneak';h.calm=0}}else h.calm=0}
   else if(h.st==='stand'){h.stam=Math.min(1,h.stam+dt*.006);if(R()<dt*.3)hwMove(h,Math.cos(h.hd+R()*6),Math.sin(h.hd+R()*6),.3,dt,'hog');
     const bays=S2.dogs.filter(d=>d.st==='bay'&&d.hog===h);if(!bays.length&&gd>8){h.calm+=dt;if(h.calm>15){h.st='sneak';h.calm=0}}else h.calm=0}
@@ -2985,10 +2991,10 @@ function hwHogStep(S2,h,dt){const t=hwT(h.x,h.y);
 function hwJump(S2,h){h.alert=3;if(!S2.target||S2.target===h){S2.target=h}hwEvent(S2,'spook',h.rev?'The hog is up and moving.':'Something spooked the dogs.',30)}
 // the hog the dogs have found becomes the hunt's hog: its marker shows from now on
 function hwReveal(S2,h,why){const q=hwQuarry(S2);if(q&&h!==q){if(!h.seenOther){h.seenOther=1;hwEvent(S2,'other','You saw a different hog. The dogs are staying on theirs.',60)}return}S2.target=h;const uh=UI.hunt;uh.found=true;uh.hog={name:h.name,w:h.w,mult:h.mult,rar:h.rar};uh.hogKey=h.key;if(h.rev)return;h.rev=true;
-  hwEvent(S2,'located',`HOG LOCATED: ${why}`,1);hwBanner(S2,'HOG LOCATED');sfx.bark()}
+  hwEvent(S2,'located',`HOG LOCATED: ${why}`,1);hwBanner(S2,'HOG LOCATED');WE.revealed(S2,h);sfx.bark()}
 
 function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tired=g.sta<.12?.55:1;
-  const drain=r=>{g.sta=Math.max(0,g.sta-dt*r/(7000*g.at.end))};
+  const drain=r=>{g.sta=Math.max(0,g.sta-dt*r*HWX.drainNow/(7000*g.at.end))};
   if(g.role==='catch'){
     if(g.st==='leash'){const a=Math.atan2(P.y-g.y,P.x-g.x),d=Math.hypot(P.x-g.x,P.y-g.y);if(d>2.5+g.off)hwMove(g,P.x-g.x,P.y-g.y,1.2,dt,'dog');return}
     const h=S2.target;if(!h)return;const d=Math.hypot(h.x-g.x,h.y-g.y);
@@ -3029,7 +3035,7 @@ function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tir
       if(g.i<0){g.i=0;hwLose(S2,g);return}}
     const h=tr.h>=0?S2.hogs[tr.h]:null;if(h&&Math.hypot(h.x-g.x,h.y-g.y)<8+g.at.air*6&&R()<dt*2){g.st='hot';g.hog=h}return}
   if(g.st==='hot'){const h=g.hog;drain(2.6);const d=Math.hypot(h.x-g.x,h.y-g.y);
-    if(!h.rev&&d<25)hwReveal(S2,h,`${g.name} has the hog in sight!`);if(h.st==='bed'||h.st==='wander'||h.st==='sneak'){if(d<9){h.st=R()<.1+h.aggr*.35?'stand':'run';hwJump(S2,h)}}
+    if(!h.rev&&d<25*HWX.vis)hwReveal(S2,h,`${g.name} has the hog in sight!`);if(h.st==='bed'||h.st==='wander'||h.st==='sneak'){if(d<9){h.st=R()<.1+h.aggr*.35?'stand':'run';hwJump(S2,h)}}
     hwMove(g,h.x-g.x,h.y-g.y,2.15*g.at.spd*tired,dt,'dog',(R()-.5)*.25);
     if(d<3.5&&(h.st==='stand'||h.st==='fight')){g.st='bay';g.ang=Math.atan2(g.y-h.y,g.x-h.x);if(!S2.baying)hwBayStart(S2,g,h)}
     else if(d>40){g.st='track';g.k=h.k;g.i=Math.max(0,S2.tracks[h.k].pts.length-8);g.dir=1;g.s0=0;hwEvent(S2,'behind','The hog outran the dogs; they are back on its track.',40)}return}
@@ -3060,12 +3066,12 @@ function hwLock(S2,h,g,why){if(!S2.stick||!h||S2.quarry===h)return;const was=S2.
   hwEvent(S2,why?'switch':'lock',why||`The dogs are locked onto this hog${g?' ('+g.name+'’s strike)':''}; they’ll stay on it.`,1);
   // dogs off on another hog come back to the pack
   for(const o of huntDogs(S2,'bay'))if(o!==g&&o.hog&&o.hog!==h&&(o.st==='track'||o.st==='hot')){if(g){o.st='join';o.lead=g.id}else{o.st='cast';o.next=0}}}
-function hwStrike(S2,g,s,hot){g.m.strike++;const first=!S2.struck;if(first){S2.struck=true;g.m.first=true}
+function hwStrike(S2,g,s,hot){g.m.strike++;WE.struck(S2,g);const first=!S2.struck;if(first){S2.struck=true;g.m.first=true}
   if(g.hog&&(hot||s>.12))hwLock(S2,g.hog,g);
   hwEvent(S2,'strike'+g.id,hot?`${g.name} winded a hog close by!`:s>.35?`${g.name} struck a fresh track!`:s>.08?`${g.name}: scent detected.`:`${g.name} is working an old track.`,30);
   if(hot)hwEvent(S2,'fresh','Fresh track!',30);
   // the pack honours the strike dog if they can hear it
-  for(const o of S2.dogs)if(o!==g&&o.role==='bay'&&(o.st==='cast'||o.st==='recast')&&Math.hypot(o.x-g.x,o.y-g.y)<(250*(.4+g.at.voice))){o.st='join';o.lead=g.id}}
+  for(const o of S2.dogs)if(o!==g&&o.role==='bay'&&(o.st==='cast'||o.st==='recast')&&Math.hypot(o.x-g.x,o.y-g.y)<(250*(.4+g.at.voice)*HWX.hear)){o.st='join';o.lead=g.id}}
 function hwLose(S2,g,msg){g.st='recast';g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;hwEvent(S2,'lost',msg||`${g.name} lost the scent.`,45)}
 function hwBayStart(S2,g,h){S2.baying=true;S2.phase='bay';S2.hold=100;S2.bayAt=S2.t;hwReveal(S2,h,`${g.name} located the hog.`);hwEvent(S2,'bay',`BAY STARTED: ${g.name} has the ${h.name.toLowerCase()} bayed.`,1);
   hwBanner(S2,'BAY STARTED');setTimeout(()=>{if(UI.hunt&&UI.hunt.sim===S2&&S2.phase==='bay')hwBanner(S2,'CATCH DOGS READY')},1500);sfx.bark();
@@ -3075,7 +3081,7 @@ function huntRelease(){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim;if(S2
   S2.relDist=Math.hypot(S2.player.x-S2.target.x,S2.player.y-S2.target.y);huntDogs(S2,'catch').forEach(g=>g.st='run');
   hwEvent(S2,'release',`Catch dogs released, ${yd(S2.relDist)} yd from the hog.`,1);sfx.bark();huntHud(true)}
 
-function hwStep(S2,dt){S2.t+=dt;const P=S2.player;
+function hwStep(S2,dt){S2.t+=dt;const P=S2.player;WE.step(S2,dt);
   if(S2.quarry){const q=S2.quarry;if(S2.dogs.some(g=>g.role==='bay'&&g.hog===q&&(g.st==='track'||g.st==='hot'||g.st==='bay'||g.st==='recast'||g.st==='join')))S2.qSeen=S2.t;
     else if(S2.t-S2.qSeen>600&&!q.rev){S2.quarry=null;hwEvent(S2,'unlock','The dogs lost that hog for good and are hunting for another.',1)}}
   const h=S2.target;
@@ -3084,11 +3090,11 @@ function hwStep(S2,dt){S2.t+=dt;const P=S2.player;
   else if(HV.follow==='walk'&&h&&h.rev)hwMove(P,h.x-P.x,h.y-P.y,.68,dt,'man');
   for(const hg of S2.hogs)hwHogStep(S2,hg,dt);
   for(const g of S2.dogs){hwDogStep(S2,g,dt);if(g.role==='bay'&&g.st==='bay'&&g.hog)hwReveal(S2,g.hog,`${g.name} located the hog.`)}
-  if(h&&!h.rev&&Math.hypot(P.x-h.x,P.y-h.y)<22)hwReveal(S2,h,'Hog spotted!');
+  if(h&&!h.rev&&Math.hypot(P.x-h.x,P.y-h.y)<22*HWX.vis)hwReveal(S2,h,'Hog spotted!');
   // the bay: it holds while the dogs keep the hog standing; strong heavy hogs wear it down and break out
   if(h&&S2.baying&&S2.phase==='bay'){const bays=S2.dogs.filter(g=>g.st==='bay'&&g.hog===h);
     if(bays.length){const grit=avg(bays.map(g=>g.at.grit*(.5+g.sta*.5)));S2.hold-=dt*.2*(h.w/150)*(.6+h.aggr*.6)/(grit*Math.sqrt(bays.length));
-      if(S2.hold<=0||R()<dt*.002*(1+h.aggr)*h.stam){h.st='run';h.stam=Math.min(1,h.stam+.3);S2.hold=70;S2.phase='chase';hwEvent(S2,'break','Hog broke bay and is running!',45);hwBanner(S2,'HOG BROKE BAY')}}}
+      if(S2.hold<=0||R()<dt*.002*(1+h.aggr)*h.stam){WE.breakBay(S2,h);h.st='run';h.stam=Math.min(1,h.stam+.3);S2.hold=70;S2.phase='chase';hwEvent(S2,'break','Hog broke bay and is running!',45);hwBanner(S2,'HOG BROKE BAY')}}}
   if(h&&S2.phase==='chase'&&h.st==='stand'&&S2.dogs.some(g=>g.st==='bay'&&g.hog===h)){S2.phase='bay';hwEvent(S2,'rebay','Bay started again.',45);hwBanner(S2,'BAY STARTED')}
   // the catch: a tug of war between the dogs holding on and the hog fighting to get free
   if(h&&h.st==='fight'){const holders=S2.dogs.filter(g=>g.role==='catch'&&g.st==='hold');
@@ -3138,6 +3144,7 @@ function huntDraw(){const cv=HV.cv,h=UI.hunt;if(!cv||!h||!h.sim)return;const S2=
     if(S2.mark&&S2.t-S2.mark.t<25){ctx.strokeStyle='#ff8a1f';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(sx(S2.mark.x),sy(S2.mark.y),10+Math.sin(performance.now()/160)*3,0,7);ctx.stroke()}}
   if(S2.player.tx!==null){ctx.strokeStyle='#1e90ff';ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(sx(S2.player.x),sy(S2.player.y));ctx.lineTo(sx(S2.player.tx),sy(S2.player.ty));ctx.stroke();ctx.setLineDash([]);
     ctx.beginPath();ctx.arc(sx(S2.player.tx),sy(S2.player.ty),6,0,7);ctx.stroke()}
+  WE.drawFog(ctx,S2,sx,sy,v,z);
   // markers: bold colour with a white ring and dark edge so they read on any ground
   const r0=clamp(z*.9,6,11);
   const dot=(x,y,col,r,label)=>{const X=sx(x),Y=sy(y);if(X<-20||Y<-20||X>v.W+20||Y>v.H+20)return false;ctx.fillStyle='rgba(0,0,0,.85)';ctx.beginPath();ctx.arc(X,Y,r+3,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(X,Y,r+1.8,0,7);ctx.fill();
@@ -3148,7 +3155,7 @@ function huntDraw(){const cv=HV.cv,h=UI.hunt;if(!cv||!h||!h.sim)return;const S2=
   if(H0&&H0.rev){const pulse=S2.phase==='bay'||S2.phase==='catch';if(pulse){ctx.strokeStyle=S2.phase==='catch'?'#ffb020':'#ffe066';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(sx(H0.x),sy(H0.y),r0+8+Math.sin(performance.now()/180)*3,0,7);ctx.stroke()}
     if(!dot(H0.x,H0.y,HCOL.hog,r0+2,z>=4?`${H0.w} lb`:''))edge(H0.x,H0.y,HCOL.hog)}
   for(const g of S2.dogs){if(g.st==='leash'&&z<6)continue;if(!dot(g.x,g.y,HCOL[g.role],r0,z>=5?g.name:''))edge(g.x,g.y,HCOL[g.role])}
-  dot(S2.player.x,S2.player.y,HCOL.me,r0+1,z>=5?'You':'');
+  dot(S2.player.x,S2.player.y,HCOL.me,r0+1,z>=5?'You':'');WE.drawMarks(S2,dot,edge);
   // scale bar
   const yds=z<1?1000:z<3?200:z<8?100:25,bw=yds/TILE_YD*z;ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(8,v.H-24,bw+12,18);ctx.fillStyle='#fff';ctx.fillRect(14,v.H-12,bw,3);ctx.font='600 10px system-ui';ctx.textAlign='left';ctx.fillText(yds+' yd',16,v.H-15);
   const b=S2.banner;if(b&&S2.t-b.t<(b.txt==='CATCH DOGS READY'?20:8)){const a=clamp(1-(S2.t-b.t-4)/4,0,1),bt=b.txt;ctx.globalAlpha=b.txt==='CATCH DOGS READY'?1:a;ctx.font='800 22px system-ui';ctx.textAlign='center';const tw=ctx.measureText(bt).width+28;
@@ -3178,7 +3185,7 @@ function hvUp(e){const g=HV.drag;HV.ptr.delete(e.pointerId);if(HV.ptr.size<2)HV.
 const DOG_ST={go:'Heading to the scent',cast:'Casting',recast:'Circling for scent',join:'Honoring the strike',track:'Tracking',hot:'Chasing',bay:'Baying',leash:'On leash with you',run:'Running in',hold:'Catching',shaken:'Shaken off'};
 function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=>document.getElementById(id);if(!$('hTime'))return;const P=S2.player,H0=S2.target;
   const fm=s=>`${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-  $('hTime').textContent=fm(S2.t);$('hLeft').textContent=`${Math.max(0,Math.round((S2.limit-S2.t)/60))} min of daylight`;
+  $('hTime').textContent=fm(S2.t);$('hLeft').textContent=`${WE.clock(S2.t)} · ${Math.max(0,Math.round((S2.limit-S2.t)/60))} min of daylight`;
   const bays=huntDogs(S2,'bay'),lead=bays.reduce((a,b)=>(['bay','hot','track'].indexOf(b.st)>['bay','hot','track'].indexOf(a.st)?b:a),bays[0]);
   $('hStat').textContent=S2.phase==='won'?'HOG CONTROLLED':S2.phase==='catch'?'CATCHING...':S2.phase==='bay'?(S2.released?'Catch dogs going in':'Bayed: release the catch dogs'):S2.phase==='chase'?'The hog is running':lead&&lead.st==='track'?'Dogs on a track':lead&&lead.st==='hot'?'Dogs close on a hog':'Dogs searching';
   const rel=$('hRelease');if(rel){const ok=!!(H0&&H0.rev)&&!S2.released;rel.disabled=!ok;rel.textContent=S2.released?'Catch dogs released':'RELEASE CATCH DOGS';rel.classList.toggle('ready',ok&&S2.phase==='bay')}
@@ -3189,7 +3196,7 @@ function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=
   $('hLog').innerHTML=S2.events.slice(0,14).map(e=>`<div>${esc(e.txt)}</div>`).join('')||'<div class="muted">The dogs are casting for scent.</div>';
   if(full){document.querySelectorAll('[data-act="hfollow"]').forEach(b=>b.classList.toggle('on',b.dataset.k===HV.follow));document.querySelectorAll('[data-act="hspeed"]').forEach(b=>b.classList.toggle('on',+b.dataset.k===S2.speed));const kb=$('hStickBtn');if(kb){kb.classList.toggle('on',S2.stick);kb.textContent=S2.stick?'Stay on one hog: on':'Stay on one hog: off'}const sb=$('hScentBtn');if(sb){sb.classList.toggle('on',HV.scent!==false);sb.textContent=HV.scent!==false?'Scent trails: on':'Scent trails: off'}}}
 function huntPlayLive(){const h=UI.hunt,S2=h.sim;
-  return `<h2>${esc(h.area.name)}</h2><p class="sub">${HW_ACRES.toLocaleString()}-acre hunting grounds · you parked on ${esc(S2.entry.label)} · <b id="hTime">0:00:00</b> · <span id="hLeft"></span></p>
+  return `<h2>${esc(h.area.name)}</h2><p class="sub">${HW_ACRES.toLocaleString()}-acre hunting grounds · you parked on ${esc(S2.entry.label)} · <b id="hTime">0:00:00</b> · <span id="hLeft"></span> · ${WEATHER[HWX.kind].icon} ${WEATHER[HWX.kind].name}</p>
   <div class="panel small" style="margin-bottom:6px"><b id="hStat">Dogs searching</b></div>
   <div class="landwrap huntwrap"><canvas id="huntcv" aria-label="Live hunting map"></canvas>
    <div class="hlegend"><span><i class="hdot" style="background:${HCOL.me}"></i>You</span><span><i class="hdot" style="background:${HCOL.bay}"></i>Bay dog</span><span><i class="hdot" style="background:${HCOL.catch}"></i>Catch dog</span><span><i class="hdot" style="background:${HCOL.hog}"></i>Hog</span><span><i class="hdot" style="background:linear-gradient(90deg,#e8d27a,#ff5a1f);border-radius:3px"></i>Scent</span></div>
@@ -3204,8 +3211,254 @@ function huntPlayLive(){const h=UI.hunt,S2=h.sim;
   <div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="hquit">Call off the hunt</button></div>`}
 
 
+// =========================================================
+// DYNAMIC WORLD: calendar, seasons, weather, wildlife and world events
+// One persistent record (S.world) moves forward a day at a time with endDay. When a hunt sets out it reads that
+// record into HWX (how long scent lasts, footing, visibility, hearing, daylight, how hard dogs work, where hogs
+// are and how many) and it writes back what happened (hogs taken out of a herd, sign found, a dog left out in
+// the woods or cut by a hog). Weather and seasons are never only a picture: each one moves numbers the hunt,
+// the kennel and the ranch already use.
+// The game's calendar is the kennel's: 1 day = 1 month (dogs age a month a day), so a season is three days.
+// =========================================================
+const SEASONS=['Spring','Summer','Fall','Winter'],SEASON_ICON=['🌱','☀️','🍂','❄️'];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WE_MONTH0=8; // day 1 is September, the start of hog season
+const weMonth=(day=S.day)=>(WE_MONTH0+day-1)%12;
+const weSeason=(day=S.day)=>[3,3,0,0,0,1,1,1,2,2,2,3][weMonth(day)];
+const WEATHER={
+ clear:{name:'Clear',icon:'☀️',fx:'Normal scenting and footing.'},
+ rain:{name:'Heavy rain',icon:'🌧️',fx:'Old tracks wash out and new scent fades fast. Mud slows you on trails. Creeks rise.'},
+ storm:{name:'Thunderstorm',icon:'⛈️',fx:'Scent washes away, thunder drowns out the dogs and can spook them off a track. Shorter day. Dogs stray more easily.'},
+ fog:{name:'Fog',icon:'🌫️',fx:'You can barely see; you have to trust the dogs and the scent. Scent lies well in damp air. Lifts through the morning.'},
+ heat:{name:'Heat',icon:'🥵',fx:'Dogs tire fast as the day warms up and scent burns off. Hogs lie up in shade and wet ground.'},
+ cold:{name:'Cold front',icon:'🥶',fx:'Dogs run longer and scent holds. Hogs are up and moving.'}};
+// odds of each kind by season (spring, summer, fall, winter)
+const WX_ODDS=[{clear:30,rain:30,storm:15,fog:15,heat:3,cold:7},{clear:40,rain:12,storm:18,fog:3,heat:27,cold:0},
+ {clear:45,rain:15,storm:6,fog:18,heat:4,cold:12},{clear:40,rain:18,storm:3,fog:14,heat:0,cold:25}];
+const WX_WET={rain:.45,storm:.6,fog:.1,cold:-.05,clear:-.2,heat:-.35},WX_WATER={rain:.22,storm:.35,fog:0,cold:-.05,clear:-.08,heat:-.14};
+// hog populations: every hunting area has its own base density, and each season and water level pushes hogs
+// between them (water in summer, acorns in the fall timber, thick cover in winter; floods push them to high ground)
+const WE_REG={creek:{base:1,wet:1},pine:{base:.8,wet:0},swamp:{base:1.25,wet:1},thicket:{base:1.05,wet:.3}};
+const WE_SEASON_REG=[{creek:1.15,pine:.95,swamp:1,thicket:1},{creek:1.2,pine:.7,swamp:1.35,thicket:.9},{creek:.9,pine:1.3,swamp:.85,thicket:1.15},{creek:1,pine:1.05,swamp:.95,thicket:1.25}];
+const WE_FLOOD_REG={creek:.55,pine:1.15,swamp:.7,thicket:1.15},WE_DROUGHT_REG={creek:1.25,pine:.75,swamp:1.35,thicket:.85};
+// ground hogs favour by season, added to HOG_COVER (tiles: grass dirt mud rock water tree road trail marsh sand ford hardwoods brush)
+const WE_PREF=[[.3,0,.2,0,0,0,0,0,0,0,0,0,.25],[0,0,.4,0,0,.1,0,0,.35,0,0,-.1,0],[0,0,0,0,0,.1,0,0,0,0,0,.4,-.1],[0,0,0,0,0,.3,0,0,-.2,0,0,0,.15]];
+const WE_VET=[0,150,350,600],WE_HEAL=[0,1,3,4],WE_CAP=[100,100,60,35],WE_SEV=['','minor','serious','bad'];
+const WE_HOME_FEE=250;
+// the hunt reads the world through this; outside a hunt it holds neutral values
+let HWX={tau:1,wash:1,vis:1,vis0:1,hear:1,drain:1,drainNow:1,bed:0,pref:null,dens:1,lostMul:1,flood:0,kind:'clear',limitAdj:0,hogW:1};
+let HNAVW=HNAV;
+const areaName=k=>(AREAS.find(a=>a.id===k)||{name:k}).name;
+function weNearestArea(x,y){let best='creek',bd=1e9;for(const k in HW_AREAS){const A=HW_AREAS[k],d=Math.hypot(A.x-x,A.y-y)/A.r;if(d<bd){bd=d;best=k}}return best}
+
+const WE={
+  ensure(){let W=S.world;
+    if(!W||W.v!==1){W=S.world={v:1,wx:null,wxDays:1,fc:[],wet:.3,water:.35,dry:0,flood:false,drought:false,pop:{},pressure:{},events:[],lost:[],log:[],giantDay:-99,nextId:1}}
+    for(const k in HW_AREAS){const A=HW_AREAS[k];if(!W.pop[k])W.pop[k]={n:WE_REG[k].base,cx:A.x,cy:A.y}}
+    if(!WEATHER[W.wx])W.wx=WE.roll(weSeason(),null);
+    W.fc=(W.fc||[]).filter(k=>WEATHER[k]);while(W.fc.length<3)W.fc.push(WE.roll(weSeason(S.day+W.fc.length+1),W.fc[W.fc.length-1]||W.wx));
+    for(const f of['events','lost','log'])if(!Array.isArray(W[f]))W[f]=[];if(!W.pressure)W.pressure={};
+    return W},
+  roll(se,prev){const o=WX_ODDS[se];if(prev&&o[prev]>0&&R()<.3)return prev;let tot=0;for(const k in o)tot+=o[k];let r=R()*tot;for(const k in o){r-=o[k];if(r<=0)return k}return'clear'},
+  journal(t){const W=S.world;W.log.unshift({d:S.day,t});if(W.log.length>40)W.log.length=40},
+  pickRegion(W,w){let tot=0;const ks=Object.keys(HW_AREAS);for(const k of ks)tot+=w?w[k]:W.pop[k].n;let r=R()*tot;for(const k of ks){r-=w?w[k]:W.pop[k].n;if(r<=0)return k}return ks[0]},
+  spotIn(k,spread=.7){const A=HW_AREAS[k],p=S.world.pop[k];return hwCover(clamp(p.cx+(R()-.5)*2*A.r*spread,40,HW.N-40),clamp(p.cy+(R()-.5)*2*A.r*spread,40,HW.N-40),60)},
+  // ---------- one day passes ----------
+  daily(msgs){const W=WE.ensure(),se=weSeason(),prevSe=weSeason(S.day-1),prev=W.wx,wasFlood=W.flood,wasDrought=W.drought;
+    W.wx=W.fc.shift()||WE.roll(se,prev);W.wxDays=prev===W.wx?(W.wxDays||1)+1:1;W.fc.push(WE.roll(weSeason(S.day+3),W.fc[W.fc.length-1]||W.wx));
+    const k=W.wx;W.wet=clamp(W.wet+WX_WET[k],0,1);W.water=clamp(W.water+WX_WATER[k]+(se===0?.03:se===1?-.03:0),0,1);W.dry=k==='rain'||k==='storm'?0:(W.dry||0)+1;
+    W.flood=W.water>=.72;W.drought=W.water<=.15&&W.dry>=4;
+    if(se!==prevSe){const t=`${SEASONS[se]} has come. ${['Sows are farrowing; herds run bigger and hogs root in the bottoms.','Hogs stay close to water. Long days, but heat and poor scent.','Acorns are falling: hogs are fattening up in the pine and hardwood timber.','Short days. Hogs are at their heaviest and hole up in thick cover. Scent holds well.'][se]}`;msgs.push(t);WE.journal(t)}
+    const wmsg=`${WEATHER[k].icon} ${WEATHER[k].name} today.`;
+    if(W.flood&&!wasFlood){const t='Flooding: the creeks are out of their banks. Fords are too deep to wade and hogs are leaving the bottoms.';msgs.push(t);WE.journal(t)}
+    else if(!W.flood&&wasFlood){const t='The flood water is going down. The fords can be crossed again.';msgs.push(t);WE.journal(t)}
+    if(W.drought&&!wasDrought){const t='Drought: the ground is dust and scent burns off fast. Hogs are crowding the swamp and the creek.';msgs.push(t);WE.journal(t)}
+    else if(!W.drought&&wasDrought){WE.journal('The drought has broken.')}
+    if(k!=='clear'&&k!==prev)msgs.push(wmsg);
+    // heat takes it out of dogs unless the ranch has water for them
+    if(k==='heat'&&landLevel(S.land,'water')<1)for(const d of S.dogs)d.health=Math.max(10,d.health-4);
+    WE.migrate(W,se);WE.ageEvents(W,msgs);WE.spawn(W,se,msgs);WE.lostDaily(W,msgs);WE.injuryDaily(msgs)},
+  migrate(W,se){for(const k in W.pop){const p=W.pop[k],A=HW_AREAS[k],before=p.n;
+      let target=WE_REG[k].base*WE_SEASON_REG[se][k]*(W.flood?WE_FLOOD_REG[k]:1)*(W.drought?WE_DROUGHT_REG[k]:1)*(1-Math.min(.6,W.pressure[k]||0));
+      target+=W.events.filter(e=>e.kind==='herd'&&e.region===k).reduce((s,e)=>s+e.hogs.length*.04,0);
+      p.n=clamp(p.n+(target-p.n)*.4+(R()-.5)*.08,.25,2);W.pressure[k]=(W.pressure[k]||0)*.55;
+      // where the sign is in each area wanders from day to day, so hogs are never in the same spots twice
+      p.cx+=(R()-.5)*140;p.cy+=(R()-.5)*140;const d=Math.hypot(p.cx-A.x,p.cy-A.y);if(d>A.r*.6){p.cx=A.x+(p.cx-A.x)*A.r*.6/d;p.cy=A.y+(p.cy-A.y)*A.r*.6/d}
+      if(before-p.n>.2)WE.journal(`Hogs are moving out of the ${areaName(k)}${W.flood&&WE_REG[k].wet?' ahead of the high water':W.pressure[k]>.15?' after all the hunting pressure':''}.`);
+      else if(p.n-before>.2)WE.journal(`More hog sign is turning up in the ${areaName(k)}.`)}},
+  hogSpec(k,shoat){const key=shoat?'feral':hwPickHogType(AREAS.find(a=>a.id===k)),H=HOGS[key];
+    return{key,w:shoat?ri(30,70):ri(H.w[0],H.w[1]),sp:.85+R()*.35,aggr:clamp(.15+H.rar*.1+R()*.5,0,1),aware:clamp(.3+R()*.55,0,1),end:.75+R()*.5+H.rar*.05}},
+  spawn(W,se,msgs){
+    // a sounder: a group of hogs using one piece of ground for a few days
+    if(W.events.filter(e=>e.kind==='herd').length<2&&R()<.2*[1.6,.8,1.3,1][se]){const k=WE.pickRegion(W),[x,y]=WE.spotIn(k),n=se===0?ri(5,10):ri(3,7),hogs=[];
+      for(let i=0;i<n;i++)hogs.push(WE.hogSpec(k,se===0&&i>=3));
+      W.events.push({id:W.nextId++,kind:'herd',region:k,x,y,day:S.day,until:S.day+ri(2,4),hogs,found:false});
+      if(R()<.5){const t=`Neighbors say hogs tore up the ground somewhere in the ${areaName(k)}.`;msgs.push(t);WE.journal(t)}}
+    // the giant: one at a time, at least 20 days apart, and even then it rarely shows (about one a season and a half of play days)
+    if(!W.events.some(e=>e.kind==='giant')&&S.day-W.giantDay>=20&&R()<.02*[.8,.6,1.3,2][se]){const k=WE.pickRegion(W,{creek:.1,pine:.1,swamp:.35,thicket:.45}),[x,y]=WE.spotIn(k,.9);
+      W.events.push({id:W.nextId++,kind:'giant',region:k,x,y,day:S.day,until:S.day+ri(6,10),found:false,
+        hogs:[{key:'giant',w:ri(HOGS.giant.w[0],HOGS.giant.w[1]),sp:.95+R()*.15,aggr:.75+R()*.2,aware:.85+R()*.1,end:1.7+R()*.4}]});W.giantDay=S.day}
+    // fresh sign: tracks laid overnight that age and wash out
+    for(let i=ri(0,2);i>0;i--){if(W.events.filter(e=>e.kind==='tracks').length>=8)break;const k=WE.pickRegion(W),[x,y]=WE.spotIn(k);
+      W.events.push({id:W.nextId++,kind:'tracks',region:k,x,y,day:S.day,fresh:1,key:hwPickHogType(AREAS.find(a=>a.id===k)),found:false})}},
+  ageEvents(W,msgs){const k=W.wx,keep=[];
+    for(const e of W.events){
+      if(e.kind==='tracks'){e.fresh*=.5*({rain:.35,storm:0,fog:1.1,heat:.8}[k]??1);if(e.fresh<.06){if(e.found&&(k==='rain'||k==='storm'))WE.journal(`Rain washed out the tracks you found in the ${areaName(e.region)}.`);continue}keep.push(e);continue}
+      if(S.day>e.until||!e.hogs.length){if(e.found)WE.journal(e.kind==='giant'?`The giant boar has left the ${areaName(e.region)}. No telling where it went.`:`The sounder you found in the ${areaName(e.region)} has moved on.`);continue}
+      // herds and the giant move on to new cover every day (the giant ranges much farther); floods push them to high ground
+      let reg=e.region;if(W.flood&&WE_REG[reg].wet)reg=reg==='creek'?'pine':'thicket';
+      const far=e.kind==='giant'?100+R()*150:40+R()*80,an=R()*6.283,A=HW_AREAS[reg];let x=e.x+Math.cos(an)*far,y=e.y+Math.sin(an)*far;
+      if(reg!==e.region||Math.hypot(x-A.x,y-A.y)>A.r){[x,y]=WE.spotIn(reg)}else[x,y]=hwCover(clamp(x,40,HW.N-40),clamp(y,40,HW.N-40),40);
+      if(reg!==e.region&&e.found)WE.journal(`High water pushed the ${e.kind==='giant'?'giant boar':'sounder'} out of the ${areaName(e.region)}.`);
+      e.x=x;e.y=y;e.region=weNearestArea(x,y);keep.push(e)}
+    W.events=keep},
+  // ---------- lost dogs ----------
+  lostDaily(W,msgs){for(const L of[...W.lost]){const days=S.day-L.day;
+      L.x=clamp(L.x+(R()-.5)*80,20,HW.N-20);L.y=clamp(L.y+(R()-.5)*80,20,HW.N-20);
+      if(days>=1&&R()<.22){WE.returnDog(L,'home');msgs.push(`${L.dog.name} found the way home alone, thin and footsore.`)}
+      else if(days>=5){WE.returnDog(L,'neighbor');msgs.push(`A neighbor picked up ${L.dog.name} on the road and brought the dog home. You paid ${fmt(WE_HOME_FEE)} for the trouble.`)}
+      else msgs.push(`${L.dog.name} is still missing, last heard in the ${areaName(L.area)}. Search from the Hunt screen.`)}},
+  returnDog(L,how){const W=S.world,d=L.dog,days=Math.max(1,S.day-L.day);W.lost=W.lost.filter(x=>x!==L);
+    d.health=Math.max(15,d.health-(how==='found'?4:8)*days);d.energy=Math.min(d.energy,how==='found'?20:60);S.dogs.push(d);
+    if(how==='neighbor')S.money-=WE_HOME_FEE;
+    const t=how==='found'?`You found ${d.name} after ${days} day${days>1?'s':''} lost in the ${areaName(L.area)}.`:how==='home'?`${d.name} came home after ${days} day${days>1?'s':''} lost.`:`A neighbor returned ${d.name} after ${days} days lost.`;
+    addLog(t);WE.journal(t)},
+  loseDog(d,g,S2,why){const W=WE.ensure();S.dogs=S.dogs.filter(x=>x!==d);for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);
+    const L={dog:d,lx:g.x,ly:g.y,x:g.x,y:g.y,area:weNearestArea(g.x,g.y),day:S.day,why};W.lost.push(L);
+    const t=`${d.name} is missing in the ${areaName(L.area)}: ${why}.`;addLog(t);WE.journal(t);return L},
+  // ---------- injuries (on top of the kennel's health: they cap health until they heal, or the vet sees the dog) ----------
+  injure(d,what,dmg){d.health=Math.max(5,d.health-dmg);const sev=dmg>=22?3:dmg>=14?2:1,old=d.inj;
+    if(!old||sev>=old.sev)d.inj={what,sev,left:WE_HEAL[sev],day:S.day};d.health=Math.min(d.health,WE_CAP[d.inj.sev])},
+  injuryDaily(msgs){for(const d of S.dogs){if(!d.inj)continue;d.inj.left--;
+      if(d.inj.left<=0){msgs.push(`${d.name}'s ${d.inj.what.split(':')[0]} has healed.`);delete d.inj}else d.health=Math.min(d.health,WE_CAP[d.inj.sev])}},
+  vet(d){const c=WE_VET[d.inj?d.inj.sev:0];if(!d.inj||S.money<c)return false;S.money-=c;addLog(`The vet treated ${d.name} (${d.inj.what}) for ${fmt(c)}.`);delete d.inj;d.health=Math.min(d.hcap,d.health+40);return true},
+  // ---------- the hunt reads the world ----------
+  huntMods(areaId){const W=WE.ensure(),k=W.wx,se=weSeason(),fl=W.flood?.3+.7*clamp((W.water-.72)/.28,0,1):0,wet=W.wet,dr=W.drought;
+    const X={kind:k,se,flood:fl,wet,drought:dr,
+      tau:({clear:1,rain:.55,storm:.45,fog:1.35,heat:.65,cold:1.2}[k])*(dr?.8:1)*(se===3?1.1:se===1?.9:1),
+      wash:k==='storm'?.15:k==='rain'?.35:wet>.7?.7:1,vis0:k==='fog'?.3:k==='storm'?.6:k==='rain'?.75:1,
+      hear:{storm:.5,rain:.75,fog:1.15,cold:1.1}[k]||1,drain:(k==='heat'?1.35:k==='cold'?.85:1)*(se===1?1.1:1),
+      bed:{heat:.2,cold:-.15,rain:-.05}[k]||0,pref:WE_PREF[se],dens:W.pop[areaId]?W.pop[areaId].n:1,
+      lostMul:{fog:1.5,storm:1.6,rain:1.2}[k]||1,limitAdj:[0,15,0,-15][se]-(k==='storm'?20:0),hogW:[.95,1,1.05,1.08][se]};
+    X.vis=X.vis0;X.drainNow=X.drain;
+    // footing: mud on grass, dirt, trails and brush after rain; deep fords and fast creeks in a flood; dry going in a drought
+    const mud=[.35,.35,.6,0,0,.1,.1,.35,.4,.2,0,.15,.2],m=(kind,t)=>{let f=1+mud[t]*wet*(kind==='man'?1:kind==='dog'?.55:.3);
+      if(fl){if(t===T_FORD)f*=1+fl*(kind==='man'?14:kind==='dog'?4:2);if(t===T_WATER)f*=1+fl*(kind==='man'?6:2);if(t===T_MARSH)f*=1+fl}
+      if(dr&&(t===T_MUD||t===T_MARSH||t===T_FORD))f*=.8;return f};
+    HNAVW={dog:HNAV.dog.map((c,t)=>c*m('dog',t)),hog:HNAV.hog.map((c,t)=>c*m('hog',t)),man:HNAV.man.map((c,t)=>c*m('man',t))};
+    return HWX=X},
+  clock(t){const m=390+Math.floor(t/60),h=Math.floor(m/60)%24;return`${(h+11)%12+1}:${String(m%60).padStart(2,'0')} ${h<12?'AM':'PM'}`},
+  // hogs from world events join the hunt where they really are; fresh sign is laid as real scent
+  populate(S2,a,lh,ent,opts){const W=WE.ensure();
+    for(const e of W.events){if(e.kind==='tracks'){if(Math.hypot(e.x-ent.x,e.y-ent.y)>1200)continue;const rest=-1500*Math.log(Math.max(.01,e.fresh));
+        if(e.fresh>.35&&R()<.75){const h=hwMakeHog(a,lh,e.x,e.y,R()<.7?'bed':'wander');WE.shape(h,{...WE.hogSpec(e.region),key:e.key});h.rest=rest;h.evT=e.id;S2.hogs.push(h)}
+        else{const k=S2.tracks.length;S2.tracks.push({h:-1,pts:[],ev:e.id});hwHistory(S2,{x:e.x,y:e.y},k,rest)}continue}
+      e.hogs.forEach((sp,i)=>{const[x,y]=hwCover(e.x,e.y,12),h=hwMakeHog(a,lh,x,y,e.kind==='giant'?'wander':R()<.7+HWX.bed?'bed':'wander');WE.shape(h,sp);h.ev=e.id;h.evi=i;if(e.kind==='giant')h.giant=true;S2.hogs.push(h)})}
+    const L=opts&&opts.search&&W.lost.find(l=>l.dog.id===opts.search);
+    if(L){const k=S2.tracks.length;S2.tracks.push({h:-1,pts:[],lostDog:true});S2.lostDog={L,x:L.x,y:L.y,hd:0,k,found:false,dist:0};
+      // the lost dog's own trail from where it was last heard to where it is now
+      let x=L.lx,y=L.ly;const n=Math.max(8,Math.round(Math.hypot(L.x-x,L.y-y)/1.5));for(let i=0;i<=n;i++){const f=i/n,px=L.lx+(L.x-L.lx)*f+Math.sin(f*9)*4,py=L.ly+(L.y-L.ly)*f+Math.cos(f*7)*4;hsLay(S2,k,px,py,-900+f*880)}}},
+  shape(h,sp){const H=HOGS[sp.key];Object.assign(h,{key:sp.key,name:H.name,mult:H.mult,rar:H.rar,w:sp.w,sp:sp.sp,end:sp.end,aggr:sp.aggr,aware:sp.aware})},
+  searchEntry(id){const L=S.world.lost.find(l=>l.dog.id===id);if(!L)return null;
+    for(let r=0;r<200;r+=2)for(let k=0;k<Math.max(1,r*4);k++){const an=k/Math.max(1,r*4)*6.283,x=Math.round(L.lx+Math.cos(an)*(r+60)),y=Math.round(L.ly+Math.sin(an)*(r+60)),t=hwT(x,y);
+      if(t===T_ROAD||t===T_TRAIL)return{x:x+.5,y:y+.5,label:'the road nearest where you last heard '+L.dog.name}}
+    return{x:L.lx+40,y:L.ly+40,label:'the woods near where you last heard '+L.dog.name}},
+  startNotes(S2){const X=HWX,W=S.world,n=[];n.push(`${WEATHER[X.kind].icon} ${WEATHER[X.kind].name}, ${SEASONS[X.se].toLowerCase()}. ${WEATHER[X.kind].fx}`);
+    if(X.wash<.5)n.push('Rain washed out most of the old sign overnight.');if(X.flood)n.push('The fords are flooded; you can’t wade the creeks today.');else if(X.wet>.6)n.push('Trails are muddy and slow.');
+    if(W.drought)n.push('Bone dry: scent won’t last.');const p=X.dens;n.push(p>1.3?'Hog sign is everywhere here.':p>.9?'There’s fair hog sign here.':p>.55?'Hog sign is thin here.':'Hardly any sign here; the hogs have moved off.');
+    if(S2.lostDog)n.push(`Searching for ${S2.lostDog.L.dog.name}. Put the bay dogs on the trail or walk the area and listen.`);
+    n.forEach((t,i)=>hwEvent(S2,'wx'+i,t,1))},
+  // ---------- every simulation step ----------
+  step(S2,dt){const X=HWX,P=S2.player;
+    if(X.vis0<1)X.vis=X.kind==='fog'?Math.min(1,X.vis0+(1-X.vis0)*clamp(S2.t/9000,0,1)*.85):X.vis0;
+    if(X.kind==='heat'){const hr=6.5+S2.t/3600;X.drainNow=1+(X.drain-1)*clamp((hr-8)/5,.2,1.4)}else X.drainNow=X.drain;
+    if(X.kind==='storm'&&R()<dt/240){hwEvent(S2,'thunder','Thunder cracked overhead.',120);
+      for(const g of huntDogs(S2,'bay'))if(g.st==='track'&&R()<.35*(1.2-g.at.obd))hwLose(S2,g,`${g.name} spooked at the thunder and lost the track.`)}
+    const Ld=S2.lostDog;if(Ld&&!Ld.found){let near=null,nd=1e9;for(const g of S2.dogs){if(g.st==='leash')continue;const d=Math.hypot(g.x-Ld.x,g.y-Ld.y);if(d<nd){nd=d;near=g}}
+      const pd=Math.hypot(P.x-Ld.x,P.y-Ld.y),bark=S2.dogs.some(g=>barking(g)&&Math.hypot(g.x-Ld.x,g.y-Ld.y)<120*X.hear);
+      // a lost dog that hears its pack or you comes in to it; otherwise it drifts, laying fresh scent
+      if(bark||pd<60*X.hear){const tx=bark&&near&&nd<pd?near:P;hwMove(Ld,tx.x-Ld.x,tx.y-Ld.y,1,dt,'dog');if(!Ld.heard){Ld.heard=1;hwEvent(S2,'lostheard',`You hear ${Ld.L.dog.name} answering, off to the ${dirName(Math.atan2(Ld.y-P.y,Ld.x-P.x))}.`,1)}}
+      else hwMove(Ld,Math.cos(Ld.hd+(R()-.5))*5,Math.sin(Ld.hd+(R()-.5))*5,.15,dt,'dog',(R()-.5));
+      hsLay(S2,Ld.k,Ld.x,Ld.y,S2.t);
+      if(nd<6||pd<15*Math.max(.5,X.vis)){Ld.found=true;WE.returnDog(Ld.L,'found');hwEvent(S2,'found',`FOUND ${Ld.L.dog.name.toUpperCase()}! ${nd<6&&near?near.name+' led you right to the dog.':'Safe on a lead.'}`,1);hwBanner(S2,'DOG FOUND');sfx.win();save()}}
+    S2.weAcc=(S2.weAcc||0)+dt;if(S2.weAcc<1)return;const T=S2.weAcc;S2.weAcc=0;
+    for(const g of S2.dogs){if(g.st==='leash')continue;
+      if(X.flood){const t=hwT(g.x,g.y);if((t===T_WATER||t===T_FORD)&&R()<T*.0008*X.flood)WE.hurt(S2,g,'banged up in the flooded creek',ri(8,16))}
+      if(X.kind==='heat'&&g.sta<.05&&!g.m.heat){g.m.heat=1;WE.hurt(S2,g,'heat exhaustion',ri(10,15))}
+      if(g.st==='bay'&&g.hog){const h=g.hog,sz=h.w/180;if(R()<T*.0012*h.aggr*sz*sz/Math.max(.5,g.at.grit))WE.hurt(S2,g,`slashed holding bay on the ${h.name.toLowerCase()}`,ri(10,24))}}},
+  hurt(S2,g,what,dmg){if(g.m.hurt&&g.m.hurt.dmg>=dmg)return;g.m.hurt={what,dmg};g.sta=Math.max(0,g.sta-.15);hwEvent(S2,'hurt'+g.id,`${g.name} is hurt: ${what}.`,1)},
+  breakBay(S2,h){const sz=h.w/180;for(const g of S2.dogs)if(g.role==='bay'&&g.st==='bay'&&g.hog===h&&R()<.12*h.aggr*sz/Math.max(.5,g.at.grit))WE.hurt(S2,g,`hit by the ${h.name.toLowerCase()} as it broke bay`,ri(8,20))},
+  // the dogs strike a world event's sign: now you know it's out there
+  struck(S2,g){const tr=S2.tracks[g.k],h=g.hog,W=S.world;let e=null;
+    if(h&&(h.ev||h.evT))e=W.events.find(x=>x.id===(h.ev||h.evT));else if(tr&&tr.ev)e=W.events.find(x=>x.id===tr.ev);
+    if(tr&&tr.lostDog&&!S2.lostTrail){S2.lostTrail=1;hwEvent(S2,'losttrail',`${g.name} found ${S2.lostDog.L.dog.name}'s trail!`,1)}
+    if(!e||e.found)return;e.found=true;
+    const t=e.kind==='herd'?`${g.name} struck the sign of a sounder, ${e.hogs.length} hogs, in the ${areaName(e.region)}.`:e.kind==='giant'?`${g.name} struck a track bigger than any you've seen. There's a giant boar in the ${areaName(e.region)}.`:`${g.name} found the fresh sign in the ${areaName(e.region)}.`;
+    hwEvent(S2,'evfound'+e.id,t,1);WE.journal(t);if(e.kind==='giant')hwBanner(S2,'GIANT BOAR SIGN')},
+  revealed(S2,h){if(h.giant&&!S2.giantSeen){S2.giantSeen=1;hwBanner(S2,'GIANT BOAR!');hwEvent(S2,'giant',`That's the giant: a ${h.w} lb boar. Watch the catch dogs.`,1);const e=S.world.events.find(x=>x.id===h.ev);if(e)e.found=true}},
+  // giants range far while undisturbed and won't stand to dogs until they're spent
+  hogWander:h=>h.giant?250:60,
+  // ---------- after the hunt ----------
+  afterHunt(h,S2,win,lines){if(!S2)return;const W=WE.ensure(),P=S2.player;
+    for(const g of S2.dogs){if(!g.m.hurt)continue;const d=huntDog(g.id);if(!d||d.guest)continue;WE.injure(d,g.m.hurt.what,g.m.hurt.dmg);lines.push(`${d.name}: ${g.m.hurt.what} (−${g.m.hurt.dmg} health).`)}
+    // dogs still out of earshot when the hunt ends may not come in to the call
+    if(!(S2.lostDog&&!S2.lostDog.found))for(const g of huntDogs(S2,'bay')){const d=huntDog(g.id);if(!d||d.guest||g.st==='bay'||S.preg.some(p=>p.dam===d.id))continue;
+      const dist=Math.hypot(g.x-P.x,g.y-P.y);if(dist<300)continue;
+      const p=clamp((dist-300)/900,0,.6)*(1.1-g.at.obd)*HWX.lostMul*(S2.t>=S2.limit?1.3:1)*(S.inv.collar?.25:1);
+      if(R()<p){const why=S2.t>=S2.limit?'still running a track when dark fell':HWX.kind==='storm'?'lost in the storm':HWX.kind==='fog'?'strayed off in the fog':'ranged out of hearing and never came back to the horn';
+        const L=WE.loseDog(d,g,S2,why);lines.push(`${d.name} didn't come in when you called: ${why}. Last heard ${yd(dist).toLocaleString()} yd ${dirName(Math.atan2(g.y-P.y,g.x-P.x))} of you in the ${areaName(L.area)}. Search for the dog from the Hunt screen.`);
+        setTimeout(()=>toast(`${d.name} is missing!`),400)}}
+    const t=S2.target;if(win&&t&&t.ev){const e=W.events.find(x=>x.id===t.ev);if(e){e.hogs.splice(t.evi,1);
+      if(t.giant){S.st.giants=(S.st.giants||0)+1;lines.unshift(`You caught the giant boar! ${t.w} lb, the hog of a lifetime.`);WE.journal(`Caught the giant boar in the ${areaName(e.region)}: ${t.w} lb.`)}
+      else if(e.hogs.length)lines.push(`${e.hogs.length} hog${e.hogs.length>1?'s are':' is'} left in that sounder.`);
+      if(!e.hogs.length)W.events=W.events.filter(x=>x!==e)}}
+    W.pressure[h.area.id]=(W.pressure[h.area.id]||0)+.2+(win?.15:0);HWX={...HWX,vis:1,vis0:1,pref:null}},
+  // cattle do better in a wet spring and worse in drought, flood and heat
+  cattleMult(){const W=WE.ensure();return(W.drought?.7:1)*(W.flood?.85:1)*(W.wx==='heat'?.9:1)*(weSeason()===0?1.1:1)},
+  // ---------- screens ----------
+  wxLabel(){const W=WE.ensure();return`${WEATHER[W.wx].icon} ${WEATHER[W.wx].name}${W.flood?' · flooding':W.drought?' · drought':''}`},
+  dateLabel(){return`${SEASON_ICON[weSeason()]} ${MONTHS[weMonth()]}, ${SEASONS[weSeason()].toLowerCase()}`},
+  signText(k){const n=WE.ensure().pop[k].n;return n>1.3?'Lots of sign':n>.9?'Fair sign':n>.55?'Thin sign':'Hogs moved off'},
+  meter(v,col){return`<div class="meter"><i style="width:${Math.round(clamp(v,0,1)*100)}%;background:${col}"></i></div>`},
+  notices(){const W=WE.ensure(),hurt=S.dogs.filter(d=>d.inj);let o='';
+    for(const L of W.lost)o+=`<div class="spread" style="gap:8px;margin:6px 0"><div><b>${esc(L.dog.name)} is missing</b><div class="small muted">Last heard in the ${areaName(L.area)} on day ${L.day}: ${esc(L.why)}.</div></div><button class="btn sm" data-act="wsearch" data-id="${L.dog.id}">Search</button></div>`;
+    for(const d of hurt)o+=`<div class="spread" style="gap:8px;margin:6px 0"><div><b>${esc(d.name)}</b> <span class="tag warn">${WE_SEV[d.inj.sev]}</span><div class="small muted">${esc(d.inj.what)}. Heals in ${d.inj.left} day${d.inj.left>1?'s':''} at the ranch${WE_CAP[d.inj.sev]<100?`; health held to ${WE_CAP[d.inj.sev]} until then`:''}.</div></div><button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet ${fmt(WE_VET[d.inj.sev])}</button></div>`;
+    return o},
+  homeCard(){const W=WE.ensure(),n=W.lost.length+S.dogs.filter(d=>d.inj).length;
+    return`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="world"><div class="spread"><b>${WE.dateLabel()}</b><span>${WE.wxLabel()}</span></div>
+     <div class="small muted">${esc(WEATHER[W.wx].fx)} Next: ${W.fc.map(k=>WEATHER[k].icon).join(' ')}</div>${n?`<div class="small" style="margin-top:4px;color:var(--blaze)"><b>${W.lost.length?W.lost.map(L=>esc(L.dog.name)).join(', ')+' missing':''}${W.lost.length&&n>W.lost.length?' · ':''}${n>W.lost.length?`${n-W.lost.length} dog${n-W.lost.length>1?'s':''} injured`:''}</b></div>`:''}</button>`},
+  huntPanel(){const W=WE.ensure();
+    return`<div class="panel small" style="margin-bottom:8px"><div class="spread"><b>${WE.dateLabel()}</b><span>${WE.wxLabel()}</span></div><div class="muted">${esc(WEATHER[W.wx].fx)}${W.flood?' Fords are flooded.':W.wet>.6?' Trails are muddy.':''}${W.drought?' Drought: scent burns off.':''}</div></div>
+     ${W.lost.length?`<div class="panel" style="margin-bottom:8px;border:2px solid var(--blaze)"><b>Missing dogs</b>${W.lost.map(L=>`<div class="spread" style="gap:8px;margin-top:6px"><div class="small"><b>${esc(L.dog.name)}</b>, last heard in the ${areaName(L.area)} (day ${L.day}). ${S.inv.collar?'The GPS collar shows where the dog is.':'Bay dogs can pick up the trail.'}</div><button class="btn sm ${UI.searchFor===L.dog.id?'':'ghost'}" data-act="wsearch" data-id="${L.dog.id}">${UI.searchFor===L.dog.id?'Searching':'Search'}</button></div>`).join('')}</div>`:''}`},
+  drawFog(ctx,S2,sx,sy,v,z){const X=HWX;
+    if(X.kind==='rain'||X.kind==='storm'){ctx.strokeStyle='rgba(190,205,225,.35)';ctx.lineWidth=1;ctx.beginPath();const t=performance.now()/40;for(let i=0;i<(X.kind==='storm'?140:80);i++){const x=(i*97+t*7)%v.W,y=(i*53+t*23)%v.H;ctx.moveTo(x,y);ctx.lineTo(x-3,y+10)}ctx.stroke()}
+    if(X.vis<.97){const px=sx(S2.player.x),py=sy(S2.player.y),r=Math.max(20,70*X.vis*z),gr=ctx.createRadialGradient(px,py,r*.5,px,py,r*2);
+      gr.addColorStop(0,'rgba(215,220,224,0)');gr.addColorStop(1,`rgba(215,220,224,${.85-X.vis*.5})`);ctx.fillStyle=gr;ctx.fillRect(0,0,v.W,v.H)}},
+  drawMarks(S2,dot,edge){const Ld=S2.lostDog;if(!Ld||Ld.found)return;
+    dot(Ld.L.lx,Ld.L.ly,'#9ca3af',7,'Last heard');if(S.inv.collar&&!dot(Ld.x,Ld.y,'#a855f7',9,Ld.L.dog.name))edge(Ld.x,Ld.y,'#a855f7')}
+};
+SCREENS.world=()=>{const W=WE.ensure(),se=weSeason();
+  const regions=Object.keys(HW_AREAS).map(k=>`<div class="spread small" style="margin:4px 0"><span>${areaName(k)}</span><span class="muted">${WE.signText(k)}</span></div>${WE.meter(W.pop[k].n/2,'var(--good)')}`).join('');
+  const reports=W.events.filter(e=>e.found).map(e=>`<div class="small">• ${e.kind==='giant'?'<b>Giant boar</b>':e.kind==='herd'?`Sounder of ${e.hogs.length}`:'Fresh tracks'} in the ${areaName(e.region)}${e.kind==='tracks'?` (${e.fresh>.5?'fresh':e.fresh>.2?'a day or two old':'old'})`:''}</div>`).join('');
+  return`<h2>World & weather</h2><p class="sub">The hunting grounds change every day: weather, water, where the hogs are and what's moving through.</p>
+  <div class="panel" style="margin-bottom:10px"><div class="spread"><b>${WE.dateLabel()}</b><span class="muted small">Day ${S.day}</span></div>
+   <div class="small muted">${['Farrowing season: bigger sounders, hogs rooting in the bottoms.','Hogs stay near water; long, hot days.','Mast season: hogs fattening in the pine and hardwood timber.','Short days, heavy hogs in thick cover; scent holds well.'][se]} Daylight for hunting ${['normal','+15 min','normal','−15 min'][se]}.</div></div>
+  <div class="panel" style="margin-bottom:10px"><div class="spread"><b>Today: ${WE.wxLabel()}</b></div><div class="small">${esc(WEATHER[W.wx].fx)}</div>
+   <div class="small" style="margin-top:6px">Forecast: ${W.fc.map((k,i)=>`<span class="tag">${['Tomorrow','Day after','In 3 days'][i]}: ${WEATHER[k].icon} ${WEATHER[k].name}</span>`).join(' ')}</div>
+   <div class="small" style="margin-top:8px">Ground ${W.wet>.7?'soaked':W.wet>.4?'muddy':W.wet>.15?'damp':'dry'}</div>${WE.meter(W.wet,'#8b5a2b')}
+   <div class="small" style="margin-top:4px">Creeks ${W.flood?'<b>flooding: fords impassable</b>':W.water>.5?'running high':W.water<.2?'low':'normal'}</div>${WE.meter(W.water,'#1e90ff')}</div>
+  ${WE.notices()?`<div class="panel" style="margin-bottom:10px;border:2px solid var(--blaze)"><h3 style="margin-top:0">Your dogs</h3>${WE.notices()}</div>`:''}
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Hog activity</h3><div class="small muted">From the sign neighbors and your dogs report. Hogs move with the seasons, the water and the hunting pressure.</div>${regions}</div>
+  ${reports?`<div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">What your dogs have found</h3>${reports}</div>`:''}
+  <h3>World journal</h3><div class="panel log">${W.log.map(l=>`<div><span class="muted num">Day ${l.d}</span> ${esc(l.t)}</div>`).join('')||'<div class="muted">Nothing yet.</div>'}</div>`};
+const WORLD_ACTIONS={
+  wsearch:d=>{const L=WE.ensure().lost.find(l=>l.dog.id===d.id);if(!L)return;UI.searchFor=UI.searchFor===d.id?null:d.id;if(UI.searchFor)UI.huntSel.area=L.area;UI.tab='hunt';render();window.scrollTo(0,0)},
+  hsearch:()=>huntStart({search:UI.searchFor}),
+  wvet:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog||!WE.vet(dog))return toast('Not enough money for the vet.');toast(`${dog.name} is patched up.`);save();render();if(!document.getElementById('sheet').classList.contains('hidden'))dogProfile(dog.id)}
+};
+
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county']].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div style="font-size:26px">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
@@ -3336,7 +3589,7 @@ const A={
   u.forEach(a=>research(a,1,`DNA test on ${dog.name}`));addLog(`DNA-tested ${dog.name}: ${u.length?u.length+' unknown trait'+(u.length>1?'s':'')+' found':'no unknown traits'}.`);
   toast(u.length?`${dog.name} carries ${u.length} unknown trait${u.length>1?'s':''}. Research advanced.`:`${dog.name} carries no unknown traits.`);save();render();dogProfile(dog.id)},
  rename:d=>{const dog=S.dogs.find(x=>x.id===d.id);const n=prompt('New name',dog.name);if(n&&n.trim()){dog.name=n.trim().slice(0,24);save();render();dogProfile(dog.id)}},
- useLin:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!S.inv.liniment)return;S.inv.liniment--;dog.health=Math.min(dog.hcap,dog.health+35);save();render();dogProfile(dog.id);toast(`${dog.name} feels better.`)},
+ useLin:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!S.inv.liniment)return;S.inv.liniment--;dog.health=Math.min(dog.inj?WE_CAP[dog.inj.sev]:dog.hcap,dog.health+35);save();render();dogProfile(dog.id);toast(`${dog.name} feels better.`)},
  setPair:d=>{const dog=S.dogs.find(x=>x.id===d.id);UI[dog.sex==='M'?'sire':'dam']=dog.id;UI.tab='breed';closeSheet();render()},
  goTrain:d=>{UI.trainDog=d.id;UI.tab='train';closeSheet();render()},
  doBreed:()=>{const sire=S.dogs.find(x=>x.id===UI.sire),dam=S.dogs.find(x=>x.id===UI.dam);
@@ -3433,6 +3686,12 @@ SCREENS.admin=()=>{
   <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Supplies & property</h3>
    ${row(`Feed <b class="num">${S.inv.feed}/${feedCap()}</b>`,`${b('feed','Fill feed')}${b('items','+10 of every item')}`)}
    ${row('Property upgrades',`${b('maxUp','Max every upgrade')}`)}
+  </div>
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">World</h3>
+   ${row(`Weather <b>${WE.wxLabel()}</b>`,`<select data-f="admWx">${Object.keys(WEATHER).map(k=>`<option value="${k}" ${k===(UI.admWx||'clear')?'selected':''}>${WEATHER[k].name}</option>`).join('')}</select>${b('wx','Set today')}`)}
+   ${row('Water',`${b('flood','Flood the creeks')}${b('dry','Drought')}`)}
+   ${row('Area',`<select data-f="admArea">${AREAS.map(a=>`<option value="${a.id}" ${a.id===(UI.admArea||'creek')?'selected':''}>${a.name}</option>`).join('')}</select>`)}
+   ${row('Spawn there',`${b('herd','Sounder')}${b('giant','Giant boar')}${b('tracks','Fresh tracks')}`)}
   </div>`};
 const ADMIN_OPS={
   money:d=>{const n=+d.n;S.money+=n;addLog(`Admin: added ${fmt(n)}.`)},
@@ -3448,7 +3707,13 @@ const ADMIN_OPS={
   cattle:d=>{S.cattle+=+d.n},
   feed:()=>{S.inv.feed=Math.max(S.inv.feed,feedCap())},
   items:()=>{for(const k of Object.keys(S.inv))if(k!=='feed'&&k!=='collar')S.inv[k]+=10;S.inv.collar=Math.max(1,S.inv.collar||0)},
-  maxUp:()=>{adminMaxUpgrades();addLog('Admin: every property upgrade maxed.')}
+  maxUp:()=>{adminMaxUpgrades();addLog('Admin: every property upgrade maxed.')},
+  wx:()=>{const W=WE.ensure();W.wx=UI.admWx||'clear';W.wxDays=1},
+  flood:()=>{const W=WE.ensure();W.water=.95;W.wet=1;W.flood=true;W.drought=false},
+  dry:()=>{const W=WE.ensure();W.water=.05;W.wet=0;W.dry=6;W.drought=true;W.flood=false},
+  herd:()=>{const W=WE.ensure(),k=UI.admArea||'creek',[x,y]=WE.spotIn(k),hogs=[];for(let i=ri(4,7);i>0;i--)hogs.push(WE.hogSpec(k));W.events.push({id:W.nextId++,kind:'herd',region:k,x,y,day:S.day,until:S.day+3,hogs,found:false});toast(`A sounder of ${hogs.length} is somewhere in the ${areaName(k)}.`)},
+  giant:()=>{const W=WE.ensure(),k=UI.admArea||'creek',[x,y]=WE.spotIn(k,.5);W.events=W.events.filter(e=>e.kind!=='giant');W.events.push({id:W.nextId++,kind:'giant',region:k,x,y,day:S.day,until:S.day+6,found:false,hogs:[{key:'giant',w:ri(HOGS.giant.w[0],HOGS.giant.w[1]),sp:1,aggr:.85,aware:.9,end:1.9}]});toast(`A giant boar is somewhere in the ${areaName(k)}.`)},
+  tracks:()=>{const W=WE.ensure(),k=UI.admArea||'creek',[x,y]=WE.spotIn(k);W.events.push({id:W.nextId++,kind:'tracks',region:k,x,y,day:S.day,fresh:1,key:hwPickHogType(AREAS.find(a=>a.id===k)),found:false})}
 };
 const ADMIN_ACTIONS={
   adm:async(d,btn)=>{const f=ADMIN_OPS[d.k];if(!f)return;btn.disabled=true;
@@ -3458,7 +3723,8 @@ const ADMIN_ACTIONS={
 
 // ---------- boot ----------
 if(!load()||!S||S.v!==1)freshState();else{try{migrate()}catch(e){console.error('migrate',e)}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+try{WE.ensure()}catch(e){console.error('world',e)}
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
 try{purgeLegendShops()}catch(e){console.error('legend shops',e)}
