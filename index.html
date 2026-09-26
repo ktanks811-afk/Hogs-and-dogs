@@ -1684,13 +1684,20 @@ SCREENS.account=()=>{
   if(signedIn())return `<h2>Account</h2><div class="panel"><div>Signed in as <b>${esc(S.online.user)}</b></div>
     <div class="small muted" style="margin-top:4px">${esc(S.name)} saves to your account automatically.${S.cloudAt?' Last saved '+new Date(S.cloudAt).toLocaleString()+'.':''} Sign in on another device to pick up where you left off.</div>
     <div class="row" style="margin-top:10px"><button class="btn sm" data-act="accSave">Save now</button><button class="btn sm ghost" data-act="accSignOut">Sign out</button></div></div>`;
-  const f=(k,btn,act,note)=>`<div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">${btn}</h3>${note?`<p class="small muted" style="margin-top:0">${note}</p>`:''}
+  return `<h2>Account</h2><p class="sub">Sign in to save your ranch to an account and play it on any device.</p>${accountForms()}`;
+};
+function accountForms(){const f=(k,btn,act,note)=>`<div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">${btn}</h3>${note?`<p class="small muted" style="margin-top:0">${note}</p>`:''}
     <label class="small"><b>Username</b><br><input type="text" id="${k}User" maxlength="20" autocomplete="username" autocapitalize="none" style="width:100%;margin:3px 0 8px"></label>
     <label class="small"><b>Password</b><br><input type="password" id="${k}Pass" autocomplete="${k==='in'?'current-password':'new-password'}" style="width:100%;margin-top:3px"></label>
     <button class="btn" data-act="${act}" style="margin-top:10px">${btn}</button></div>`;
-  return `<h2>Account</h2><p class="sub">Sign in to save your ranch to an account and play it on any device.</p>
-    ${f('in','Sign in','accSignIn')}${f('up','Create account','accSignUp',`Saves ${esc(S.name)} (day ${S.day}) to the new account. Usernames are 3–20 letters, numbers or underscores; passwords need 6 or more characters.`)}`;
-};
+  return f('in','Sign in','accSignIn')+f('up','Create account','accSignUp',`Saves ${esc(S.name)} (day ${S.day}) to the new account. Usernames are 3–20 letters, numbers or underscores; passwords need 6 or more characters.`)}
+// players without an account are asked to sign in: when they start, each time they open the game, and every few days of play
+const ASK_EVERY=3;
+function askSignIn(why){if(signedIn()||inClaude||!S.welcomed||UI.tab==='account'||UI.hunt&&UI.hunt.phase==='sim')return false;
+  const sh=document.getElementById('sheet');if(sh&&!sh.classList.contains('hidden'))return false;
+  S.askDay=S.day;save();
+  openSheet(`<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>Save your ranch</h2><p class="sub" style="margin-top:0">${esc(why)}</p>${accountForms()}
+    <button class="btn ghost" data-act="askLater" style="width:100%">Not now, keep playing</button>`);return true}
 const ACCOUNT_ACTIONS={
   accSignIn:async(d,btn)=>{const u=document.getElementById('inUser').value.trim(),pw=document.getElementById('inPass').value;if(!u||!pw)return toast('Enter your username and password.');
     btn.disabled=true;
@@ -1698,7 +1705,7 @@ const ACCOUNT_ACTIONS={
       if(r.save){const local=S.day>1||S.st.hunts>0;
         if(local&&!confirm(`Load ${r.save.name} (day ${r.save.day}) from your account? It replaces ${S.name} (day ${S.day}) on this device.`)){sbRpc('hd_logout',{p_pid:cred.pid,p_sec:cred.sec}).catch(()=>{});btn.disabled=false;return}
         return useCloudSave(r.save,cred,r.save_updated)}
-      S.online=cred;S.welcomed=true;save();await cloudSave();toast(`Signed in as ${r.username}.`);render()}
+      S.online=cred;S.welcomed=true;save();await cloudSave();closeSheet();toast(`Signed in as ${r.username}.`);render()}
     catch(e){btn.disabled=false;toast(e.message)}},
   accSignUp:async(d,btn)=>{const u=document.getElementById('upUser').value.trim(),pw=document.getElementById('upPass').value;
     if(!/^[A-Za-z0-9_]{3,20}$/.test(u))return toast('Usernames are 3–20 letters, numbers or underscores.');if(pw.length<6)return toast('Passwords need at least 6 characters.');
@@ -1706,13 +1713,14 @@ const ACCOUNT_ACTIONS={
     try{// keep an existing online ID so this ranch's listings, trades and groups stay with it
       if(S.online&&S.online.pid){await sbRpc('hd_claim_account',{p_pid:S.online.pid,p_sec:S.online.sec,p_user:u,p_pass:pw});S.online.user=u}
       else{const r=await sbRpc('hd_signup',{p_user:u,p_pass:pw});S.online={pid:r.id,sec:r.secret,user:r.username}}
-      S.welcomed=true;save();await cloudSave();toast(`Account created. ${S.name} is saved to ${u}.`);render()}
+      S.welcomed=true;save();await cloudSave();closeSheet();toast(`Account created. ${S.name} is saved to ${u}.`);render()}
     catch(e){btn.disabled=false;toast(e.message)}},
   accSave:async()=>toast(await cloudSave()?'Saved to your account.':'Could not reach the server. Try again in a moment.'),
   accSignOut:async()=>{if(!confirm(`Sign out? ${S.name} stays saved to your account, and this device starts a fresh ranch. Sign back in to get it back.`))return;
     if(!await cloudSave()&&!confirm('Your latest progress could not be saved to your account. Sign out anyway?'))return;
     try{await sbRpc('hd_logout',await A2())}catch(e){}
     try{localStorage.removeItem(SAVE_KEY)}catch(e){}location.reload()},
+  askLater:()=>{closeSheet();toast(`No problem. Your ranch is saved on this device only.`)},
   accUseCloud:()=>{const r=UI.cloudOffer;if(r)useCloudSave(r.save,S.online,r.save_updated)},
   accKeepLocal:()=>{UI.cloudOffer=null;closeSheet();cloudSave()}
 };
@@ -1757,6 +1765,7 @@ function endDay(){
   checkAch();save();render();
   toast(msgs[0]||`Day ${S.day}. Dogs rested and fed.`);sfx.ok();
   syncOnline();
+  if(!signedIn()&&S.day-(S.askDay||0)>=ASK_EVERY)setTimeout(()=>askSignIn(`You're on day ${S.day} with ${S.dogs.length} dogs. Sign in or create a free account so you don't lose them if this device is lost or cleared.`),900);
 }
 
 // ---------- UI shell ----------
@@ -3291,7 +3300,7 @@ const A={
  sound:()=>{S.sound=!S.sound;save();render()},
  theme:()=>{S.theme=S.theme===''?'light':S.theme==='light'?'dark':'';applyTheme();save();render()},
  reset:()=>{if(confirm('Start over with a new ranch? Your current save will be erased.')){UI.hunt=null;freshState();save();UI.tab='home';render()}},
- welcome:()=>{const v=document.getElementById('wName').value.trim();if(v)S.name=v.slice(0,30);S.welcomed=true;save();closeSheet();render()}
+ welcome:()=>{const v=document.getElementById('wName').value.trim();if(v)S.name=v.slice(0,30);S.welcomed=true;save();closeSheet();render();setTimeout(()=>askSignIn(`Create a free account so ${S.name} is saved online and you can play on any device. Already have one? Sign in.`),400)}
 };
 function applyTheme(){if(S.theme)document.documentElement.setAttribute('data-theme',S.theme);else document.documentElement.removeAttribute('data-theme')}
 
@@ -3308,6 +3317,7 @@ Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS);S.dogs=S.dogs.filte
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
 applyTheme();render();
+if(S.welcomed&&!signedIn())setTimeout(()=>askSignIn(`Welcome back to ${S.name}. Sign in or create a free account to keep your ranch safe and play on any device.`),1200);
 if(!S.welcomed)openSheet(`<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>Welcome to Hogs & Dogs</h2><p>You’ve got a small ranch, three working dogs and $3,000. Breed better bloodlines, train your pack, and hunt hogs to grow into the top outfit in the county.</p>
 <label><b>Name your ranch</b><br><input type="text" id="wName" value="${esc(S.name)}" maxlength="30" style="width:100%;margin-top:4px"></label>
 <div style="margin-top:12px"><button class="btn big" data-act="welcome">Start ranching</button></div>
