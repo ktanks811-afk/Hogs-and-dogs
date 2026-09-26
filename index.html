@@ -338,6 +338,8 @@ const HORSE_BREEDS={
 const HORSE_HEX={Sorrel:'#9c4a24',Bay:'#6d3b1f',Buckskin:'#c8a064',Grulla:'#7d766b',Chestnut:'#8a3f1d','Dark bay':'#3e2415',Gray:'#a7a7a2',Leopard:'#e6e0d4',Blanket:'#7a4b2c',Snowcap:'#5a3a26',Dun:'#b89060',Palomino:'#d8b56b'};
 // breed masters: shading, regions and legs traced from reference pictures (tools/horse/build_qh_master.py, build_tb_master.py)
 const HORSE_MASTERS={quarter:{"w":1024,"h":683,"face":{"a":[885.3333333333333,72.0],"b":[936.0,184.0]},"legs":{"1":{"cor":636.6666666666666,"knee":470.0},"2":{"cor":633.3333333333333,"knee":493.3333333333333},"3":{"cor":641.3333333333333,"knee":513.3333333333333},"4":{"cor":637.3333333333333,"knee":496.66666666666663}},"maps":{"m1":"assets/masters/quarter-m1.1ffb3edd31.webp","m2":"assets/masters/quarter-m2.73236f8cda.webp","m3":"assets/masters/quarter-m3.ee86f7affe.webp"}},thoroughbred:{"w":1024,"h":683,"face":{"a":[901.3333333333333,64.0],"b":[964.0,178.66666666666666]},"legs":{"1":{"cor":639.3333333333333,"knee":460.0},"2":{"cor":633.3333333333333,"knee":466.66666666666663},"3":{"cor":635.3333333333333,"knee":501.3333333333333},"4":{"cor":640.0,"knee":513.3333333333333}},"maps":{"m1":"assets/masters/thoroughbred-m1.b0bd602893.webp","m2":"assets/masters/thoroughbred-m2.02a8ab701a.webp","m3":"assets/masters/thoroughbred-m3.b7b143f3a8.webp"}}};
+// the hog master: shading, regions and the reach along tusks, ears and tail, traced from the reference picture (tools/hog/build_hog_master.py)
+const HOG_MASTERS={wild:{"w":1024,"h":683,"maps":{"m1":"assets/masters/wild-m1.fc0d8a39eb.webp","m2":"assets/masters/wild-m2.ae666f1599.webp","m3":"assets/masters/wild-m3.69e467c7af.webp"}}};
 const RIVALS=['Bayou Bend Kennels','Red Clay Curs','Slough Creek Ranch','Palmetto Catch Co.','Lone Pine Hog Dogs','Big Thicket Bay Dogs','Cypress Knee Ranch'];
 const RAR=[['Common','--r0'],['Uncommon','--r1'],['Rare','--r2'],['Epic','--r3'],['Legendary','--r4']];
 
@@ -1213,6 +1215,7 @@ const allLineup=()=>Object.values(S.lineups||{}).flat();
 function findDog(id){return S.dogs.find(d=>d.id===id)||(UI.previewPups||[]).find(d=>d.id===id)||S.market.find(d=>d.id===id)||S.featured.find(d=>d.id===id)||allLineup().find(d=>d.id===id)}
 function hydrateCoats(){
   try{hydrateHorses()}catch(e){console.error('horse art',e)}
+  try{hydrateHogs()}catch(e){console.error('hog art',e)}
   document.querySelectorAll('img.coatimg:not([src])').forEach(img=>{
     const id=img.dataset.cid,sc=+img.dataset.sc,d=findDog(id);if(!d)return;const key=coatKey(d,sc);
     if(COAT_IMG[key]){img.src=COAT_IMG[key];return}if(COAT_PENDING[key])return;COAT_PENDING[key]=1;const spec=gameCoat(d);
@@ -1820,7 +1823,7 @@ const ACCOUNT_ACTIONS={
 function endDay(){
   if(UI.hunt&&UI.hunt.phase!=='done'){toast('Finish the hunt first.');return}
   PR.flush();S.day++;const msgs=[];
-  const need=Math.max(0,S.dogs.length+((S.land&&S.land.trainHogs)||[]).length-(S.land?landStats().feedSave:0));
+  const need=Math.max(0,S.dogs.length-(S.land?landStats().feedSave:0));
   if(S.inv.feed>=need)S.inv.feed-=need;else{const short=need-S.inv.feed;S.inv.feed=0;msgs.push(`Ran out of feed — ${short} dog${short>1?'s':''} went hungry.`);
     S.dogs.slice(0,short).forEach(d=>d.health=Math.max(10,d.health-12))}
   const regen=S.land?landStats().regen:0;for(const d of S.dogs){d.age++;d.energy=100;d.health=Math.min(d.hcap,d.health+8+regen);if(d.cool>0)d.cool--;
@@ -1849,13 +1852,14 @@ function endDay(){
   landDaily(msgs);WE.daily(msgs);PR.daily(msgs);RB.daily();JB.daily(msgs);
   if(S.cattle){const inc=Math.round(S.cattle*35*WE.cattleMult());earn(inc);msgs.push(`Cattle brought in ${fmt(inc)}.`)}
   for(const h of S.horses)h.age++;
-  HG.daily(msgs);
+  HG.daily(msgs);HOGG.daily(msgs);
   S.rivals.forEach(r=>r.score=Math.round(r.score*(1.01+R()*.035)));
   refreshMarket();if(S.day%2===0)refreshHorseMarket();
   msgs.forEach(addLog);addLog(`Day ${S.day} begins.`);
   if(!msgs.length&&R()<.2)msgs.push(dayPick(HINTS[hintStage()],3));
   checkAch();save();render();
   if(UI.newFoals&&UI.newFoals.length){const id=UI.newFoals[UI.newFoals.length-1];UI.newFoals=[];HB.foalSheet(id)}
+  else if(UI.newLitter&&UI.newLitter.length){const ids=UI.newLitter;UI.newLitter=[];HOGUI.litterSheet(ids)}
   toast(msgs[0]||`Day ${S.day}. Dogs rested and fed.`);sfx.ok();
   syncOnline();
   if(!signedIn()&&S.day-(S.askDay||0)>=ASK_EVERY)setTimeout(()=>askSignIn(`You're on day ${S.day} with ${S.dogs.length} dogs. Sign in or create a free account so you don't lose them if this device is lost or cleared.`),900);
@@ -1926,7 +1930,7 @@ SCREENS.home=()=>{
   const pups=S.dogs.filter(d=>!isAdult(d)).length;
   return `<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>${esc(S.name)}</h2><p class="sub">Day ${S.day} on the ranch. Net worth <b class="num">${fmt(netWorth())}</b>.</p>
   <div class="panel small" style="margin-bottom:10px"><i>${esc(dayPick(HOLLIS[hintStage()],1))}</i><div class="muted" style="margin-top:4px">Tip: ${esc(dayPick(HINTS[hintStage()]))}</div></div>
-  ${repPanel(false)}${WE.homeCard()}${JB.home()}
+  ${repPanel(false)}${WE.homeCard()}${JB.home()}${S.hogs.length?`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="hogpin"><div class="spread"><b>Hog Pin</b><span class="small">${S.hogs.length}/${HOGG.cap()} hogs</span></div><div class="small muted">${S.hogs.filter(h=>h.preg).length} sow${S.hogs.filter(h=>h.preg).length===1?'':'s'} bred · ${S.hogs.filter(h=>h.age<3).length} piglets · feed ${Math.ceil(HOGG.feedNeed())}/day</div></button>`:''}
   <div class="panel"><div class="spread"><div><b>End the day</b><div class="small muted">Dogs eat ${S.dogs.length} feed, rest to full energy, pups grow, the market restocks.</div></div></div>
   <div style="margin-top:10px"><button class="btn big" data-act="endDay">End day ${S.day}</button></div></div>
   <button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="land"><b>🏡 ${esc(S.land.name)}</b><div class="small muted">${LAND_TIERS[S.land.tier].name} · ${TERRAINS[S.land.terrain].name} · room for ${dogCap()} dogs · value ${fmt(landValue())}</div></button>
@@ -2183,7 +2187,7 @@ const BLD={
  training:{name:'Training area',w:6,h:6,cost:2500,tier:1,max:3,fx:{train:.1},icon:'🏋️',color:'#8aa35f',desc:'+10% training gains.'},
  horsebarn:{name:'Horse barn',w:5,h:4,cost:4000,tier:2,cap:{horses:4},icon:'🐎',color:'#8b3a2e',desc:'Stalls for 4 horses.'},
  cowbarn:{name:'Cow barn',w:6,h:4,cost:5000,tier:3,cap:{cows:10},icon:'🐄',color:'#9a4232',desc:'Room for 10 head of cattle.'},
- pigpen:{name:'Pig pen',w:3,h:3,cost:1500,tier:2,cap:{hogs:3},icon:'🐗',color:'#7d6a4a',desc:'Holds 3 caught hogs to fatten.'},
+ pigpen:{name:'Hog Pin',w:3,h:3,cost:1500,tier:2,cap:{hogs:0},icon:'🐗',color:'#7d6a4a',desc:'Holds kept hogs: 10 (basic), 25 (upgraded), 50 (large).'},
  feedstore:{name:'Feed storage',w:2,h:2,cost:800,tier:1,cap:{feed:60},icon:'🌾',color:'#b8923e',desc:'Stores 60 more feed.'},
  storage:{name:'Storage building',w:3,h:3,cost:1500,tier:2,cap:{feed:40},fx:{maint:-.05},icon:'📦',color:'#7b7f86',desc:'40 more feed, 5% less upkeep.'},
  workshop:{name:'Workshop',w:3,h:3,cost:3000,tier:2,need:'power',fx:{maint:-.15},icon:'🔧',color:'#5f6b75',desc:'Repairs cut upkeep 15%. Needs electricity.'},
@@ -2219,7 +2223,7 @@ const LAND_UP={
  stalls:{cat:'Horses',name:'Barn stalls',base:2500,desc:l=>`+${l} stall${l===1?'':'s'} in every horse barn`},
  pasture:{cat:'Horses',name:'Pasture improvement',base:2000,desc:l=>`Horse pastures hold ${15*l}% more`},
  cowpasture:{cat:'Livestock',name:'Cow pasture',base:2500,desc:l=>`Cow barns +${3*l} head, cow pastures hold ${15*l}% more`},
- hogpens:{cat:'Livestock',name:'Hog pens',base:1500,desc:l=>`+${l} hog in every pig pen, hog pens hold ${20*l}% more`},
+ hogpens:{cat:'Livestock',name:'Hog pens',base:1500,desc:l=>`Every Hog Pin and fenced hog pen holds ${20*l}% more`},
  storage:{cat:'Livestock',name:'Feed storage',max:7,cost:l=>Math.round(800*Math.pow(1.8,l)/10)*10,desc:l=>`Holds ${50+50*l} feed, plus storage buildings`},
  fencing:{cat:'Infrastructure',name:'Fencing crew',base:1500,desc:l=>`Fences cost ${15*l}% less`},
  gates:{cat:'Infrastructure',name:'Gate upgrades',base:1000,desc:l=>`Gates cost ${20*l}% less, land value +${2*l}%`},
@@ -2304,7 +2308,7 @@ function landStats(P=S.land){const m=landMemo(P),kl=1+kennelUp(P);if(m.st&&m.stK
     for(const[k,v]of Object.entries(d.fx||{}))st[k]+=k==='feedSave'||k==='truck'?v:v*mul}
   st.truck=Math.min(1,st.truck);st.feedSave=Math.min(3,st.feedSave);
   const nb=t=>P.buildings.filter(b=>b.type===t).length,L=k=>landLevel(P,k);
-  st.horses+=nb('horsebarn')*L('stalls');st.cows+=nb('cowbarn')*3*L('cowpasture');st.hogs+=nb('pigpen')*L('hogpens');
+  st.horses+=nb('horsebarn')*L('stalls');st.cows+=nb('cowbarn')*3*L('cowpasture');for(const b of P.buildings)if(b.type==='pigpen')st.hogs+=Math.round(HOG_PIN_CAP[(b.lvl||1)-1]*(1+.2*L('hogpens')));
   const penBoost={pasture:1+.15*L('pasture'),cowpasture:1+.15*L('cowpasture'),hogpen:1+.2*L('hogpens')};
   for(const r of landPens(P)){if(!r.ok)continue;st.pens++;const d=PENS[r.type];if(d.cap)st[d.cap]+=Math.floor(r.cap*(penBoost[r.type]||1));if(r.type==='trainpen')st.trainPen+=Math.min(.1,r.tiles/800)}
   for(const[k,v]of Object.entries(T.fx))st[k]+=v;
@@ -2399,7 +2403,8 @@ const Prop={
 const landAcres=P=>Math.round((landSize(P)*TILE_YD)**2/4840);
 // what one building adds, for the property record
 function bldCapacity(P,b){const d=BLD[b.type],mul=1+.5*((b.lvl||1)-1),o={};for(const[k,v]of Object.entries(d.cap||{}))o[k]=Math.round((v+(d.kennel?3*kennelUp(P):0))*mul);
-  if(b.type==='horsebarn')o.horses=(o.horses||0)+landLevel(P,'stalls');if(b.type==='cowbarn')o.cows=(o.cows||0)+3*landLevel(P,'cowpasture');if(b.type==='pigpen')o.hogs=(o.hogs||0)+landLevel(P,'hogpens');return o}
+  if(b.type==='horsebarn')o.horses=(o.horses||0)+landLevel(P,'stalls');if(b.type==='cowbarn')o.cows=(o.cows||0)+3*landLevel(P,'cowpasture');if(b.type==='pigpen')o.hogs=Math.round(HOG_PIN_CAP[(b.lvl||1)-1]*(1+.2*landLevel(P,'hogpens')));return o}
+const HOG_PIN_CAP=[10,25,50];
 // saves from before the merge: the old ranch upgrade levels move onto the property (same capacities, nothing lost)
 function unifyRanch(){const P=S.land;if(!P)return;P.up=P.up||{};
   if(S.up){const U=S.up,lv=v=>Math.max(0,(v||1)-1),mx=(k,v)=>{P.up[k]=Math.max(P.up[k]||0,v)};
@@ -2574,7 +2579,7 @@ const toTile=(sx,sy)=>{const v=landView();return[Math.floor(v.x0+sx/LV.cam.z),Ma
 // the camera may wander the whole wilderness, not just the property
 function camClamp(){const c=LV.cam,o=LV.P.origin,W=worldLoad();c.x=clamp(c.x,-o.x,W.W-o.x);c.y=clamp(c.y,-o.y,W.H-o.y)}
 // animals walk the property: dogs around kennels and dog yards, horses and cattle in barns and pastures
-function landSprites(P,G){const key=[P.id,P.ver,S.dogs.length,S.horses.length,S.cattle,(P.hogs||[]).length+(P.trainHogs||[]).length].join('|');if(LV.spriteKey===key)return LV.sprites;
+function landSprites(P,G){const key=[P.id,P.ver,S.dogs.length,S.horses.length,S.cattle,(P.hogs||[]).length+S.hogs.length].join('|');if(LV.spriteKey===key)return LV.sprites;
   const pens=landPens(P),n=G.n,homes=k=>{const out=[];for(const b of P.buildings){const d=BLD[b.type];if(d.cap&&d.cap[k]){const[w,h]=bSize(b);out.push({rect:[b.x-1,b.y-1,w+2,h+2]})}}
     for(const r of pens)if(r.ok&&PENS[r.type].cap===k&&r.sample.length)out.push({cells:r.sample});return out};
   const pool=LV.sprites;let used=0;const add=(kind,color,list)=>{if(!list.length)return;const home=list[used%list.length],s=pool[used]||(pool[used]={});
@@ -2583,7 +2588,7 @@ function landSprites(P,G){const key=[P.id,P.ver,S.dogs.length,S.horses.length,S.
   if(own){S.dogs.slice(0,40).forEach(d=>{let c='#8a6a45';try{c=Coat.COLORS[gameCoat(d).white>.9?'White':gameCoat(d).base]||c}catch(e){}add('dog',c,homes('dogs'))});
     S.horses.slice(0,20).forEach(h=>add('horse',h.genes?HG.hex(h):HORSE_HEX[h.coat]||'#6d3b1f',homes('horses')));
     for(let i=0;i<Math.min(S.cattle,30);i++)add('cow',i%3?'#3b2a22':'#e8e2d6',homes('cows'));
-    [...(P.hogs||[]),...(P.trainHogs||[])].forEach(()=>add('hog','#4a3b33',homes('hogs')))}
+    (P.hogs||[]).forEach(()=>add('hog','#4a3b33',homes('hogs')));S.hogs.slice(0,40).forEach(h=>add('hog',HOGG.hex(h),homes('hogs')))}
   else if(P.animals){const A0=P.animals;for(let i=0;i<Math.min(A0.dogs,40);i++)add('dog','#8a6a45',homes('dogs'));for(let i=0;i<Math.min(A0.horses,20);i++)add('horse','#6d3b1f',homes('horses'));for(let i=0;i<Math.min(A0.cows,30);i++)add('cow',i%3?'#3b2a22':'#e8e2d6',homes('cows'))}
   pool.length=used;LV.spriteKey=key;return pool}
 // each animal picks somewhere near home it can actually reach and walks the path there (A*, a few paths a frame)
@@ -2720,7 +2725,7 @@ function landOverview(){const P=S.land,st=landStats(),T=TERRAINS[P.terrain],acc=
     <tr><td>Purchase value</td><td class="num">${fmt(P.purchasePrice)}</td></tr><tr><td>Current value</td><td class="num"><b>${fmt(landValue())}</b></td></tr>
     <tr><td>Invested</td><td class="num">${fmt(P.invested)}</td></tr><tr><td>Upkeep</td><td class="num">${fmt(landUpkeep())} a day</td></tr></table>
     <p class="small muted" style="margin:6px 0 0">${esc(T.blurb)}</p></div>
-   <div class="panel"><b>Capacity</b><table class="small" style="margin-top:4px">${capRow('Dogs',S.dogs.length,st.dogs)}${capRow('Horses',S.horses.length,st.horses)}${capRow('Cattle',S.cattle,st.cows)}${capRow('Penned hogs',(P.hogs||[]).length+(P.trainHogs||[]).length,st.hogs)}${capRow('Feed',S.inv.feed,feedCap())}</table>
+   <div class="panel"><b>Capacity</b><table class="small" style="margin-top:4px">${capRow('Dogs',S.dogs.length,st.dogs)}${capRow('Horses',S.horses.length,st.horses)}${capRow('Cattle',S.cattle,st.cows)}${capRow('Hog Pin',S.hogs.length+(P.hogs||[]).length,st.hogs)}${capRow('Feed',S.inv.feed,feedCap())}</table>
     <p class="small muted" style="margin:6px 0 0">Kennels, barns, pens and storage you build set these.</p></div>
    <div class="panel"><b>Features</b><table class="small" style="margin-top:4px">
     <tr><td>Kennels</td><td>${kn}</td></tr><tr><td>Training</td><td>${st.train?'+'+Math.round(st.train*100)+'% gains':'None'}</td></tr>
@@ -2844,7 +2849,7 @@ const LAND_ACTIONS={
 document.addEventListener('change',e=>{const el=e.target;if(el.dataset.actChange==='lpermact'&&S.land){const P=S.land;P.perms.act=P.perms.act||defaultActs();P.perms.act[el.dataset.r][el.dataset.a]=el.checked;Prop.commit();publishRanch(true);toast('Saved.');return}
   if(el.dataset.actChange==='lperm'&&S.land){S.land.perms[el.dataset.k]=el.value;landTouch();publishRanch(true);toast('Saved.')}});
 // what gets published for visitors: no terrain tiles (the seed regenerates them), plus value and animal counts
-function landPublic(){const P=S.land;return{...P,value:landValue(),animals:{dogs:S.dogs.length,horses:S.horses.length,cows:S.cattle,hogs:(P.hogs||[]).length}}}
+function landPublic(){const P=S.land;return{...P,value:landValue(),animals:{dogs:S.dogs.length,horses:S.horses.length,cows:S.cattle,hogs:(P.hogs||[]).length+S.hogs.length}}}
 // daily ranch tick: feed grown and saved, healing, penned hogs sold, upkeep charged
 function landDaily(msgs){const P=S.land;if(!P)return;const st=landStats();
   if(st.feedDaily){const add=Math.min(st.feedDaily,Math.max(0,feedCap()-S.inv.feed));if(add)S.inv.feed+=add}
@@ -3029,7 +3034,7 @@ function hwEntry(areaId,own){const A0=HW_AREAS[areaId];for(let tries=0;tries<6;t
 function hwPickHogType(area){let tot=area.hogs.reduce((s,h)=>s+h[1],0),r=R()*tot;for(const[h,w]of area.hogs){r-=w;if(r<=0)return h}return area.hogs[0][0]}
 function hwMakeHog(area,lh,x,y,st){const key=hwPickHogType(area),H=HOGS[key],w=Math.round(ri(H.w[0],H.w[1])*(1+(lh.hogW||0))),sz=w/180;
   return{key,name:H.name,mult:H.mult,rar:H.rar,w,x,y,hd:R()*6.283,st,sp:(1.08-sz*.15)*(.9+R()*.2)*(key==='razor'?1.08:1),end:.8+R()*.4+H.rar*.05,
-    aggr:clamp(.2+H.rar*.1+sz*.18+R()*.25,0,1),aware:clamp(.35+R()*.4+(key==='ghost'?.25:0),0,1),stam:1,alert:0,k:-1,full:false,wx:x,wy:y,next:0,rev:false,path:[],calm:0}}
+    aggr:clamp(.2+H.rar*.1+sz*.18+R()*.25,0,1),aware:clamp(.35+R()*.4+(key==='ghost'?.25:0),0,1),stam:1,alert:0,k:-1,full:false,wx:x,wy:y,next:0,rev:false,path:[],calm:0,seed:ri(1,2e9),sex:/boar/i.test(H.name)||R()<.5?'M':'F'}}
 // scent: every hog lays a track of points; a grid hash finds the points near a dog quickly
 function hsAdd(S2,k,p){if(p.t<0)p.f*=HWX.wash;const key=((p.x/12)|0)*4096+((p.y/12)|0);let a=S2.hash.get(key);if(!a)S2.hash.set(key,a=[]);a.push(k*1e6+S2.tracks[k].pts.length);S2.tracks[k].pts.push(p)}
 function hsLay(S2,k,x,y,t){const tr=S2.tracks[k],l=tr.pts[tr.pts.length-1];if(l&&Math.hypot(l.x-x,l.y-y)<1.5)return;hsAdd(S2,k,{x,y,t,f:SCENT_HOLD[hwT(x,y)]})}
@@ -3593,32 +3598,23 @@ const WORLD_ACTIONS={
 // goes home after every session, tired: it needs rest days, and a hard catch wears it most.
 // =========================================================
 const PR_MAX=12,PR_BAY_GOAL=120,PR_ENERGY=25;
-const trainHogs=()=>{const P=S.land;if(!P.trainHogs)P.trainHogs=[];return P.trainHogs};
+const trainHogs=()=>S.hogs.filter(h=>h.age>=6&&!h.preg);
 // hog pens hold fattening and training hogs together; every ranch has a small catch pen for one training hog
-const penRoom=()=>hogCap()-(S.land.hogs||[]).length-trainHogs().length;
-const hogRoom=()=>Math.max(1,hogCap())-(S.land.hogs||[]).length-trainHogs().length;
-const hogSaleValue=t=>Math.round(t.w*4*t.mult*.7*(.5+t.cond/200));
+const hogRoom=()=>HOGG.room();
 const prCanWork=d=>d.age>=8&&d.energy>=PR_ENERGY&&d.health>=40;
 const PR={
   // ---------- after a catch ----------
   offer(h,S2,pay){const H=S2&&S2.target;
     S.pendingHog={id:'TH-'+String(S.nextId++).padStart(5,'0'),key:h.hogKey,name:h.hog.name,w:h.hog.w,mult:h.hog.mult,pay,area:h.area.id,day:S.day,
-      sp:H?H.sp:1,end:H?H.end:1,aggr:H?H.aggr:.5,aware:H?H.aware:.5}},
+      sp:H?H.sp:1,end:H?H.end:1,aggr:H?H.aggr:.5,aware:H?H.aware:.5,seed:H&&H.seed||ri(1,2e9),sex:H&&H.sex||(/boar/i.test(h.hog.name)?'M':'F')}},
   resolve(k,quiet){const o=S.pendingHog;if(!o)return;const nm=`${o.w} lb ${o.name.toLowerCase()}`;let msg;
-    if(k==='pen'&&penRoom()>0){S.land.hogs.push({w:o.w,pay:o.pay});msg=`Penned the ${nm} to fatten. It sells tomorrow for ${fmt(Math.round(o.pay*1.25))}.`}
-    else if(k==='keep'&&hogRoom()>0){trainHogs().push({id:o.id,key:o.key,name:o.name,w:o.w,mult:o.mult,sp:o.sp,end:o.end,aggr:o.aggr,aware:o.aware,cond:100,uses:0,day:S.day});
-      msg=`Kept the ${nm} to train your dogs on. Find it in the Training center.`}
+    if((k==='keep'||k==='pen')&&HOGG.room()>0){const h=HOGG.fromWild(o);S.hogs.push(h);UI.pendingHogView=null;msg=`Kept the ${nm}: ${h.name} (${h.id}) is in your Hog Pin.`}
+    else if(k==='release'){msg=`Turned the ${nm} loose.`}
     else{earn(o.pay);msg=`Sold the ${nm} for ${fmt(o.pay)}.`}
-    S.pendingHog=null;addLog(msg);if(!quiet)toast(msg);save();render()},
+    S.pendingHog=null;UI.pendingHogView=null;addLog(msg);if(!quiet)toast(msg);save();render()},
   // an unanswered choice sells the hog, so a caught hog is never lost
   flush(){if(S.pendingHog)PR.resolve('sell',true)},
-  choicePanel(){const o=S.pendingHog;if(!o)return'';const pr=penRoom()>0,kr=hogRoom()>0;
-    return`<div class="panel" style="margin-top:10px;border:2px solid var(--blaze)"><h3 style="margin-top:0">What do you want to do with the hog?</h3>
-     <div class="small muted">${o.w} lb ${esc(o.name.toLowerCase())}. If you don't choose, it's sold when you head out again or end the day.</div>
-     <div class="row" style="margin-top:8px"><button class="btn" data-act="hogpick" data-k="sell">Sell ${fmt(o.pay)}</button>
-      <button class="btn alt" data-act="hogpick" data-k="pen" ${pr?'':'disabled'}>Pen to fatten (${fmt(Math.round(o.pay*1.25))} tomorrow)</button>
-      <button class="btn alt" data-act="hogpick" data-k="keep" ${kr?'':'disabled'}>Keep for dog training</button></div>
-     ${!pr||!kr?`<div class="small muted" style="margin-top:6px">${!kr?'Your pens are full. Build or upgrade hog pens on your land to keep more hogs.':'No room in the hog pens to fatten it; you have one catch pen for a training hog.'}</div>`:''}</div>`},
+  choicePanel(){return HOGUI.choice()},
   // ---------- the practice session ----------
   place(S2,a,lh,ent,pr){const t=trainHogs().find(x=>x.id===pr.hogId),catchMode=pr.mode==='catch',an=R()*6.283,d=catchMode?16+R()*6:70+R()*60;
     const[x,y]=hwCover(clamp(ent.x+Math.cos(an)*d,20,HW.N-20),clamp(ent.y+Math.sin(an)*d,20,HW.N-20),catchMode?5:20);
@@ -3660,7 +3656,7 @@ const PR={
       `Practice over. You caught the hog up and trailered it home.`);
     gainXP(6);h.summary={time:S2.t,reward:0,bonus:0,pxp:6,dogs:perf};h.result={win,found:true,lines};h.log=S2.events.map(e=>e.txt);h.log.unshift('Practice over.');
     HWX={...HWX,vis:1,vis0:1,pref:null};checkAch();save()},
-  daily(msgs){const th=S.land&&S.land.trainHogs;if(!th||!th.length)return;for(const t of th)t.cond=Math.min(100,t.cond+15)},
+  daily(msgs){},
   // ---------- screens ----------
   resultView(h){const r=h.result,sm=h.summary||{},fm=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
     return`<h2>Hog training</h2><div class="panel"><h3 style="margin-top:0">${r.win?'PRACTICE COMPLETE':'Practice over'}</h3>
@@ -3678,12 +3674,12 @@ SCREENS.practice=()=>{const th=trainHogs(),P=UI.prac=UI.prac||{mode:'bay',sel:{}
   for(const id in P.sel)if(!S.dogs.some(d=>d.id===id&&prCanWork(d)))delete P.sel[id];
   const n=Object.values(P.sel).filter(Boolean).length,dogs=S.dogs.filter(d=>d.age>=8),t=th.find(x=>x.id===P.hog);
   const hogs=th.length?th.map(x=>`<div class="spread" style="gap:8px;margin:6px 0"><button class="btn sm ${x.id===P.hog?'':'ghost'}" style="flex:1;text-align:left" data-act="phog" data-id="${x.id}">${esc(x.name)} · ${x.w} lb</button>
-     <div style="width:90px"><div class="small muted">Condition ${Math.round(x.cond)}%</div>${WE.meter(x.cond/100,x.cond<30?'var(--bad)':'var(--good)')}</div><button class="btn sm ghost" data-act="psell" data-id="${x.id}">Sell ${fmt(hogSaleValue(x))}</button></div>`).join(''):
-    `<p class="small muted">No hogs in the pen. After you catch one on a hunt, choose <b>Keep for dog training</b>.</p>`;
+     <div style="width:90px"><div class="small muted">Condition ${Math.round(x.cond)}%</div>${WE.meter(x.cond/100,x.cond<30?'var(--bad)':'var(--good)')}</div><button class="btn sm ghost" data-act="hogview" data-id="${x.id}">View</button></div>`).join(''):
+    `<p class="small muted">No hogs in the pen. After you catch one on a hunt, choose <b>Keep</b> to bring it to your Hog Pin.</p>`;
   const card=d=>{const role=P.sel[d.id]||'',ok=prCanWork(d);
     return`<button data-act="pdog" data-id="${d.id}" class="${role?'sel':''}" ${ok?'':'disabled'}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'<span style="color:var(--good)">● Bay</span>':role==='catch'?'<span style="color:var(--bad)">● Catch</span>':'<span class="muted">Tap to add</span>'}<br><span class="muted">${ok?`Bay ${Math.round(bayScore(d))} · Catch ${Math.round(catchScore(d))}`:d.health<40?'Hurt':'Tired'}</span></button>`};
   return`<h2>Hog training</h2><p class="sub">Turn a kept hog loose on the hunting grounds and work your dogs on it: the same map, scent and weather as a real hunt, and you'll see every dog and the hog on it. Each dog spends ${PR_ENERGY} energy; there's no fee.</p>
-  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Your training hogs</h3>${hogs}<div class="small muted">Pen space: ${trainHogs().length+(S.land.hogs||[]).length}/${Math.max(1,hogCap())}. Hogs recover 15% a day.</div></div>
+  <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Your training hogs</h3>${hogs}<div class="small muted">These are the grown hogs in your <a href="#" data-act="tab" data-t="hogpin">Hog Pin</a> (${S.hogs.length}/${HOGG.cap()}). Hogs recover 15% a day.</div></div>
   ${th.length?`<div class="seg"><button class="${P.mode==='bay'?'on':''}" data-act="pmode" data-k="bay">Bay practice</button><button class="${P.mode==='catch'?'on':''}" data-act="pmode" data-k="catch">Catch practice</button></div>
   <p class="small muted" style="margin-top:0">${P.mode==='bay'?`The hog gets a head start. Bay dogs trail it and must hold it at bay for ${PR_BAY_GOAL/60} minutes. Builds tracking, stamina and intelligence; catch dogs can go in at the end for grip work.`:'The hog starts held up close by. Release your catch dogs on it and take it down clean. Builds grip and strength; bay dogs you add start the session baying it.'}</p>
   <label class="small">Where <select data-f="pracArea">${AREAS.filter(a=>Prop.tier()>=a.land||(S.land&&accessArea(S.land)===a.id)).map(a=>`<option value="${a.id}" ${a.id===P.area?'selected':''}>${a.name}</option>`).join('')}</select></label>
@@ -3698,7 +3694,7 @@ const PRACTICE_ACTIONS={
     if(r===''&&n>=PR_MAX)return toast(`Up to ${PR_MAX} dogs at once.`);if(next)P.sel[d.id]=next;else delete P.sel[d.id];render()},
   pstart:()=>PR.start(),
   pagain:()=>{UI.hunt=null;UI.tab='practice';render();window.scrollTo(0,0)},
-  psell:d=>{const th=trainHogs(),t=th.find(x=>x.id===d.id);if(!t||!confirm(`Sell ${t.name} for ${fmt(hogSaleValue(t))}?`))return;const v=hogSaleValue(t);earn(v);S.land.trainHogs=th.filter(x=>x!==t);addLog(`Sold training hog ${t.name} (${t.w} lb) for ${fmt(v)}.`);toast(`Sold for ${fmt(v)}.`);save();render()}
+  psell:d=>A.hogsell(d)
 };
 
 // =========================================================
@@ -4177,7 +4173,7 @@ const HB={
      ${pred}
      <div style="margin-top:12px"><button class="btn big" data-act="hbreed" ${s&&d&&!probs.length?'':'disabled'}>Breed ${d&&s?esc(d.name)+' × '+esc(s.name):''}</button></div>
      ${preg?`<h3>In foal</h3><div class="panel">${preg}</div>`:''}`},
-  modeSeg(){const m=UI.breedMode||'dog';return`<div class="seg" style="margin:4px 0 10px"><button class="${m==='dog'?'on':''}" data-act="bmode" data-k="dog">Dogs</button><button class="${m==='horse'?'on':''}" data-act="bmode" data-k="horse">Horses</button></div>`}
+  modeSeg(){const m=UI.breedMode||'dog';return`<div class="seg" style="margin:4px 0 10px"><button class="${m==='dog'?'on':''}" data-act="bmode" data-k="dog">Dogs</button><button class="${m==='horse'?'on':''}" data-act="bmode" data-k="horse">Horses</button><button class="${m==='hog'?'on':''}" data-act="bmode" data-k="hog">Hogs</button></div>`}
 };
 const HORSE_ACTIONS={
   bmode:d=>{UI.breedMode=d.k;render()},
@@ -4194,7 +4190,7 @@ const HORSE_ACTIONS={
     toast(`${h.name}: ${HSTATS.find(x=>x[0]===d.k)[1]} +${gain}.`);sfx.ok();save();render();HB.profile(h.id)}
 };
 
-{const dogBreed=SCREENS.breed;SCREENS.breed=()=>UI.breedMode==='horse'?HB.screen():dogBreed().replace('</h2>','</h2>'+HB.modeSeg())}
+{const dogBreed=SCREENS.breed;SCREENS.breed=()=>UI.breedMode==='horse'?HB.screen():UI.breedMode==='hog'?HOGUI.breedScreen():dogBreed().replace('</h2>','</h2>'+HB.modeSeg())}
 
 // =========================================================
 // HUNTING ON HORSEBACK
@@ -4307,6 +4303,7 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 const GAME_VERSION='1.1.1';
 const PATCH_NOTES=[{v:'1.1.1',title:'Horses, landowner jobs and a faster start',items:[
+  ['Hog genetics, the Hog Pin and hog breeding','Every wild hog now has its own genes: coat, patches, speckles, grizzle, white markings, size, growth, tusks, bristles, strength, speed and temper. After a successful hunt choose Keep, Sell or Turn it loose. Kept hogs go to your Hog Pin (10, 25 or 50 hogs by level, 100+ with upgrades), eat and grow, and breed from the Breed tab (Dogs | Horses | Hogs): sows carry four months and farrow 3–10 piglets that each inherit from both parents. Breed selectively and your lines grow heavier, faster or tougher over the generations.'],
   ['Horse breeding and genetics','Breed your horses in the Breed tab (Dogs | Horses). Every horse carries real coat genetics: bay, black, chestnut, the creams, duns, roans, grays, champagnes, silvers, paints and Appaloosa spotting, plus face and leg markings. Foals take one gene from each parent, hidden carriers show up in the foals, and pedigrees go back to the great-grandparents. Breeds stay pure: no crossbreeding.'],
   ['Hunt on horseback','Pick a horse on the Hunt screen and ride in. A horse covers open ground about twice as fast as walking and sees farther, but it is slow in woods and swamp, gets winded, and a hot one can spook at the bay. Tie it up and go in on foot when you need to.'],
   ['Landowner jobs','Farmers and ranchers now post paid hog work on the Hunt screen: clear hogs off a place, bring in a big boar, catch a sounder before it moves on, or collect the parish bounty on the giant boar. Finish on time for the pay and reputation; miss a deadline and word gets around.'],
@@ -4318,8 +4315,312 @@ function patchNotesHTML(){return PATCH_NOTES.map(n=>`<h2>What's new in ${n.v}</h
 function showPatchNotes(){S.seenVersion=GAME_VERSION;save();openSheet(patchNotesHTML()+`<button class="btn big" data-act="closeSheet" style="margin-top:6px">Back to the ranch</button>`)}
 SCREENS.notes=()=>patchNotesHTML()+`<p class="small muted">Hogs & Dogs v${GAME_VERSION}</p>`;
 
+// =========================================================
+// HOG GENETICS, THE HOG PIN AND HOG BREEDING (separate from dog and horse genetics)
+// Every hog the dogs catch already has its genes (drawn from its seed and fitted to the weight, speed, stamina and
+// temper it showed on the hunt). Only a hog you choose to KEEP after a hunt joins the ranch: it goes into the Hog
+// Pin (S.hogs) and only hogs in the pin can breed. Its coat, pattern, size, tusks, crest, ears and tail are all
+// read from its genes and painted onto one master picture, so a hog is reproduced exactly from what is saved.
+// =========================================================
+const HOGT={feral:'Feral',razor:'Razorback',spotted:'Spotted',russian:'Russian',ghost:'Ghost',giant:'Giant'};
+const HGL={E:{name:'Extension',alle:['ED','E','e']},D:{name:'Dilution',alle:['D','d']},Gz:{name:'Grizzle',alle:['Gz','n']},P:{name:'Patching',alle:['P','n']},
+  Sk:{name:'Speckling',alle:['N','sk']},Wm:{name:'White markings',alle:['Wm','n']},Hl:{name:'Long bristles',alle:['Hl','n']},Lg:{name:'Large frame',alle:['N','lg']}};
+// polygenic traits: each a few gene pairs, 1 = "more"; selection over generations fixes them and a line breeds true
+const HPG={size:6,len:3,ht:3,mus:4,fat:3,grow:5,mat:3,hlth:4,str:4,spd:4,end:4,agg:3,tmp:3,tusk:4,curve:2,dens:3,shade:3,ear:2,snout:2,head:2,tail:2,fert:3};
+// allele frequencies by wild type: [first allele(s)] for the loci, and the "more" frequency for polygenic traits
+const HOGF={
+  feral:{E:{ED:.35,E:.45},D:{d:.12},Gz:{Gz:.3},P:{P:.14},Sk:{sk:.18},Wm:{Wm:.08},Hl:{Hl:.3},Lg:{lg:.08},p:{size:.24,grow:.42,str:.4,spd:.5,agg:.4,tusk:.35,end:.45}},
+  razor:{E:{ED:.45,E:.45},D:{d:.08},Gz:{Gz:.35},P:{P:.1},Sk:{sk:.12},Wm:{Wm:.05},Hl:{Hl:.55},Lg:{lg:.08},p:{size:.34,spd:.62,end:.6,agg:.55,tusk:.55,fat:.3,len:.6}},
+  spotted:{E:{ED:.45,E:.35},D:{d:.1},Gz:{Gz:.25},P:{P:.72},Sk:{sk:.28},Wm:{Wm:.14},Hl:{Hl:.45},Lg:{lg:.1},p:{size:.44,str:.5,tusk:.5}},
+  russian:{E:{ED:.12,E:.8},D:{d:.06},Gz:{Gz:.7},P:{P:.08},Sk:{sk:.1},Wm:{Wm:.03},Hl:{Hl:.85},Lg:{lg:.15},p:{size:.58,str:.6,mus:.6,tusk:.66,agg:.62,ht:.62,dens:.7}},
+  ghost:{E:{ED:.25,E:.6},D:{d:.62},Gz:{Gz:.55},P:{P:.1},Sk:{sk:.2},Wm:{Wm:.06},Hl:{Hl:.7},Lg:{lg:.25},p:{size:.74,str:.7,mus:.66,tusk:.76,agg:.6,tmp:.3}},
+  giant:{E:{ED:.3,E:.6},D:{d:.1},Gz:{Gz:.5},P:{P:.15},Sk:{sk:.1},Wm:{Wm:.04},Hl:{Hl:.8},Lg:{lg:.5},p:{size:.9,str:.82,mus:.8,tusk:.86,agg:.7,grow:.6}}};
+const HOG_NAMES=['Tusker','Mud Queen','Big Red','Rooter','Old Slick','Bristle','Hambone','Sarge','Duchess','Brute','Mossy','Ranger','Sugar','Tank','Wallow','Gristle','Pepper','Boss','Ginger','Chopper','Dozer','Molly','Bandit','Clover','Rowdy','Hazel','Tater','Bubba','Dixie','Moose'];
+const HOG_ADULT={M:10,F:8},HOG_GEST=4,HOG_COOL=2,HOG_DNA=100;
+const HOG_RATION={light:{name:'Light',feed:.6,grow:.9,bc:-4},standard:{name:'Standard',feed:1,grow:1,bc:6},heavy:{name:'Heavy',feed:1.45,grow:1.07,bc:10}};
+const HOGG={
+  // ---------- genes ----------
+  alle(freq,loc,rng){const al=HGL[loc].alle,f=freq[loc]||{};if(al.length===3){let r=rng();r-=f[al[0]]||0;if(r<0)return al[0];r-=f[al[1]]||0;if(r<0)return al[1];return al[2]}
+    const rec=al[1],pr=f[rec]??(1-(f[al[0]]??0));return rng()<pr?rec:al[0]},
+  randomGenes(key,rng=R){const F=HOGF[key]||HOGF.feral,g={};for(const l in HGL)g[l]=[HOGG.alle(F,l,rng),HOGG.alle(F,l,rng)];
+    for(const k in HPG){const f=(F.p||{})[k]??.45;g[k]=Array.from({length:HPG[k]},()=>[rng()<f?1:0,rng()<f?1:0])}return g},
+  has:(g,l,a)=>g[l][0]===a||g[l][1]===a,cnt:(g,l,a)=>(g[l][0]===a)+(g[l][1]===a),
+  sc:(g,k)=>g[k].reduce((s,p)=>s+p[0]+p[1],0)/(2*HPG[k]),
+  // nudge a trait's genes toward a score (used once, to fit a wild hog's genes to what it showed on the hunt)
+  fit(g,k,target,rng){const n=HPG[k]*2;for(let i=0;i<40;i++){const s=HOGG.sc(g,k);if(Math.abs(s-target)<=.5/n+.001)return;const up=s<target,c=g[k].flatMap((p,j)=>[[j,0],[j,1]]).filter(([j,a])=>g[k][j][a]===(up?0:1));if(!c.length)return;const[j,a]=c[Math.floor(rng()*c.length)];g[k][j][a]=up?1:0}},
+  // ---------- body: size, growth and weight ----------
+  maxW(h){const g=h.genes,sz=HOGG.sc(g,'size');return Math.round((70+360*Math.pow(sz,1.2)+60*HOGG.sc(g,'mus')+40*HOGG.sc(g,'fat'))*(HOGG.cnt(g,'Lg','lg')===2?1.18:1)*(h.sex==='M'?1.12:.9))},
+  kGrow:h=>13-6*HOGG.sc(h.genes,'grow')-1.5*HOGG.sc(h.genes,'mat'),
+  frac(h,age=h.age){return Math.pow(1-Math.exp(-Math.max(0,age)/HOGG.kGrow(h)),1.6)},
+  target(h){const R0=HOG_RATION[(S.hogPin||{}).ration||'standard'];return Math.max(2.5,HOGG.maxW(h)*HOGG.frac(h)*(.85+.15*(h.bc??100)/100)*(.9+.1*(h.health??100)/100)*R0.grow)},
+  ageFor(h,w){const m=HOGG.maxW(h);for(let a=1;a<=96;a++)if(m*HOGG.frac(h,a)>=w)return a;return 96},
+  // ---------- stats ----------
+  pot(h){const g=h.genes,s=k=>HOGG.sc(g,k),v=x=>Math.round(25+70*clamp(x,0,1)),lg=HOGG.cnt(g,'Lg','lg')===2?.12:0;
+    return{str:v(.6*s('str')+.25*s('mus')+.15*s('size')),spd:v(.7*s('spd')+.2*(1-s('fat'))+.1*s('len')-.1*s('size')+.05),end:v(.7*s('end')+.3*s('hlth')),grow:v(.85*s('grow')+.15*s('mat')),
+      hlth:v(s('hlth')),size:v(s('size')+lg),mus:v(s('mus')),agg:v(s('agg')),tmp:v(s('tmp')),hard:v(.5*s('hlth')+.5*s('end')),tusk:v(s('tusk'))}},
+  mature(h){return clamp(.35+.65*HOGG.frac(h)/.9,0,1)},
+  stats(h){const P=HOGG.pot(h),m=HOGG.mature(h),c=.85+.15*(h.bc??100)/100,e=h.env||{},o={};for(const k in P){const grown=['str','spd','end','mus','size','tusk'].includes(k)?P[k]*m*c:P[k];o[k]=clamp(Math.round(grown+(e[k]||0)),5,99)}return o},
+  STATS:[['str','Strength'],['spd','Speed'],['end','Endurance'],['grow','Growth rate'],['hlth','Health genetics'],['size','Body size'],['mus','Muscle'],['agg','Aggression'],['tmp','Temperament'],['hard','Hardiness'],['tusk','Tusk size']],
+  // ---------- what it looks like: all from the genes (plus its seed and age) ----------
+  pheno(h){const g=h.genes,has=(l,a)=>HOGG.has(g,l,a),n=(l,a)=>HOGG.cnt(g,l,a),sh=HOGG.sc(g,'shade');
+    const black=has('E','ED'),red=!black&&n('E','e')===2,dil=n('D','d')===2;
+    let body,base;if(black){base=dil?'Gray-Brown':'Black';body=dil?[.3,.27,.24]:[.06,.055,.05]}
+    else if(red){base=dil?'Tan':sh>.5?'Red-Brown':'Tan';body=dil?[.66,.52,.36]:sh>.5?[.31,.15,.08]:[.52,.37,.23]}
+    else{base=dil?'Tan':sh>.66?'Dark Brown':sh>.33?'Brown':'Gray-Brown';body=dil?[.56,.44,.3]:sh>.66?[.13,.09,.06]:sh>.33?[.23,.15,.1]:[.31,.26,.21]}
+    const dark=(body[0]+body[1]+body[2])/3<.2,gz=has('Gz','Gz'),pat=n('P','P'),spk=n('Sk','sk')===2,wm=n('Wm','Wm'),piglet=h.age<4&&!black&&!red;
+    const tip=dil?[.78,.7,.56]:[.62,.46,.28],patch=(body[0]+body[1]+body[2])/3<.12?[.5,.34,.2]:[.06,.05,.045],mane=gz?hmix(body,tip,.35).map(v=>v*.8):body.map(v=>v*.62);
+    let name=base;if(pat)name=black&&!dil?'Black/Brown':(body[0]+body[1]+body[2])/3<.12?base+' with tan patches':base+'/Black';else if(gz)name=black&&!dil?'Black with Tan Highlights':base==='Brown'||base==='Dark Brown'?'Mixed Brown':base+' grizzled';
+    if(spk)name+=dark?', Dark Speckled':', Light Speckled';if(wm)name+=', white markings';if(piglet)name='Striped Piglet Coat ('+name+')';
+    const hl=n('Hl','Hl'),dens=HOGG.sc(g,'dens'),s=k=>HOGG.sc(g,k),sow=h.sex==='F',tg=clamp(h.age/30,.25,1);
+    const W3=(x,a,b,c)=>x<.34?a:x<.67?b:c;
+    return{base,name,body,dark,black,red,dil,gz,pat,spk,wm,piglet,tip,patch,mane,hl,dens,
+      tuskLen:clamp((.3+.7*s('tusk'))*tg*(sow?.55:1),.12,1),earLen:.72+.28*s('ear'),tailLen:.5+.5*s('tail'),crestCut:hl===2?0:hl===1?6:16,len:.94+.12*s('len'),ht:.94+.12*s('ht'),
+      hair:W3(s('dens')*.5+hl*.25,'Short, thin','Medium','Long, dense'),head:W3(s('head'),'Narrow head','Medium head','Broad head'),snout:W3(s('snout'),'Short snout','Medium snout','Long snout'),
+      ears:W3(s('ear'),'Small ears','Medium ears','Large ears'),tail:W3(s('tail'),'Short tail','Medium tail','Long tufted tail'),tusk:W3(s('tusk'),'Small tusks','Medium tusks','Big tusks'),curve:W3(s('curve'),'Straight','Curved','Hooked'),
+      frame:W3(s('len'),'Short-bodied','Medium length','Long-bodied')+', '+W3(s('ht'),'low','medium','tall')+' at the shoulder',fat:W3(s('fat'),'Lean','Moderate','Heavy-set')}},
+  hex(h){const P=HOGG.pheno(h);return hhex(P.pat?hmix(P.body,P.patch,.35):P.body)},
+  // ---------- identity ----------
+  nextId(){S.hogSeq=(S.hogSeq||0)+1;return'HG-'+String(S.hogSeq).padStart(6,'0')},
+  typeName(h){const a=h.anc||{feral:1},e=Object.entries(a).sort((x,y)=>y[1]-x[1]);return e[0][1]>=.75?HOGT[e[0][0]]:e.slice(0,2).map(([k])=>HOGT[k]).join(' × ')+' cross'},
+  sexWord:h=>h.age<3?(h.sex==='M'?'Boar piglet':'Sow piglet'):h.age<HOG_ADULT[h.sex]?(h.sex==='M'?'Young boar':'Gilt'):h.sex==='M'?'Boar':'Sow',
+  domKey(h){return Object.entries(h.anc||{feral:1}).sort((x,y)=>y[1]-x[1])[0][0]},
+  // a kept hog: settle refreshes everything derived (stats, hunt behaviour for dog training, coat name, value)
+  settle(h){const st=HOGG.stats(h),P=HOGG.pheno(h);h.coat=P.name;h.key=HOGG.domKey(h);h.type=HOGG.typeName(h);
+    h.mult=Object.entries(h.anc||{feral:1}).reduce((s,[k,f])=>s+HOGS[k].mult*f,0);h.sp=.8+st.spd/100*.45;h.end=.8+st.end/100*.65;h.aggr=st.agg/100;h.aware=h.aware??clamp(1-st.tmp/100,.2,.95);
+    h.w=Math.round(h.wt);h.price=HOGG.value(h);return h},
+  value(h){const st=HOGG.stats(h),q=(st.str+st.grow+st.size+st.hlth)/400;return Math.max(35,Math.round(h.wt*4*h.mult*(.7+.5*q)*(.6+.4*(h.health??100)/100)*(h.age<3?.6:1)))},
+  create(o){const rng=mulberry(o.seed||ri(1,2e9)),seed=o.seed||ri(1,2e9);
+    const h={id:HOGG.nextId(),name:o.name||pick(HOG_NAMES),sex:o.sex||(rng()<.5?'M':'F'),age:o.age??0,gen:o.gen||0,seed,genes:o.genes,known:{},anc:o.anc||{feral:1},
+      wt:o.wt??2.5,bc:100,health:100,cond:100,uses:0,env:o.env||{},parents:o.parents||null,bl:o.bl||null,born:S.day-(o.age??0),kept:S.day,litters:0,sired:0,cool:0,from:o.from||'Born on the ranch',hist:[]};
+    if(!h.bl)h.bl={line:h.name+"'s line",q:ri(4,16),gen:0};return HOGG.settle(h)},
+  // the exact hog from the hunt: its seed makes its genes; they are fitted to what it showed; its weight is kept as caught
+  wildGenes(o){const rng=mulberry(o.seed),key=HOGF[o.key]?o.key:'feral',g=HOGG.randomGenes(key,rng);
+    HOGG.fit(g,'spd',clamp(((o.sp||1)-.8)/.45,0,1),rng);HOGG.fit(g,'end',clamp(((o.end||1)-.8)/.65,0,1),rng);HOGG.fit(g,'agg',clamp(o.aggr??.5,0,1),rng);
+    const probe={genes:g,sex:o.sex||'M'};for(let i=0;i<30&&HOGG.maxW(probe)*.97<o.w;i++){const c=g.size.flatMap((p,j)=>[[j,0],[j,1]]).filter(([j,a])=>!g.size[j][a]);if(c.length){const[j,a]=c[Math.floor(rng()*c.length)];g.size[j][a]=1}else break}
+    return g},
+  fromWild(o){const key=HOGF[o.key]?o.key:'feral',sex=o.sex||(o.seed%2?'M':'F'),genes=HOGG.wildGenes({...o,sex}),probe={genes,sex,age:24};
+    const age=clamp(HOGG.ageFor(probe,o.w),6,72),h=HOGG.create({seed:o.seed,sex,age,genes,anc:{[key]:1},wt:o.w,from:`Caught in the ${areaName(o.area||'creek')}, day ${o.day||S.day}`});
+    h.id0=o.id;h.aware=o.aware;
+    // the stats it showed on the hunt, exactly; the genes carry the heritable part
+    const st=HOGG.stats({...h,env:{}}),ob={spd:Math.round(25+70*clamp(((o.sp||1)-.8)/.45,0,1)),end:Math.round(25+70*clamp(((o.end||1)-.8)/.65,0,1)),agg:Math.round(25+70*clamp(o.aggr??.5,0,1))};
+    h.env={spd:ob.spd-st.spd,end:ob.end-st.end,agg:ob.agg-st.agg};return HOGG.settle(h)},
+  // ---------- the pin ----------
+  cap:()=>Math.max(1,hogCap()),
+  room:()=>HOGG.cap()-S.hogs.length-((S.land&&S.land.hogs)||[]).length,
+  water(){return S.land&&(landLevel(S.land,'water')>0||(S.hogPin||{}).waterer)},
+  feedNeed(){const R0=HOG_RATION[(S.hogPin||{}).ration||'standard'];return S.hogs.reduce((s,h)=>s+(h.age<2?0:h.age<6?.5:1)+(h.preg||h.nurse>0?.5:0),0)*R0.feed},
+  tierName(){const lv=S.land?Math.max(0,...S.land.buildings.filter(b=>b.type==='pigpen').map(b=>b.lvl||1)):0,c=HOGG.cap();return c>=100?'Advanced Hog Ranch':lv>=3?'Large Hog Pin':lv===2?'Upgraded Hog Pin':lv===1?'Basic Hog Pin':'Catch pen'},
+  // ---------- inheritance ----------
+  snap(h,depth=3){return{id:h.id,name:h.name,sex:h.sex,coat:h.coat,gen:h.gen,w:h.w,type:h.type,parents:depth>1&&h.parents?h.parents.map(p=>p&&HOGG.trim(p,depth-1)):null}},
+  trim(p,d){return{...p,parents:d>1&&p.parents?p.parents.map(q=>q&&HOGG.trim(q,d-1)):null}},
+  childGenes(s,d,rng=R){const g={},pk=a=>a[rng()<.5?0:1];for(const l in HGL)g[l]=[pk(s[l]),pk(d[l])];for(const k in HPG)g[k]=s[k].map((p,i)=>[pk(p),pk(d[k][i])]);return g},
+  // bloodlines: a line keeps its name while you breed within it; its character is read from the genes, never assigned
+  childLine(s,d){const same=s.bl.line===d.bl.line,top=d.bl.q>s.bl.q?d:s,q0=(s.bl.q+d.bl.q)/2;
+    return{line:top.bl.line,q:Math.round(clamp(q0*(same?.9:.65)+(same?5:1)+Math.max(0,HOGG.quality(s)+HOGG.quality(d)-100)*.15,0,100)),gen:(same?Math.max(s.bl.gen,d.bl.gen):0)+1}},
+  quality(h){const p=HOGG.pot(h);return(p.str+p.grow+p.size+p.hlth+p.end+p.spd)/6},
+  // what a line is turning into: the traits that are high AND breeding true (few loci left mixed)
+  character(h){const g=h.genes,t=(ks)=>{let s=0,hom=0,n=0;for(const k of ks){s+=HOGG.sc(g,k);for(const p of g[k]){n++;if(p[0]===p[1])hom++}}return{s:s/ks.length,hom:hom/n}};
+    const C=[['Heavyweight',['size','grow','fat']],['Athletic',['spd','end']],['Power',['str','mus','tusk']],['Hardy',['hlth','end']],['Easy-going',['tmp']]].map(([n,ks])=>({n,...t(ks)})).filter(c=>c.s>=.62).sort((a,b)=>b.s-a.s);
+    return C.length?C.slice(0,2).map(c=>`${c.n} (${Math.round(c.hom*100)}% breeding true)`).join(', '):'No strong focus yet'},
+  litter(s,d){const n=clamp(Math.round(4+HOGG.sc(d.genes,'fert')*4+gauss()*1.3+(d.age<14?-1:0)+(d.health<80?-1:0)),3,10),bl=HOGG.childLine(s,d),out=[],anc={};
+    for(const k of new Set([...Object.keys(s.anc||{}),...Object.keys(d.anc||{})]))anc[k]=((s.anc||{})[k]||0)/2+((d.anc||{})[k]||0)/2;
+    for(let i=0;i<n;i++){const genes=HOGG.childGenes(s.genes,d.genes);out.push(HOGG.create({age:0,wt:2+R()*1.2,genes,anc,gen:Math.max(s.gen||0,d.gen||0)+1,parents:[HOGG.snap(s),HOGG.snap(d)],bl:{...bl},from:`Born on the ranch, day ${S.day}`}))}
+    return out},
+  // a litter tells you about its parents' hidden genes
+  reveal(pigs,s,d){for(const[l,a]of[['E','e'],['D','d'],['Sk','sk'],['Lg','lg']])if(pigs.some(p=>HOGG.cnt(p.genes,l,a)===2))for(const x of[s,d])if(x&&x.known)x.known[l]=1},
+  // ---------- prediction from what the player can know: hidden genes are drawn from the parents' wild types ----------
+  belief(h,rng){const G=h.genes,P=HOGG.pheno(h),k=h.known||{},key=HOGG.domKey(h),F=HOGF[key]||HOGF.feral,g=JSON.parse(JSON.stringify(G)),dr=l=>HOGG.alle(F,l,rng);
+    const vis={E:P.black?1:P.red?2:1,D:P.dil?2:1,Gz:P.gz?1:2,P:2,Sk:P.spk?2:1,Wm:P.wm?1:2,Hl:2,Lg:HOGG.cnt(G,'Lg','lg')===2?2:1};
+    for(const l in HGL){if(k[l]||vis[l]===2)continue;const dom=HGL[l].alle[0];
+      if(vis[l]===1){const keep=l==='E'?(P.black?'ED':'E'):dom;let o=dr(l);if(l==='E'&&!P.black&&o==='ED')o='E';g[l]=[keep,o]}else g[l]=[dr(l),dr(l)]}return g},
+  predict(s,d,n=240){const coats={},pat={p:0,s:0,w:0,st:0},rng=R;let wmax=0,wmin=1e9;
+    for(let i=0;i<n;i++){const g=HOGG.childGenes(HOGG.belief(s,rng),HOGG.belief(d,rng),rng),x={genes:g,sex:rng()<.5?'M':'F',age:30,seed:1},P=HOGG.pheno(x);
+      const nm=P.name.split(',')[0];coats[nm]=(coats[nm]||0)+1;if(P.pat)pat.p++;if(P.spk)pat.s++;if(P.wm)pat.w++;if(!P.black&&!P.red)pat.st++;const w=HOGG.maxW(x);wmax=Math.max(wmax,w);wmin=Math.min(wmin,w)}
+    const pc=v=>Math.round(v/n*100),ps=HOGG.pot(s),pd=HOGG.pot(d);
+    return{coats:Object.entries(coats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,pc(v)]).filter(x=>x[1]>=2).slice(0,7),patch:pc(pat.p),speck:pc(pat.s),white:pc(pat.w),stripe:pc(pat.st),
+      size:[Math.max(3,Math.round(3+HOGG.sc(d.genes,'fert')*4-1)),Math.min(10,Math.round(5+HOGG.sc(d.genes,'fert')*4+1))],wt:[wmin,wmax],
+      stats:HOGG.STATS.slice(0,7).map(([k,l])=>{const m=(ps[k]+pd[k])/2;return[l,Math.round(m-10),Math.round(m+10)]})}},
+  // ---------- rules ----------
+  canBreed(b,s){const pr=[];if(!b||!s){pr.push('Pick a boar and a sow from your Hog Pin.');return pr}
+    if(!S.hogs.includes(b)||!S.hogs.includes(s))pr.push('Only hogs you kept in your Hog Pin can breed.');
+    if(b.sex!=='M')pr.push(`${b.name} is not a boar.`);if(s.sex!=='F')pr.push(`${s.name} is not a sow.`);
+    if(b.age<HOG_ADULT.M)pr.push(`${b.name} isn't mature yet (boars breed from ${HOG_ADULT.M} months).`);if(s.age<HOG_ADULT.F)pr.push(`${s.name} isn't mature yet (sows breed from ${HOG_ADULT.F} months).`);
+    if(b.health<60)pr.push(`${b.name} isn't healthy enough.`);if(s.health<60)pr.push(`${s.name} isn't healthy enough.`);
+    if(s.preg)pr.push(`${s.name} is already bred.`);if(s.cool>0)pr.push(`${s.name} is still nursing (${s.cool} more day${s.cool>1?'s':''}).`);if(b.lastBred===S.day)pr.push(`${b.name} already bred a sow today.`);
+    if(HOGG.room()<3)pr.push('Make room in the Hog Pin for a litter (at least 3 spaces).');return pr},
+  breed(b,s){const pr=HOGG.canBreed(b,s);if(pr.length)return pr;s.preg={boar:HOGG.snap(b),boarRef:b.id,day:S.day,due:S.day+HOG_GEST};b.lastBred=S.day;
+    addLog(`${s.name} was bred to ${b.name}. Piglets due day ${S.day+HOG_GEST}.`);return[]},
+  stage(s){const p=s.preg;if(!p)return'';const left=p.due-S.day;return left<=0?'Farrowing':left===1?'Near birth':p.day===S.day?'Bred today':'Pregnant'},
+  // ---------- a day on the ranch: feed, water, growth, health, pregnancies and litters ----------
+  daily(msgs){const pin=S.hogPin=S.hogPin||{ration:'standard'};if(!S.hogs.length)return;const R0=HOG_RATION[pin.ration]||HOG_RATION.standard;
+    const need=Math.ceil(HOGG.feedNeed()),have=Math.min(S.inv.feed,need),fed=need?have/need:1;S.inv.feed-=have;pin.fedDay=S.day;pin.fed=fed;
+    if(fed<1)msgs.push(`The hogs only got ${Math.round(fed*100)}% of their feed. Buy feed or cut the ration.`);
+    const water=HOGG.water();if(!water){const c=S.hogs.length;S.money-=c;pin.hauled=(pin.hauled||0)+c}
+    for(const h of S.hogs){h.age++;if(h.cool>0)h.cool--;if(h.nurse>0)h.nurse--;h.cond=Math.min(100,(h.cond??100)+15);
+      h.bc=clamp((h.bc??100)+(fed>=.99?R0.bc:-12*(1-fed)),30,100);if(fed>=.99&&pin.ration==='light'&&h.bc<75)h.bc=Math.max(h.bc,75);
+      h.health=clamp((h.health??100)+(fed>=.99?3:-5*(1-fed)-1)+(h.age>96?-1:0),10,100);
+      const t=HOGG.target(h);h.wt=Math.max(2,h.wt+(t-h.wt)*(t>h.wt?.4:.25));HOGG.settle(h)}
+    for(const s of S.hogs.filter(x=>x.preg&&x.preg.due<=S.day)){const p=s.preg,b=S.hogs.find(x=>x.id===p.boarRef)||{...p.boar,genes:HOGG.randomGenes(HOGG.domKey(s)),anc:{[HOGG.domKey(s)]:1},bl:{line:p.boar.name+"'s line",q:10,gen:0},gen:p.boar.gen||0};
+      const pigs=HOGG.litter(b,s);s.preg=null;s.cool=HOG_COOL;s.nurse=2;s.litters=(s.litters||0)+1;if(b.id&&S.hogs.includes(b))b.sired=(b.sired||0)+pigs.length;HOGG.reveal(pigs,S.hogs.includes(b)?b:null,s);
+      const room=HOGG.room(),keep=pigs.slice(0,Math.max(0,room)),extra=pigs.slice(keep.length);S.hogs.push(...keep);
+      s.hist=(s.hist||[]).concat([{day:S.day,kind:'litter',n:pigs.length,ids:keep.map(x=>x.id),boar:p.boar.name}]);
+      let m=`${s.name} farrowed ${pigs.length} piglets by ${p.boar.name}!`;if(extra.length){const v=extra.length*35;earn(v);m+=` No room for ${extra.length}; sold as feeder pigs for ${fmt(v)}.`}
+      msgs.push(m);addLog(`Litter: ${s.name} × ${p.boar.name}, ${pigs.length} piglets (${keep.map(x=>x.id).join(', ')||'none kept'}).`);S.st.hogLitters=(S.st.hogLitters||0)+1;gainXP(20);
+      (UI.newLitter=UI.newLitter||[]).push(...keep.map(x=>x.id))}},
+  sell(h){const v=h.price;earn(v);S.hogs=S.hogs.filter(x=>x!==h);(S.hogRecords=S.hogRecords||[]).unshift({...HOGG.snap(h),sold:S.day,price:v});S.hogRecords=S.hogRecords.slice(0,300);
+    addLog(`Sold ${h.name} (${h.id}, ${h.w} lb) for ${fmt(v)}.`);return v},
+  find(id){return S.hogs.find(h=>h.id===id)||(UI.hogPreview||[]).find(h=>h.id===id)||(UI.pendingHogView&&UI.pendingHogView.id===id?UI.pendingHogView:null)},
+  // older saves: training hogs become Hog Pin hogs with genes that fit them; an unanswered catch gets a seed and a sex
+  migrate(){S.hogs=S.hogs||[];S.hogPin=S.hogPin||{ration:'standard'};S.hogPreg=undefined;
+    const P=S.land;if(P&&P.trainHogs&&P.trainHogs.length){for(const t of P.trainHogs){const h=HOGG.fromWild({seed:hashStr(t.id||t.name)||ri(1,2e9),key:t.key,w:t.w,sp:t.sp,end:t.end,aggr:t.aggr,aware:t.aware,sex:/boar/i.test(t.name)?'M':undefined,area:(S.land&&accessArea(S.land))||'creek',day:t.day});h.cond=t.cond??100;h.uses=t.uses||0;S.hogs.push(h)}P.trainHogs=[]}
+    if(S.pendingHog&&!S.pendingHog.seed){S.pendingHog.seed=hashStr(S.pendingHog.id)||ri(1,2e9);S.pendingHog.sex=/boar/i.test(S.pendingHog.name)?'M':'F'}}
+};
+
+// ---------- hog pictures: one master, painted from the genes ----------
+const HOGMAPS={},HOG_IMG={},HOG_PENDING={};let hogQ=Promise.resolve();
+async function hogMaps(key){if(HOGMAPS[key])return HOGMAPS[key];const M=HOG_MASTERS[key];const ims=await Promise.all([loadImg(M.maps.m1),loadImg(M.maps.m2),loadImg(M.maps.m3)]);
+  const rd=(im,sm)=>{const c=document.createElement('canvas');c.width=M.w;c.height=M.h;const x=c.getContext('2d');x.imageSmoothingEnabled=sm;x.drawImage(im,0,0);return x.getImageData(0,0,M.w,M.h).data};
+  return HOGMAPS[key]={w:M.w,h:M.h,m1:rd(ims[0],true),m2:rd(ims[1],false),m3:rd(ims[2],true)}}
+HOGG.render=async function(h,scale){const M=await hogMaps('wild'),P=HOGG.pheno(h),W=Math.round(M.w*scale),H=Math.round(M.h*scale),sd=(h.seed||1)%99991,inv=1/scale;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d'),img=g.createImageData(W,H),o=img.data;
+  const IVORY=[.86,.8,.66],WHITE=[.86,.83,.77],skin=P.dark?[.2,.17,.16]:[.34,.27,.25],hoof=P.wm?[.5,.44,.36]:[.22,.18,.15],contrast=.5+.5*P.dens,thr=P.pat===2?.43:.5;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const sx=Math.min(M.w-1,(x*inv)|0),sy=Math.min(M.h-1,(y*inv)|0),i=(sy*M.w+sx)*4;let a=M.m3[i];if(!a)continue;
+    const shade=M.m1[i]/127.5,det=M.m1[i+1],tanRef=M.m1[i+2]/255,reg=Math.round(M.m2[i]/20),rch=M.m2[i+1]/255,td=M.m3[i+2];let c;
+    if(reg===6){if(rch>P.tuskLen)continue;c=IVORY}
+    else if(reg===4&&rch>P.earLen)continue;
+    else if(reg===9&&rch>P.tailLen)continue;
+    else if(reg===8&&td<P.crestCut)continue;
+    if(!c){if(reg===5)c=[.3,.17,.07];else if(reg===7)c=hoof;else if(reg===3)c=skin;
+      else{c=P.body;
+        if(P.pat){const pf=.62*lnoise(sx/34,sy/27,sd+1)+.26*lnoise(sx/12,sy/12,sd+2)+.12*tanRef+(det-128)/500;if(pf>thr-.03)c=hmix(c,P.patch,clamp((pf-thr+.03)/.06,0,1))}
+        if(P.piglet&&(reg===1||reg===2)&&td>8){const st=Math.sin(td*.23+sx*.004);if(st>.45)c=hmix(c,[.62,.48,.3],.55)}
+        if(reg===8){const m=clamp(1-(td-14)/34,0,1);c=hmix(c,P.mane,m)}
+        if(reg===11)c=hmix(c,P.black?c:[.08,.07,.06],.35);
+        if(P.gz&&det>134)c=hmix(c,P.tip,clamp((det-134)/50,0,1)*.8);
+        if(P.spk&&hash2(sx,sy,sd+3)<.1&&det>126)c=hmix(c,P.dark?[.72,.62,.46]:[.1,.08,.06],.7);
+        if(P.wm){let w=0;if(reg===11&&rch<.4+.25*P.wm)w=1;if(reg===2&&lnoise(sx/18,sy/18,sd+5)>.7)w=1;if(reg===1&&td>150&&lnoise(sx/40,sy/30,sd+6)>.66-.08*P.wm)w=1;if(w)c=hmix(c,WHITE,.9)}}
+      if(reg!==6&&reg!==5)c=c.map(v=>v*(1+(det-128)/128*.22*contrast))}
+    const p=(y*W+x)*4;o[p]=clamp(c[0]*shade*255,0,255);o[p+1]=clamp(c[1]*shade*255,0,255);o[p+2]=clamp(c[2]*shade*255,0,255);o[p+3]=a}
+  g.putImageData(img,0,0);
+  // body length and height from the genes: stretch the drawing, standing on the same ground line
+  const out=document.createElement('canvas');out.width=W;out.height=H;const og=out.getContext('2d'),fx=P.len,fy=P.ht,dw=W*fx/Math.max(fx,fy)*.96,dh=H*fy/Math.max(fx,fy)*.96;og.drawImage(cv,(W-dw)/2,H-dh,dw,dh);return out};
+HOGG.imgKey=(h,sc)=>{const P=HOGG.pheno(h);return`${h.id}|${h.seed}|${sc}|${P.name}|${P.tuskLen.toFixed(2)}|${P.piglet}`};
+// the picture is drawn bigger for heavier hogs, so a piglet looks like a piglet next to a 300 lb boar
+HOGG.art=function(h,w=160){const sc=w>300?.5:w>180?.34:.24,key=HOGG.imgKey(h,sc),src=HOG_IMG[key],f=clamp(.4+.6*Math.sqrt((h.wt||h.w||100)/320),.35,1.05);
+  return`<img class="hogimg" data-hgid="${h.id}" data-sc="${sc}" ${src?`src="${src}"`:''} width="${w}" height="${Math.round(w*2/3)}" alt="${esc(h.name)}, ${esc(h.coat||'')}" style="width:${Math.round(w*f)}px;max-width:100%;height:auto;aspect-ratio:3/2">`};
+function hydrateHogs(){document.querySelectorAll('img.hogimg:not([src])').forEach(img=>{const id=img.dataset.hgid,sc=+img.dataset.sc,h=HOGG.find(id);if(!h)return;const key=HOGG.imgKey(h,sc);
+  if(HOG_IMG[key]){img.src=HOG_IMG[key];return}if(HOG_PENDING[key])return;HOG_PENDING[key]=1;
+  hogQ=hogQ.then(async()=>{const c=await HOGG.render(h,sc);HOG_IMG[key]=c.toDataURL('image/png');delete HOG_PENDING[key];
+    document.querySelectorAll(`img.hogimg[data-hgid="${id}"][data-sc="${sc}"]`).forEach(i=>i.src=HOG_IMG[key]);await new Promise(r=>setTimeout(r,0))}).catch(e=>{console.error('hog art',e);delete HOG_PENDING[key]})})}
+
+// ---------- screens ----------
+const HOGUI={
+  sexIcon:h=>`<span class="${h.sex==='M'?'sexM':'sexF'}">${h.sex==='M'?'♂':'♀'}</span>`,
+  status(h){return h.preg?`${HOGG.stage(h)} (due day ${h.preg.due})`:h.cool>0?`Nursing (${h.cool} day${h.cool>1?'s':''})`:h.age<HOG_ADULT[h.sex]?`Too young (${HOG_ADULT[h.sex]-h.age} mo to go)`:h.health<60?'Recovering':h.sex==='M'&&h.lastBred===S.day?'Bred today':'Available'},
+  statRows(h){const st=HOGG.stats(h),pt=HOGG.pot(h);return HOGG.STATS.map(([k,l])=>`<div class="stat"><span>${l}</span><div class="bar"><i class="pot" style="width:${Math.min(99,pt[k]+((h.env||{})[k]||0))}%"></i><i class="cur" style="width:${st[k]}%"></i></div><span class="num small">${st[k]}</span></div>`).join('')},
+  facts(h){const P=HOGG.pheno(h);return[['Hog ID',h.id],['Type',h.type],['Sex',HOGG.sexWord(h)],['Age',ageStr(h.age)],['Weight',`${h.w} lb (grows to about ${HOGG.maxW(h)} lb)`],['Generation',h.gen||0],['Coat',P.name],
+    ['Build',`${P.frame}; ${P.fat.toLowerCase()}`],['Head',`${P.head}, ${P.snout.toLowerCase()}, ${P.ears.toLowerCase()}`],['Hair',`${P.hair}${P.hl?' bristles, full crest':''}`],['Tusks',`${P.tusk}, ${P.curve.toLowerCase()}`],['Tail',P.tail],
+    ['Health',`${h.health}%`],['Condition',`${Math.round(h.bc)}%`],['Breeding',HOGUI.status(h)],['Origin',h.from]]},
+  table(rows){return`<table class="small">${rows.map(([a,b])=>`<tr><td class="muted">${a}</td><td>${esc(String(b))}</td></tr>`).join('')}</table>`},
+  geneView(h){const g=h.genes,P=HOGG.pheno(h),k=h.known||{},pair=l=>g[l].slice().sort((a,b)=>HGL[l].alle.indexOf(a)-HGL[l].alle.indexOf(b)).join('/'),out=[];
+    const add=(l,show,txt)=>out.push({l,name:HGL[l].name,txt:k[l]?pair(l):txt,known:!!k[l]||show});
+    // what the coat shows: dominant traits are read straight off the hog (present = X/?, absent = n/n); only recessive carriers can hide
+    add('E',true,P.black?'ED/? (black)':P.red?'e/e (red)':'E/? (wild brown)');add('D',P.dil,P.dil?'d/d (dilute)':'D/? (dilute carrier?)');
+    add('Gz',true,P.gz?'Gz/? (grizzled)':'n/n');add('P',true,P.pat===2?'P/P (heavy patches)':P.pat?'P/n (patched)':'n/n');add('Wm',true,P.wm?'Wm/? (white markings)':'n/n');add('Hl',true,P.hl?'Hl/? (long bristles)':'n/n');
+    add('Sk',P.spk,P.spk?'sk/sk (speckled)':'N/? (speckle carrier?)');add('Lg',HOGG.cnt(g,'Lg','lg')===2,HOGG.cnt(g,'Lg','lg')===2?'lg/lg (large frame)':'N/? (large-frame carrier?)');
+    if(!P.black&&!P.red&&!k.E)out[0].txt='E/? (wild brown; red carrier?)';return out},
+  carriers(h){const g=h.genes,k=h.known||{},c=[];if(k.Sk&&HOGG.cnt(g,'Sk','sk')===1)c.push('Speckling carrier');if(k.Lg&&HOGG.cnt(g,'Lg','lg')===1)c.push('Large-frame carrier');if(k.D&&HOGG.cnt(g,'D','d')===1)c.push('Dilute carrier');if(k.E&&HOGG.cnt(g,'E','e')===1&&!HOGG.has(g,'E','ED'))c.push('Red carrier');return c},
+  genes(h){const v=HOGUI.geneView(h),vis=v.filter(x=>x.known),hid=v.filter(x=>!x.known),car=HOGUI.carriers(h);
+    return`<div class="small"><b>Visible</b>: ${vis.map(x=>`${x.name} <span class="gt">${x.txt}</span>`).join(' · ')||'—'}</div><div class="small" style="margin-top:4px"><b>Hidden</b>: ${hid.map(x=>`${x.name} <span class="muted">${x.txt}</span>`).join(' · ')||'All known'}</div>
+     ${car.length?`<div class="small" style="margin-top:4px"><b>Known carriers</b>: ${car.join(', ')}</div>`:''}<div class="small" style="margin-top:4px"><b>Line character</b>: ${esc(HOGG.character(h))}</div>`},
+  pedBox(p,lab){return p?`<div class="panel small" style="padding:6px"><div class="muted">${lab}</div><b>${esc(p.name)}</b> <span class="muted">${esc(p.id)}</span><div>${esc(p.coat||'')}${p.w?` · ${p.w} lb`:''}</div></div>`:`<div class="panel small muted" style="padding:6px">${lab}: wild-caught, unrecorded</div>`},
+  pedigree(h){const ps=h.parents||[],g=i=>(ps[i]&&ps[i].parents)||[];if(!ps.length)return`<p class="small muted">Wild-caught foundation hog. Its piglets start the pedigree.</p>`;
+    return`<div class="grid" style="grid-template-columns:repeat(2,1fr);gap:6px"><div>${HOGUI.pedBox(ps[0],'Sire (boar)')}${HOGUI.pedBox(ps[1],'Dam (sow)')}</div><div>${[0,1].map(i=>[0,1].map(j=>HOGUI.pedBox(g(i)[j],(i?"Dam's ":"Sire's ")+(j?'dam':'sire'))).join('')).join('')}</div></div>`},
+  offspring(h){const kids=S.hogs.filter(x=>x.parents&&x.parents.some(p=>p&&p.id===h.id)),gone=(S.hogRecords||[]).filter(x=>x.parents&&x.parents.some(p=>p&&p.id===h.id));
+    const lit=(h.hist||[]).filter(e=>e.kind==='litter');return`${lit.length?lit.map(e=>`<div class="small">Day ${e.day}: ${e.n} piglets by ${esc(e.boar)} ${e.ids.length?`(${e.ids.join(', ')})`:''}</div>`).join(''):''}
+     ${kids.length?`<div class="small">On the ranch: ${kids.map(x=>`<a href="#" data-act="hogview" data-id="${x.id}">${esc(x.name)}</a>`).join(', ')}</div>`:''}${gone.length?`<div class="small muted">Sold: ${gone.map(x=>esc(x.name)).join(', ')}</div>`:''}${!lit.length&&!kids.length&&!gone.length?'<div class="small muted">No offspring yet.</div>':''}`},
+  profile(id){const h=HOGG.find(id);if(!h)return;const own=S.hogs.includes(h);
+    openSheet(`<div class="small muted">${esc(h.id)} · ${esc(h.type)} · Generation ${h.gen||0}</div><h2>${esc(h.name)} ${HOGUI.sexIcon(h)}</h2><div style="display:flex;justify-content:center">${HOGG.art(h,420)}</div>
+     ${own?`<div class="row" style="margin:8px 0"><button class="btn sm ghost" data-act="hogrename" data-id="${h.id}">Rename</button>${h.age>=HOG_ADULT[h.sex]?`<button class="btn sm alt" data-act="hogbreedwith" data-id="${h.id}">Breed ${h.sex==='M'?'him':'her'}</button>`:''}<button class="btn sm ghost" data-act="hogdna" data-id="${h.id}" ${S.money>=HOG_DNA&&!Object.keys(HGL).every(l=>(h.known||{})[l])?'':'disabled'}>${Object.keys(HGL).every(l=>(h.known||{})[l])?'DNA tested':`DNA test (${fmt(HOG_DNA)})`}</button><button class="btn sm ghost" data-act="hogsell" data-id="${h.id}">Sell ${fmt(h.price)}</button></div>`:''}
+     <div class="panel">${HOGUI.table(HOGUI.facts(h))}</div>${h.preg?`<div class="panel small" style="margin-top:6px"><b>${HOGG.stage(h)}</b> by ${esc(h.preg.boar.name)} · due day ${h.preg.due}<div class="meter" style="height:8px;margin-top:4px"><i style="width:${clamp((S.day-h.preg.day)/HOG_GEST*100,4,100)}%;background:var(--gold)"></i></div></div>`:''}
+     <h3>Genetics</h3><div class="panel">${HOGUI.genes(h)}</div><h3>Stats</h3><div class="panel">${HOGUI.statRows(h)}<p class="small muted" style="margin:6px 0 0">Bars show today's ability against what the genes allow. Young hogs grow into it; feed and health hold it up.</p></div>
+     <h3>Pedigree</h3><div class="panel"><div class="small" style="margin-bottom:6px"><b>${esc(h.bl.line)}</b>${h.bl.gen?` · ${h.bl.gen} generation${h.bl.gen>1?'s':''} bred in line`:''}</div>${HOGUI.pedigree(h)}</div>
+     <h3>Offspring</h3><div class="panel">${HOGUI.offspring(h)}</div>`)},
+  card(h){return`<div class="panel"><div style="display:flex;justify-content:center;min-height:90px;align-items:flex-end;cursor:pointer" data-act="hogview" data-id="${h.id}">${HOGG.art(h,220)}</div><b>${esc(h.name)}</b> ${HOGUI.sexIcon(h)} <span class="tag">${esc(h.id)}</span>
+    <div class="small muted">${esc(HOGG.sexWord(h))} · ${esc(h.type)} · ${ageStr(h.age)} · ${h.w} lb</div><div class="small muted">${esc(h.coat)}</div><div class="small">${HOGUI.status(h)} · health ${h.health}%</div>
+    <div class="row" style="margin-top:6px"><button class="btn sm ghost" data-act="hogview" data-id="${h.id}">View</button>${h.age>=HOG_ADULT[h.sex]?`<button class="btn sm ghost" data-act="hogbreedwith" data-id="${h.id}">Breed</button>`:''}<button class="btn sm ghost" data-act="hogsell" data-id="${h.id}">Sell ${fmt(h.price)}</button></div></div>`},
+  // ---------- the Hog Pin ----------
+  screen(){const pin=S.hogPin=S.hogPin||{ration:'standard'},cap=HOGG.cap(),n=S.hogs.length,need=Math.ceil(HOGG.feedNeed()),f=UI.hogF||'all',avgH=n?Math.round(S.hogs.reduce((s,h)=>s+h.health,0)/n):100;
+    const list=S.hogs.filter(h=>f==='all'||(f==='boars'&&h.sex==='M'&&h.age>=3)||(f==='sows'&&h.sex==='F'&&h.age>=3)||(f==='piglets'&&h.age<3)),preg=S.hogs.filter(h=>h.preg).length,rdy=S.hogs.filter(h=>HOGUI.status(h)==='Available').length;
+    return`<h2>Hog Pin</h2><p class="sub">Hogs you kept from your hunts live here. They eat, drink, grow and breed. Only hogs in the pin can be bred.</p>
+     <div class="panel"><div class="spread"><b>${HOGG.tierName()}</b><span class="tag num">${n}/${cap} hogs</span></div>
+      <table class="small" style="margin-top:6px"><tr><td class="muted">Available space</td><td>${Math.max(0,HOGG.room())}${hogCap()?'':' (one catch pen until you build a Hog Pin on your land)'}</td></tr>
+      <tr><td class="muted">Feed</td><td>${need}/day · ${S.inv.feed} in the barn${pin.fedDay===S.day-0&&pin.fed<1?` · <b style="color:var(--bad)">short yesterday</b>`:''}</td></tr>
+      <tr><td class="muted">Water</td><td>${HOGG.water()?'On a waterer / water system':`Hauled by hand: $1 a hog a day <button class="btn sm ghost" data-act="hogwaterer" ${S.money>=400?'':'disabled'}>Install a waterer ($400)</button>`}</td></tr>
+      <tr><td class="muted">Health</td><td>${avgH}% average</td></tr><tr><td class="muted">Breeding</td><td>${preg} bred · ${rdy} ready</td></tr></table>
+      <div class="small" style="margin-top:8px">Ration: <span class="seg" style="display:inline-flex;margin:0">${Object.entries(HOG_RATION).map(([k,r])=>`<button class="${pin.ration===k?'on':''}" data-act="hogration" data-k="${k}">${r.name}</button>`).join('')}</span></div>
+      <div class="small muted" style="margin-top:4px">Heavy feed grows hogs faster and keeps them in top condition for more feed. Light feed saves feed but they grow slower and lose condition.</div>
+      <div class="row" style="margin-top:8px"><button class="btn sm alt" data-act="hogbreedtab">Hog breeding</button><button class="btn sm ghost" data-act="tab" data-t="land">Build or upgrade Hog Pins</button>${S.hogs.some(h=>h.age>=6)?'<button class="btn sm ghost" data-act="tab" data-t="practice">Train dogs on a hog</button>':''}</div></div>
+     <div class="seg" style="margin:10px 0">${[['all','All'],['boars','Boars'],['sows','Sows'],['piglets','Piglets']].map(([k,l])=>`<button class="${f===k?'on':''}" data-act="hogfilter" data-k="${k}">${l}</button>`).join('')}</div>
+     ${list.length?`<div class="grid wide">${list.map(HOGUI.card).join('')}</div>`:`<p class="small muted">${n?'None here.':'No hogs yet. After a successful hunt, choose Keep to bring the hog home.'}</p>`}
+     ${(S.hogRecords||[]).length?`<h3>Sold</h3><div class="panel small">${S.hogRecords.slice(0,12).map(r=>`<div>${esc(r.name)} <span class="muted">${esc(r.id)} · ${r.w} lb · day ${r.sold} · ${fmt(r.price)}</span></div>`).join('')}</div>`:''}`},
+  // ---------- hog breeding (Breed tab → Hogs) ----------
+  parentCol(h,role){if(!h)return`<div class="panel small muted">No ${role.toLowerCase()} chosen.</div>`;
+    return`<div class="panel"><div class="spread"><b>${role}</b><span class="tag">${esc(h.id)}</span></div><div style="display:flex;justify-content:center;margin:4px 0">${HOGG.art(h,230)}</div>
+     <div style="font:600 17px var(--display);text-transform:uppercase">${esc(h.name)}</div>${HOGUI.table(HOGUI.facts(h).filter(r=>['Hog ID','Type','Sex','Age','Weight','Generation','Coat','Build','Tusks','Health','Breeding'].includes(r[0])))}
+     <div style="margin-top:6px">${HOGUI.genes(h)}</div><div style="margin-top:6px">${HOGUI.statRows(h)}</div>
+     <div class="small" style="margin-top:6px"><b>Pedigree</b>: ${(h.parents||[]).map(p=>esc(p.name)).join(' × ')||'wild-caught'} · <b>Bloodline</b>: ${esc(h.bl.line)}${h.bl.gen?` (${h.bl.gen} gen in line)`:''}</div></div>`},
+  breedScreen(){const boars=S.hogs.filter(h=>h.sex==='M'&&h.age>=3),sows=S.hogs.filter(h=>h.sex==='F'&&h.age>=3);
+    if(UI.hgBoar&&!boars.some(h=>h.id===UI.hgBoar))UI.hgBoar='';if(UI.hgSow&&!sows.some(h=>h.id===UI.hgSow))UI.hgSow='';
+    const b=S.hogs.find(h=>h.id===UI.hgBoar),s=S.hogs.find(h=>h.id===UI.hgSow),pr=b&&s?HOGG.canBreed(b,s):[],opt=(l,sel)=>l.map(h=>`<option value="${h.id}" ${h.id===sel?'selected':''}>${esc(h.name)} — ${esc(h.id)}, ${h.w} lb, ${esc(h.coat.split(',')[0])}</option>`).join('');
+    let pred='';if(b&&s){const k=b.id+'|'+s.id+'|'+JSON.stringify([b.known,s.known]);if(UI.hgPredKey!==k){UI.hgPredKey=k;UI.hgPred=HOGG.predict(b,s)}const Q=UI.hgPred;
+      pred=`<h3>Predicted litter</h3><div class="panel"><div class="small muted">Likely, not certain: hidden genes can still turn up. ${Q.size[0]}–${Q.size[1]} piglets expected.</div>
+       ${Q.coats.map(([n,p])=>`<div class="spread small" style="margin-top:4px"><span>${esc(n)}</span><span class="num">${p}%</span></div><div class="meter" style="height:8px"><i style="width:${p}%;background:var(--gold)"></i></div>`).join('')}
+       <div class="small" style="margin-top:8px">Patched: <b>${Q.patch}%</b> · Speckled: <b>${Q.speck}%</b> · White markings: <b>${Q.white}%</b> · Striped as piglets: <b>${Q.stripe}%</b></div>
+       <div class="small" style="margin-top:4px">Grown weight: <b>${Q.wt[0]}–${Q.wt[1]} lb</b></div><table class="small" style="margin-top:6px">${Q.stats.map(([l,a,c])=>`<tr><td>${l}</td><td class="num">${clamp(a,5,99)}–${clamp(c,5,99)}</td></tr>`).join('')}</table>
+       <div style="margin-top:8px"><button class="btn sm ghost" data-act="hogpreview">Show possible piglets</button></div>
+       ${UI.hogPreview&&UI.hogPreviewKey===k?`<div class="grid" style="margin-top:8px">${UI.hogPreview.map(f=>`<div class="panel small" style="padding:6px">${HOGG.art({...f},200)}<b>${esc(f.coat.split(' (')[0])}</b><div class="muted">${f.sex==='M'?'Boar':'Sow'} · grows to ~${HOGG.maxW(f)} lb</div></div>`).join('')}</div>`:''}</div>`}
+    const preg=S.hogs.filter(h=>h.preg).map(h=>`<div class="small" style="margin-top:4px"><b>${esc(h.name)}</b> × ${esc(h.preg.boar.name)} — ${HOGG.stage(h)}, due day ${h.preg.due}<div class="meter" style="height:6px"><i style="width:${clamp((S.day-h.preg.day)/HOG_GEST*100,4,100)}%;background:var(--gold)"></i></div></div>`).join('');
+    return`<h2>Breeding center</h2>${HB.modeSeg()}<p class="sub">Breed the hogs you kept in your Hog Pin. Piglets take genes from both parents: coat, pattern, size, growth, tusks, strength and temper. Hidden carriers show up in the litters. Sows carry ${HOG_GEST} months (days) and farrow 3–10 piglets.</p>
+     ${boars.length&&sows.length?`<div class="grid wide" style="margin-bottom:8px"><label>Select boar <select data-f="hgBoar"><option value="">Choose…</option>${opt(boars,UI.hgBoar)}</select></label><label>Select sow <select data-f="hgSow"><option value="">Choose…</option>${opt(sows,UI.hgSow)}</select></label></div>`:
+      `<div class="panel small">You need a boar and a sow in your Hog Pin. Keep hogs after your hunts to build a herd. <button class="btn sm ghost" data-act="tab" data-t="hogpin">Hog Pin</button></div>`}
+     <div class="grid wide">${HOGUI.parentCol(b,'Boar')}${HOGUI.parentCol(s,'Sow')}</div>
+     ${b&&s?(pr.length?`<div class="panel" style="margin-top:10px;border:2px solid var(--bad)">${pr.map(p=>`<div class="small">✗ ${esc(p)}</div>`).join('')}</div>`:`<div class="panel small" style="margin-top:10px">✓ Both in your Hog Pin · ✓ Boar and sow · ✓ Both mature and healthy · ✓ Room for a litter</div>`):''}
+     ${pred}<div style="margin-top:12px"><button class="btn big" data-act="hogbreed" ${b&&s&&!pr.length?'':'disabled'}>Breed ${b&&s?esc(s.name)+' × '+esc(b.name):''}</button></div>
+     ${preg?`<h3>Bred sows</h3><div class="panel">${preg}</div>`:''}`},
+  litterSheet(ids){const pigs=ids.map(id=>S.hogs.find(h=>h.id===id)).filter(Boolean);if(!pigs.length)return;const ps=pigs[0].parents||[];
+    openSheet(`<h2>New litter</h2><p class="sub">${pigs.length} piglets by ${esc(ps[0]?ps[0].name:'?')} out of ${esc(ps[1]?ps[1].name:'?')} · ${esc(pigs[0].id)}–${esc(pigs[pigs.length-1].id)}</p>
+     <div class="grid">${pigs.map(p=>`<div class="panel small" style="padding:6px;cursor:pointer" data-act="hogview" data-id="${p.id}">${HOGG.art(p,200)}<b>${esc(p.name)}</b> ${HOGUI.sexIcon(p)}<div class="muted">${esc(p.id)} · ${esc(p.coat.replace('Striped Piglet Coat (','striped (').replace(/\)$/,')'))}</div><div class="muted">Grows to ~${HOGG.maxW(p)} lb · growth ${HOGG.pot(p).grow}</div></div>`).join('')}</div>
+     <div class="row" style="margin-top:10px"><button class="btn" data-act="tab" data-t="hogpin">Go to the Hog Pin</button></div>`)},
+  // after a catch: keep it, sell it or turn it loose
+  choice(){const o=S.pendingHog;if(!o)return'';const v=UI.pendingHogView&&UI.pendingHogView.id0===o.id?UI.pendingHogView:(UI.pendingHogView=HOGG.preview(o)),room=HOGG.room()>0;
+    return`<div class="panel" style="margin-top:10px;border:2px solid var(--blaze)"><h3 style="margin-top:0">Keep, sell or turn it loose?</h3>
+     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:0 0 auto">${HOGG.art(v,200)}</div><div class="small"><b>${o.w} lb ${esc(o.name.toLowerCase())}</b> · ${o.sex==='M'?'boar':'sow'} · ${esc(v.coat)}<div class="muted">About ${ageStr(v.age)} · grows to ~${HOGG.maxW(v)} lb · strength ${HOGG.stats(v).str}, growth ${HOGG.stats(v).grow}</div>
+      <div class="muted" style="margin-top:4px">Keeping it brings this exact hog, genes and all, into your Hog Pin to breed or train dogs on. If you don't choose, it's sold when you head out again or end the day.</div></div></div>
+     <div class="row" style="margin-top:8px"><button class="btn alt" data-act="hogpick" data-k="keep" ${room?'':'disabled'}>Keep (Hog Pin)</button><button class="btn" data-act="hogpick" data-k="sell">Sell ${fmt(o.pay)}</button><button class="btn ghost" data-act="hogpick" data-k="release">Turn it loose</button></div>
+     ${room?'':'<div class="small muted" style="margin-top:6px">Your Hog Pin is full. Build or upgrade Hog Pins on your land to keep more.</div>'}</div>`}
+};
+// a preview of the hog from the hunt, exactly as it would be kept (it isn't on the ranch until you choose Keep)
+HOGG.preview=function(o){const seq=S.hogSeq;const h=HOGG.fromWild(o);S.hogSeq=seq;h.id='HW-'+o.id;h.id0=o.id;return h};
+const HOG_ACTIONS={
+  hogview:d=>HOGUI.profile(d.id),
+  hogfilter:d=>{UI.hogF=d.k;render()},
+  hogration:d=>{S.hogPin.ration=d.k;save();render()},
+  hogwaterer:()=>{if(S.money<400)return;S.money-=400;S.hogPin.waterer=true;addLog('Installed an automatic hog waterer.');save();render()},
+  hogbreedtab:()=>{UI.breedMode='hog';UI.tab='breed';render();window.scrollTo(0,0)},
+  hogbreedwith:d=>{const h=S.hogs.find(x=>x.id===d.id);if(!h)return;if(h.sex==='M')UI.hgBoar=h.id;else UI.hgSow=h.id;UI.breedMode='hog';UI.tab='breed';closeSheet();render();window.scrollTo(0,0)},
+  hogbreed:()=>{const b=S.hogs.find(h=>h.id===UI.hgBoar),s=S.hogs.find(h=>h.id===UI.hgSow),pr=HOGG.breed(b,s);if(pr.length)return toast(pr[0]);toast(`${s.name} is bred. Piglets due day ${s.preg.due}.`);sfx.ok();UI.hogPreview=null;save();render()},
+  hogpreview:()=>{const b=S.hogs.find(h=>h.id===UI.hgBoar),s=S.hogs.find(h=>h.id===UI.hgSow);if(!b||!s)return;const seq=S.hogSeq;
+    UI.hogPreview=[0,1,2,3].map(i=>{const x=HOGG.create({age:18,wt:HOGG.maxW({genes:HOGG.childGenes(HOGG.belief(b,R),HOGG.belief(s,R)),sex:'M'})*.6,genes:HOGG.childGenes(HOGG.belief(b,R),HOGG.belief(s,R)),anc:s.anc});x.wt=HOGG.maxW(x)*HOGG.frac(x);HOGG.settle(x);x.id='HP-'+i+'-'+ri(1e4,9e4);return x});S.hogSeq=seq;UI.hogPreviewKey=UI.hgPredKey;render()},
+  hogrename:d=>{const h=S.hogs.find(x=>x.id===d.id);if(!h)return;const n=prompt('Name:',h.name);if(n&&n.trim()){h.name=n.trim().slice(0,24);save();render();HOGUI.profile(h.id)}},
+  hogdna:d=>{const h=S.hogs.find(x=>x.id===d.id);if(!h||S.money<HOG_DNA)return;S.money-=HOG_DNA;h.known=Object.fromEntries(Object.keys(HGL).map(l=>[l,1]));addLog(`DNA test: ${h.name}'s genetics are on record.`);save();render();HOGUI.profile(h.id)},
+  hogsell:d=>{const h=S.hogs.find(x=>x.id===d.id);if(!h)return;if(h.preg&&!confirm(`${h.name} is bred. Sell her and the litter she carries?`))return;if(!confirm(`Sell ${h.name} (${h.w} lb) for ${fmt(h.price)}?`))return;const v=HOGG.sell(h);toast(`Sold ${h.name} for ${fmt(v)}.`);sfx.coin();closeSheet();save();render()}
+};
+
+SCREENS.hogpin=()=>HOGUI.screen();
+
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
@@ -4538,6 +4839,7 @@ SCREENS.admin=()=>{
    ${row(`Kennel <b class="num">${S.dogs.length}/${dogCap()}</b>`,`${b('heal','Heal & rest all dogs')}`)}
   </div>
   <div class="panel" style="margin-bottom:10px"><h3 style="margin-top:0">Horses & livestock</h3>
+   ${row('Hog type',`<select data-f="admHog">${opt(Object.keys(HOGS),UI.admHog||'feral')}</select><button class="btn sm" data-act="adm" data-k="hog" data-n="M">Add boar</button><button class="btn sm" data-act="adm" data-k="hog" data-n="F">Add sow</button>`)}
    ${row('Horse breed',`<select data-f="admHorse">${opt(Object.keys(HORSE_BREEDS),UI.admHorse)}</select>${b('horse','Add horse')}`)}
    ${row(`Cattle <b class="num">${S.cattle}</b>`,`${b('cattle','+5 cattle','data-n="5"')}`)}
   </div>
@@ -4562,6 +4864,7 @@ const ADMIN_OPS={
     S.dogs.push(dog);addLog(`Admin: added ${dog.name} (${dog.breed}).`);toast(`${dog.name} joined the kennel${d.legend?' (legendary)':''}.`)},
   heal:()=>{for(const x of S.dogs){x.health=x.hcap||100;x.energy=100}},
   horse:()=>{const h=makeHorse(UI.admHorse,{age:48});S.horses.push(h);toast(`${h.name} is in the stable.`)},
+  hog:d=>{const key=UI.admHog||'feral',H=HOGS[key],h=HOGG.fromWild({seed:ri(1,2e9),key,w:ri(H.w[0],H.w[1]),sex:d.n==='F'?'F':'M',sp:.8+R()*.4,end:.9+R()*.4,aggr:R(),aware:.5,area:'creek'});S.hogs.push(h);toast(`${h.name} (${h.id}) is in the Hog Pin.`)},
   cattle:d=>{S.cattle+=+d.n},
   feed:()=>{S.inv.feed=Math.max(S.inv.feed,feedCap())},
   items:()=>{for(const k of Object.keys(S.inv))if(k!=='feed'&&k!=='collar')S.inv[k]+=10;S.inv.collar=Math.max(1,S.inv.collar||0)},
@@ -4583,8 +4886,9 @@ const ADMIN_ACTIONS={
 if(!load()||!S||S.v!==1)freshState();else{try{migrate()}catch(e){console.error('migrate',e)}}
 try{WE.ensure()}catch(e){console.error('world',e)}
 try{HG.migrate()}catch(e){console.error('horses',e)}
+try{HOGG.migrate()}catch(e){console.error('hogs',e)}
 try{if(S.pendingHog)PR.flush()}catch(e){console.error('pending hog',e)}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
