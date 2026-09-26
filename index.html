@@ -14,6 +14,13 @@
 <meta property="og:image:width" content="1983"><meta property="og:image:height" content="793">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://hogs-and-dogs.vercel.app/banner.jpg">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#120d09">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hogs & Dogs">
+<link rel="apple-touch-icon" href="/assets/app/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1946,7 +1953,7 @@ function statBars(d){return STATS.map(([k,l])=>`<div class="stat"><span>${l}</sp
 SCREENS.home=()=>{
   const ready=S.dogs.filter(d=>isAdult(d)&&d.energy>=35&&d.health>=40).length;
   const pups=S.dogs.filter(d=>!isAdult(d)).length;
-  return `<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>${esc(S.name)}</h2><p class="sub">Day ${S.day} on the ranch. Net worth <b class="num">${fmt(netWorth())}</b>.</p>${GOALS.card()}
+  return `<div class="hero" role="img" aria-label="Hogs & Dogs"></div><h2>${esc(S.name)}</h2><p class="sub">Day ${S.day} on the ranch. Net worth <b class="num">${fmt(netWorth())}</b>.</p>${GOALS.card()}${APP.homeHint()}
   <div class="panel small" style="margin-bottom:10px"><i>${esc(dayPick(HOLLIS[hintStage()],1))}</i><div class="muted" style="margin-top:4px">Tip: ${esc(dayPick(HINTS[hintStage()]))}</div></div>
   ${repPanel(false)}${WE.homeCard()}${TOURN.home()}${JB.home()}${S.hogs.length?`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="hogpin"><div class="spread"><b>Hog Pin</b><span class="small">${S.hogs.length}/${HOGG.cap()} hogs</span></div><div class="small muted">${S.hogs.filter(h=>h.preg).length} sow${S.hogs.filter(h=>h.preg).length===1?'':'s'} bred · ${S.hogs.filter(h=>h.age<3).length} piglets · feed ${Math.ceil(HOGG.feedNeed())}/day</div></button>`:''}
   <div class="panel"><div class="spread"><div><b>End the day</b><div class="small muted">Dogs eat ${S.dogs.length} feed, rest to full energy, pups grow, the market restocks.</div></div></div>
@@ -3114,7 +3121,8 @@ const yd=t=>Math.round(t*TILE_YD);
 function hwEvent(S2,kind,txt,gap=40){if(S2.ev[kind]!==undefined&&S2.t-S2.ev[kind]<gap)return;S2.ev[kind]=S2.t;const m=Math.floor(S2.t/60);
   S2.events.unshift({t:S2.t,kind,txt:`${m}:${String(Math.floor(S2.t%60)).padStart(2,'0')}  ${txt}`});if(S2.events.length>60)S2.events.length=60;
   if(UI.hunt)UI.hunt.log=S2.events.map(e=>e.txt)}
-function hwBanner(S2,txt){S2.banner={txt,t:S2.t}}
+const HW_NOTE={'BAY STARTED':'Bay started! Release the catch dogs.','HOG CONTROLLED':'Hog caught!','HOG BROKE BAY':'The hog broke bay and is running.','GIANT BOAR!':'That is the giant boar!'};
+function hwBanner(S2,txt){S2.banner={txt,t:S2.t};if(HW_NOTE[txt])try{APP.notify('Hogs & Dogs',HW_NOTE[txt])}catch(e){}}
 // steer toward a heading, picking the cheapest nearby direction; heading turns smoothly so paths curve
 function hwMove(a,dx,dy,speed,dt,kind,wob=0){const want=Math.atan2(dy,dx)+wob;let best=want,bc=1e9;
   for(const o of[0,-.45,.45,-.9,.9]){const an=want+o,c=HNAVW[kind][hwT(a.x+Math.cos(an)*2,a.y+Math.sin(an)*2)]+Math.abs(o)*.9;if(c<bc){bc=c;best=an}}
@@ -4763,7 +4771,7 @@ const SHARE={
   async afterSignup(){if(!S.refBy||S.refDone||!signedIn())return;try{const r=await sbRpc('hd_refer',{...(await A2()),p_ref:S.refBy});S.refDone=true;
       if(r==='ok'){S.money+=REF_NEW;S.inv.feed+=20;addLog(`Invited by ${S.refBy}: welcome bonus ${fmt(REF_NEW)} and 20 feed.`);toast(`${S.refBy} invited you: ${fmt(REF_NEW)} and 20 feed to start!`)}save();render()}catch(e){}},
   async collect(){if(!signedIn()||inClaude)return;try{const r=await sbRpc('hd_referral_rewards',await A2());if(!r)return;S.refTotal=r.total;
-      if(r.new>0){const v=r.new*REF_INVITER;S.money+=v;addLog(`${r.new} friend${r.new>1?'s':''} joined from your invite link: +${fmt(v)}.`);toast(`${r.new} friend${r.new>1?'s':''} joined with your link! +${fmt(v)}`)}save();render()}catch(e){}},
+      if(r.new>0){const v=r.new*REF_INVITER;S.money+=v;addLog(`${r.new} friend${r.new>1?'s':''} joined from your invite link: +${fmt(v)}.`);toast(`${r.new} friend${r.new>1?'s':''} joined with your link! +${fmt(v)}`);APP.notify('A friend joined',`${r.new} friend${r.new>1?'s':''} joined with your invite link: +${fmt(v)}`)}save();render()}catch(e){}},
   panel(){if(inClaude)return'';if(!signedIn())return`<div class="panel small" style="margin-top:10px"><b>Invite friends</b><div class="muted">Make a free account to get your own invite link: ${fmt(REF_INVITER)} for every friend who joins, and they start with ${fmt(REF_NEW)}.</div></div>`;
     return`<div class="panel" style="margin-top:10px"><b>Invite friends</b><div class="small muted">Every friend who makes an account from your link: you get ${fmt(REF_INVITER)}, they start with ${fmt(REF_NEW)} and 20 feed.</div>
      <div class="small" style="margin:6px 0;word-break:break-all"><b>${esc(this.link())}</b></div><div class="row"><button class="btn sm" data-act="copyInvite">Copy link</button>${navigator.share?'<button class="btn sm alt" data-act="shareInvite">Share link</button>':''}</div>
@@ -4800,10 +4808,40 @@ const TOURN={
   // prizes for finished weeks
   async claim(){if(inClaude)return;try{const r=await sbRpc('hd_tourney_claim',await A2());if(!r||!r.length)return;S.badges=S.badges||[];let tot=0;
       for(const w of r){const v=TOURN_PRIZE[w.place-1]||0;tot+=v;S.badges.unshift({week:w.week,event:w.event,place:w.place,value:w.value,detail:w.detail})}
-      S.money+=tot;const m=`Tournament prize${r.length>1?'s':''}: ${r.map(w=>`#${w.place} ${TOURN_EV[w.event].name}`).join(', ')}. +${fmt(tot)}!`;addLog(m);toast(m);sfx.win();save();render()}catch(e){console.warn('tourney claim',e)}},
+      S.money+=tot;const m=`Tournament prize${r.length>1?'s':''}: ${r.map(w=>`#${w.place} ${TOURN_EV[w.event].name}`).join(', ')}. +${fmt(tot)}!`;addLog(m);toast(m);APP.notify('Tournament prize',m);sfx.win();save();render()}catch(e){console.warn('tourney claim',e)}},
   home(){if(inClaude)return'';return`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="tourney"><div class="spread"><b>🏆 Weekly tournament</b><span class="small">ends in ${TOURN.endsIn()}</span></div><div class="small muted">Heaviest Hog · Most Hogs · Top Breeder. Top three win up to ${fmt(TOURN_PRIZE[0])}.</div></button>`}
 };
 SCREENS.tourney=()=>TOURN.screen();
+
+// =========================================================
+// THE APP: install to the home screen, notifications, analytics
+// On the game's own site a service worker (sw.js) makes it installable and keeps pictures cached. Notifications are
+// opt-in and only fire while the game is in the background (a hunt running in another tab or app): a bay starting,
+// a hog caught, a prize or a friend joining. Analytics is Vercel's privacy-friendly page counter (no cookies).
+// =========================================================
+const APP={
+  ok:()=>'serviceWorker' in navigator&&/^https?:$/.test(location.protocol)&&/(^localhost$|^127\.|vercel\.app$)/.test(location.hostname)&&!inClaude,
+  standalone:()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,
+  ios:()=>/iphone|ipad|ipod/i.test(navigator.userAgent),
+  boot(){if(!APP.ok())return;try{navigator.serviceWorker.register('/sw.js').then(r=>APP.reg=r).catch(e=>console.warn('sw',e))}catch(e){}
+    window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();APP.prompt=e;if(UI.tab==='more'||UI.tab==='home')render()});
+    window.addEventListener('appinstalled',()=>{APP.prompt=null;S.st.installed=1;toast('Hogs & Dogs is on your home screen.');save();render()});
+    // Vercel Web Analytics (counts visits once it's switched on for the project; no cookies)
+    if(/vercel\.app$/.test(location.hostname)){window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};const s=document.createElement('script');s.defer=true;s.src='/_vercel/insights/script.js';document.head.appendChild(s)}},
+  async install(){if(APP.prompt){APP.prompt.prompt();const c=await APP.prompt.userChoice.catch(()=>null);APP.prompt=null;render();return}
+    openSheet(`<h2>Install Hogs & Dogs</h2>${APP.ios()?'<p>On iPhone or iPad: tap the <b>Share</b> button in Safari, then <b>Add to Home Screen</b>.</p>':'<p>Open your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>.</p>'}<p class="small muted">It opens full screen like any other app and keeps your ranch on this device and your account.</p>`)},
+  canNotify:()=>'Notification' in window,
+  async notifyOn(){if(!APP.canNotify())return toast('This browser does not support notifications.');const r=await Notification.requestPermission();S.notify=r==='granted';save();render();toast(S.notify?'Notifications on.':'Notifications are blocked in your browser settings.')},
+  notify(title,body){try{if(!S.notify||!APP.canNotify()||Notification.permission!=='granted'||!document.hidden)return;const o={body,icon:'/assets/app/icon-192.png',badge:'/assets/app/icon-192.png',tag:title};
+    if(APP.reg&&APP.reg.showNotification)APP.reg.showNotification(title,o);else new Notification(title,o)}catch(e){}},
+  panel(){if(!APP.ok())return'';const inst=APP.standalone();
+    return`<div class="panel" style="margin-top:10px"><b>App & notifications</b>
+     <div class="small muted">${inst?'Running as an installed app.':'Put Hogs & Dogs on your home screen: it opens full screen like an app.'}</div>
+     <div class="row" style="margin-top:8px">${inst?'':'<button class="btn sm" data-act="appInstall">Install the app</button>'}${APP.canNotify()?`<button class="btn sm ${S.notify?'ghost':'alt'}" data-act="${S.notify?'appNotifyOff':'appNotify'}">${S.notify?'Turn notifications off':'Turn on notifications'}</button>`:''}</div>
+     <div class="small muted" style="margin-top:6px">Notifications tell you when a bay starts or a hog is caught while the game is in the background, and when you win a prize or a friend joins.</div></div>`},
+  homeHint(){if(!APP.ok()||APP.standalone()||!APP.prompt||S.hideInstall)return'';return`<div class="panel small spread" style="margin-top:10px;gap:8px"><span><b>Play it like an app.</b> Add Hogs & Dogs to your home screen.</span><span><button class="btn sm" data-act="appInstall">Install</button><button class="btn sm ghost" data-act="appHide" aria-label="Hide">✕</button></span></div>`}
+};
+const APP_ACTIONS={appInstall:()=>APP.install(),appNotify:()=>APP.notifyOn(),appNotifyOff:()=>{S.notify=false;save();render()},appHide:()=>{S.hideInstall=1;save();render()}};
 
 // ---------- other screens ----------
 SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
@@ -4996,7 +5034,7 @@ async function checkAdmin(){
   try{UI.admin=(await sbRpc('hd_is_admin',await A2()))===true}catch(e){UI.admin=false}
   return UI.admin}
 // admin rights can be granted while the game is open: opening More asks the server again (at most every 20 s)
-{const more=SCREENS.more;SCREENS.more=()=>{if(signedIn()&&!inClaude&&Date.now()-(UI.admChk||0)>20000){UI.admChk=Date.now();const was=!!UI.admin;checkAdmin().then(a=>{if(a!==was&&UI.tab==='more')render()})}return more()}}
+{const more=SCREENS.more;SCREENS.more=()=>{if(signedIn()&&!inClaude&&Date.now()-(UI.admChk||0)>20000){UI.admChk=Date.now();const was=!!UI.admin;checkAdmin().then(a=>{if(a!==was&&UI.tab==='more')render()})}return more()+APP.panel()}}
 function adminLegend(o){for(let i=0;i<400;i++){const d=makeDog({...o,boost:25,mut:true});if(isLegend(d))return d}return null}
 function adminMaxUpgrades(){const P=S.land;
   for(let pass=0;pass<3;pass++)for(const k of Object.keys(LAND_UP))while(!Prop.upgradeProblem(k)){const l=landLevel(P,k);
@@ -5075,9 +5113,10 @@ try{HG.migrate()}catch(e){console.error('horses',e)}
 try{HOGG.migrate()}catch(e){console.error('hogs',e)}
 try{GOALS.login()}catch(e){console.error('goals',e)}
 try{SHARE.arrive()}catch(e){}
+try{APP.boot()}catch(e){console.error('app',e)}
 setTimeout(()=>{SHARE.collect();TOURN.claim()},3000);
 try{if(S.pendingHog)PR.flush()}catch(e){console.error('pending hog',e)}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
