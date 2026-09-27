@@ -2050,6 +2050,7 @@ function dogProfile(id){
   <h3>Stats <span class="small muted">current / genetic potential</span></h3>${statBars(d)}
   <div class="row small" style="margin-top:6px"><span class="tag">Bay score ${Math.round(bayScore(d))}</span><span class="tag">Catch score ${Math.round(catchScore(d))}</span><span class="tag">Hunts ${d.hunt.n}</span><span class="tag">Bays ${d.hunt.bays}</span><span class="tag">Catches ${d.hunt.catches}</span>${RB.profileRow(d)}${CN.profileRow(d)}${SPEC.row(d)}<span class="tag">Training sessions ${d.trained}</span></div>
   ${realUI('profile',d)}
+  ${(()=>{try{return R2.profile(d)}catch(e){return''}})()}
   ${bdgUI('section',d)}
   <h3>Genetics</h3><p class="small" style="margin:0 0 6px"><b>Coat:</b> ${esc(coatName(d))}</p><p class="small" style="margin:0 0 6px"><b>Genetic ID:</b> <span class="gt" style="user-select:all">${esc(geneticId(d))}</span></p><p class="small" style="margin:0 0 6px"><b>Eyes:</b> ${(()=>{const c=gameCoat(d);return c.eyes===c.eyes2?esc(c.eyes):esc(c.eyes)+' and '+esc(c.eyes2)+' (mismatched)'})()}</p><p class="small muted" style="margin:0 0 6px">White modifier ${(d.whiteMod||0)>=0?'+':''}${Math.round((d.whiteMod||0)*100)}%, pattern strength ${Math.round((d.patMod??.5)*100)}%</p>
   <div class="tablewrap"><table>${Object.entries(LOCI).map(([L,o])=>`<tr><td>${o.name}</td><td><span class="gt">${genoText(d,L,' / ')}</span>${d.genes[L].some(a=>!known(a))?' <span class="small muted">Unknown trait</span>':''}</td></tr>`).join('')}</table></div>
@@ -2057,7 +2058,7 @@ function dogProfile(id){
   <h3>Pedigree</h3>${ped}
   <h3>Actions</h3><div class="row">
    <button class="btn sm alt" data-act="goTrain" data-id="${d.id}">Train</button>
-   <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>${d.inj?`${HOGAI.isCut(d)&&!d.inj.stitched?`<button class="btn sm" data-act="stitch" data-id="${d.id}">🩹 Stitch it (${S.inv.kit>0?'use a trauma kit':fmt(ITEMS.kit.price)})</button>`:''}<button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet: ${esc(d.inj.what)} (${fmt(WE_VET[d.inj.sev])})</button>`:''}
+   <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>${d.inj?`${HOGAI.isCut(d)&&!d.inj.stitched?`<button class="btn sm" data-act="stitch" data-id="${d.id}">🩹 Stitch it (${S.inv.kit>0?'use a trauma kit':fmt(ITEMS.kit.price)})</button>`:''}<button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=vetCost(d)?'':'disabled'}>Vet: ${esc(d.inj.what)} (${fmt(vetCost(d))})</button>`:''}
    <button class="btn sm alt" data-act="dnaTest" data-id="${d.id}" ${d.dna||S.money<DNA_TEST?'disabled':''}>${d.dna?'DNA tested':'DNA test ('+fmt(DNA_TEST)+')'}</button>
    <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>${S.dogs.includes(d)?SHARE.btn('dog',d.id):''}
    <button class="btn sm ghost" data-act="setPair" data-id="${d.id}" ${isAdult(d)?'':'disabled'}>Use for breeding</button>
@@ -2147,7 +2148,7 @@ SCREENS.hunt=()=>{
   if(UI.huntMode==='rabbit')return RB.setup();
   if(['coon','squirrel','west'].includes(UI.huntMode))return CN.setup(UI.huntMode);
   if(UI.huntMode==='blood')return BT.setup();
-  const sel=UI.huntSel,elig=S.dogs.filter(d=>isAdult(d)&&!d.retired);
+  const sel=UI.huntSel,elig=S.dogs.filter(d=>isAdult(d)&&!d.retired&&!d.blind);
   const maxBay=3+VEH.box(),maxCatch=(landLevel(S.land,'gear')>=2?3:2)+VEH.box();
   const card=(d,role)=>{const on=sel[role].includes(d.id),other=sel[role==='bay'?'catch':'bay'].includes(d.id);const ok=d.energy>=35&&d.health>=40;
     return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
@@ -3269,6 +3270,7 @@ function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tir
   if(g.st==='hot'&&g.hog&&g.hog.rabbit)return RB.dogHot(S2,g,g.hog,dt);
   if(g.st==='hot'&&g.hog&&g.hog.coon)return CN.dogHot(S2,g,g.hog,dt);
   if(g.st==='treed')return CN.dogTreed(S2,g,dt);
+  if(g.st==='hot'&&!g.hog){g.st='cast';g.next=0;return}   // lost its hog (it was caught, left, or never set): back to hunting
   if(g.st==='hot'){const h=g.hog;drain(2.6);const d=Math.hypot(h.x-g.x,h.y-g.y);
     if(!h.rev&&d<25*HWX.vis)hwReveal(S2,h,`${g.name} has the hog in sight!`);if(h.st==='bed'||h.st==='wander'||h.st==='sneak'){if(d<9){h.st=R()<.1+h.aggr*.35?'stand':'run';hwJump(S2,h)}}
     hwMove(g,h.x-g.x,h.y-g.y,2.15*g.at.spd*tired*(1+(h.st==='run'?BFX(g,'pressure'):0)),dt,'dog',(R()-.5)*.25);
@@ -3700,7 +3702,7 @@ const WE={
   meter(v,col){return`<div class="meter"><i style="width:${Math.round(clamp(v,0,1)*100)}%;background:${col}"></i></div>`},
   notices(){const W=WE.ensure(),hurt=S.dogs.filter(d=>d.inj);let o='';
     for(const L of W.lost)o+=`<div class="spread" style="gap:8px;margin:6px 0"><div><b>${esc(L.dog.name)} is missing</b><div class="small muted">Last heard in the ${areaName(L.area)} on day ${L.day}: ${esc(L.why)}.</div></div><button class="btn sm" data-act="wsearch" data-id="${L.dog.id}">Search</button></div>`;
-    for(const d of hurt)o+=`<div class="spread" style="gap:8px;margin:6px 0"><div><b>${esc(d.name)}</b> <span class="tag warn">${WE_SEV[d.inj.sev]}</span><div class="small muted">${esc(d.inj.what)}. Heals in ${d.inj.left} day${d.inj.left>1?'s':''} at the ranch${WE_CAP[d.inj.sev]<100?`; health held to ${WE_CAP[d.inj.sev]} until then`:''}.</div></div><button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet ${fmt(WE_VET[d.inj.sev])}</button></div>`;
+    for(const d of hurt)o+=`<div class="spread" style="gap:8px;margin:6px 0"><div><b>${esc(d.name)}</b> <span class="tag warn">${WE_SEV[d.inj.sev]}</span><div class="small muted">${esc(d.inj.what)}. Heals in ${d.inj.left} day${d.inj.left>1?'s':''} at the ranch${WE_CAP[d.inj.sev]<100?`; health held to ${WE_CAP[d.inj.sev]} until then`:''}.</div></div><button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=vetCost(d)?'':'disabled'}>Vet ${fmt(vetCost(d))}</button></div>`;
     return o},
   homeCard(){const W=WE.ensure(),n=W.lost.length+S.dogs.filter(d=>d.inj).length;
     return`<button class="panel" style="text-align:left;width:100%;margin-top:10px" data-act="tab" data-t="world"><div class="spread"><b>${WE.dateLabel()}</b><span>${WE.wxLabel()}</span></div>
@@ -4655,8 +4657,19 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.8.1';
-const PATCH_NOTES=[{v:'1.8.1',title:'Every dog looks grown',items:[
+const GAME_VERSION='1.9.0';
+const PATCH_NOTES=[{v:'1.9.0',title:'Real woods II',items:[
+  ['Diseases','Pseudorabies (the "mad itch") comes from wild hogs; catch dogs can pick it up and it is almost always fatal. Heartworm and tick fever hit dogs without parasite prevention, and leptospirosis lives in creek and swamp water. Prevention is on by default ($6 per dog a month); the lepto vaccine is on the vet screen.'],
+  ['Inherited health','Double merles are often born blind or deaf, heavy white carries deafness, big dogs can have bad hips and deep-chested breeds can bloat. Close breeding raises the risk; inbreeding shows on the profile. Health screening (hips, hearing, eyes) makes clear dogs and their pups worth more.'],
+  ['Broken bones','Hard hits can break a leg. The vet X-rays and sets it; left alone it heals crooked and the dog is a step slower for life.'],
+  ['Nerve','A dog that gets cut bad can lose its nerve and turn hog-shy. Rebuild it on easy hogs in hog training; some come back tougher than before.'],
+  ['Dogs with character','Every dog has its own bark (chop, bawl or squall). Some are thunder-shy, some are rough dogs that grab instead of baying, and some trail silent. Start pups on shoats between 4 and 12 months; started and finished dogs are graded and worth more.'],
+  ['Gear and truck','Cut vests wear out, the GPS handheld\'s battery dies on long hunts, and the truck wears down and can break down (no road trips until it\'s fixed).'],
+  ['Hauling and the freezer','Your rig only hauls so many live hogs. Put a hog in the freezer instead of selling it; give meat to landowners or cook it for the dogs (never raw).'],
+  ['Landowners','Each piece of ground has a landowner who trusts you more when you clear his hogs, and less when your dogs run his cattle or you leave a gate open. Lose his trust and he pulls your permission until you win him back.'],
+  ['Other crews and more hogs','Other crews\' dogs can come in on your bay and take the hog if you\'re slow. Ground nobody hunts fills up with hogs, and the landowners start calling.'],
+  ['Tusks','Caught boars are aged by their teeth and their tusks are measured. The best go on the trophy wall.']]},
+  {v:'1.8.1',title:'Every dog looks grown',items:[
   ['No more puppy pictures','Every dog is drawn as a full-grown adult at every age again. Young dogs still grow into their stats and can\'t hunt until they\'re grown; they just look like the adult they\'ll become.']]},
   {v:'1.8.0',title:'New Pit Bull and the Pit × Mastiff',items:[
   ['A new Pit Bull','The American Pit Bull Terrier has a brand-new master model: a lean, athletic, hard-muscled pit in full stride, with cropped ears and an open mouth. Every Pit Bull you own uses it, in its own genetic colours.'],
@@ -5015,7 +5028,7 @@ const HOGUI={
     return`<div class="panel" style="margin-top:10px;border:2px solid var(--blaze)"><h3 style="margin-top:0">Keep, sell or turn it loose?</h3><div class="small muted" style="margin:-4px 0 6px">${o.tie>1?'🪢 Clean tie: the live buyer pays 10% more.':o.bruise?'He got bruised in the tie-up: the processor pays less.':''} The live buyer pays best for big boars; the processor pays by the pound.</div>
      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:0 0 auto">${HOGG.art(v,200)}</div><div class="small"><b>${o.w} lb ${esc(o.name.toLowerCase())}</b> · ${o.sex==='M'?'boar':'sow'} · ${esc(v.coat)}<div class="muted">About ${ageStr(v.age)} · grows to ~${HOGG.maxW(v)} lb · strength ${HOGG.stats(v).str}, growth ${HOGG.stats(v).grow}</div>
       <div class="muted" style="margin-top:4px">Keeping it brings this exact hog, genes and all, into your Hog Pin to breed or train dogs on. If you don't choose, it's sold when you head out again or end the day.</div></div></div>
-     <div class="row" style="margin-top:8px"><button class="btn alt" data-act="hogpick" data-k="keep" ${room?'':'disabled'}>Keep (Hog Pin)</button><button class="btn" data-act="hogpick" data-k="live">Live buyer ${fmt(HOG_SALE.live(o))}</button><button class="btn" data-act="hogpick" data-k="proc">Processor ${fmt(HOG_SALE.proc(o))}</button><button class="btn ghost" data-act="hogpick" data-k="release">Turn it loose</button></div>
+     <div class="row" style="margin-top:8px"><button class="btn alt" data-act="hogpick" data-k="keep" ${room?'':'disabled'}>Keep (Hog Pin)</button><button class="btn" data-act="hogpick" data-k="live">Live buyer ${fmt(HOG_SALE.live(o))}</button><button class="btn" data-act="hogpick" data-k="proc">Processor ${fmt(HOG_SALE.proc(o))}</button><button class="btn alt" data-act="hogpick" data-k="freezer">Freezer (${Math.round(o.w*.35)} lb of meat)</button><button class="btn ghost" data-act="hogpick" data-k="release">Turn it loose</button></div>
      ${room?'':'<div class="small muted" style="margin-top:6px">Your Hog Pin is full. Build or upgrade Hog Pins on your land to keep more.</div>'}</div>`}
 };
 // a preview of the hog from the hunt, exactly as it would be kept (it isn't on the ranch until you choose Keep)
@@ -6975,7 +6988,171 @@ REAL.positive=o=>((o.seed||0)%100)>=96;
 {const o=A.train;A.train=function(d){const dog=S.dogs.find(x=>x.id===UI.trainDog),n0=dog&&dog.trained;const r=o(d);try{if(dog&&dog.trained>n0&&(d.k==='sta'||d.k==='spd')){dog.cond=Math.min(100,REAL.cond(dog)+(d.k==='sta'?5:3));dog.worked=S.day;save()}}catch(e){}return r}}
 {const o=dogCard;dogCard=function(d,act,extra){const html=o(d,act,extra);try{const t=[];if(d.retired)t.push('<span class="tag">Retired</span>');else if(d.sore&&d.sore>=S.day)t.push('<span class="tag warn">Sore feet</span>');if(d.age>=4&&!REAL.rabiesOk(d))t.push('<span class="tag warn">Shots due</span>');return t.length?html.replace('<div class="badges">','<div class="badges">'+t.join('')):html}catch(e){return html}}}
 {const o=SCREENS.trophies;if(o)SCREENS.trophies=function(){return o()+REAL.memorialHTML()}}
-Object.assign(A,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- REAL WOODS II: health, mind, gear, people, hogs ----------
+// What wears on a real hog-dog outfit: pseudorabies from hogs, heartworm, ticks and lepto; inherited defects (double
+// merles, deaf whites, bad hips, bloat) and inbreeding; broken bones; dogs that lose their nerve after a bad cut; thunder-
+// shy, rough and silent dogs; starting pups on shoats; gear that wears out; hauling and the freezer; landowners who can pull
+// a lease; other crews on your bay; hog numbers that climb when ground goes unhunted; and scoring tusks.
+// One game day is one month here too.
+const R2_PREV=6,R2_LEPTO=25,R2_LEPTO_DAYS=12,R2_SCREEN=250,R2_HW_TREAT=450,R2_TICK_TREAT=120,R2_LEPTO_TREAT=350,R2_BONE=900,R2_BLOAT=1500,R2_SHOATS=80,R2_REPAIR=[300,900];
+const MOUTHS={chop:'chop mouth',bawl:'bawl mouth',squall:'squall mouth'};
+const GPS_HOURS=[0,6,10,14];
+const DEEP_CHEST=['Cane Corso','Dogo Argentino','American Bulldog','Pit Bull Terrier × All Mastiff Mix'];
+function vetCost(d){return d.inj&&d.inj.bone?R2_BONE:WE_VET[d.inj?d.inj.sev:0]}
+const R2={
+  // ---- birth: temperament traits, voice, and inherited health ----
+  traits(d){if(d.r2)return;d.r2=1;d.conf=d.conf??ri(60,80);d.mouth=d.mouth||pick(Object.keys(MOUTHS));
+    const t=d.traits=d.traits||[];if(R()<.08)t.push('thunder');if(R()<.07)t.push('rough');if(R()<.06)t.push('silent')},
+  health(d,sire,dam){const g=d.genes||{},dm=g.M&&g.M[0]==='M'&&g.M[1]==='M',wh=g.S&&g.S[0]==='sw'&&g.S[1]==='sw',coi=d.coi||0;
+    // double merles: eye defects and deafness are common; heavy white carries deafness
+    if(dm){if(R()<.5)d.blind=true;if(R()<.5)d.deaf=true}else if(wh&&R()<.12+coi)d.deaf=true;
+    const big=(d.kg||25)>=32,base=big?62:78,par=sire&&dam&&sire.hips!=null&&dam.hips!=null?(sire.hips+dam.hips)/2:base;
+    d.hips=Math.round(clamp(par+gauss()*10-coi*60,5,100));if(coi>=.2){d.hcap=Math.min(d.hcap,90);d.health=Math.min(d.health,d.hcap)}},
+  // inbreeding from the pedigree the game keeps (parents and grandparents)
+  coi(s,m){if(!s||!m)return 0;const sp=s.parents||[],mp=m.parents||[],ids=a=>a.map(p=>p&&(p.id||p.name));
+    if(sp.some(p=>p&&(p.id===m.id||p.name===m.name))||mp.some(p=>p&&(p.id===s.id||p.name===s.name)))return .25;
+    const shared=ids(sp).filter(x=>x&&ids(mp).includes(x)).length;if(shared>=2)return .25;if(shared===1)return .125;
+    const gp=a=>a.flatMap(p=>(p&&p.parents)||[]);const g2=gp(sp).filter(x=>gp(mp).includes(x)).length;return Math.min(.2,g2*.0625)},
+  grade(d){if(!isAdult(d))return d.started?'Started pup':null;const H=d.hunt||{};if(H.n>=15&&(H.bays>=5||H.catches>=5))return'Finished dog';if(d.started||H.n>=3)return'Started dog';return null},
+  shy:d=>(d.conf??70)<35,
+  // ---- conditions ----
+  sick(d){const out=[];if(d.prv)out.push(d.prv.day<=S.day?'Pseudorabies':null);if(d.hw)out.push('Heartworm');if(d.tick)out.push('Tick fever');if(d.lepto)out.push('Leptospirosis');if(d.bloat)out.push('Bloat');return out.filter(Boolean)},
+  // ---- hunt start: traits and health change the hunt ----
+  attrs(d,a){if(d.deaf)a.obd*=.3;if(d.blind){a.nose*=.8;a.spd*=.7}if((d.traits||[]).includes('silent'))a.voice*=.3;
+    if(d.hips!=null&&d.hips<40&&d.age>36){a.spd*=.9;a.end*=.92}if(R2.shy(d)){a.grit*=.6;a.catch*=.7}if((d.traits||[]).includes('tough'))a.grit*=1.08;
+    if(d.hw)a.end*=.8;if(d.tick||d.lepto)a.end*=.75;return a},
+  // ---- during the hunt ----
+  step(S2,dt){if(!S2||S2.over||S2.practice||S2.mode==='blood')return;const X=S2.r2||(S2.r2={said:{}});X.acc=(X.acc||0)+dt;if(X.acc<1)return;const T=X.acc;X.acc=0;const h=UI.hunt;
+    // the GPS handheld battery
+    const TT=TRK.tier(),hrs=GPS_HOURS[S.trk||0];if(hrs&&S2.t>hrs*3600&&!X.said.gps){X.said.gps=1;S2.gpsDead=1;hwEvent(S2,'gpsdead','Your handheld’s battery died. You’re listening for the dogs the old way now.',1)}
+    // thunder-shy dogs quit in a storm
+    if(HWX.kind==='storm')for(const g of S2.dogs)if(g.d&&(g.d.traits||[]).includes('thunder')&&g.role==='bay'&&g.st!=='recall'&&g.st!=='leash'&&R()<T/400){g.st='recall';hwEvent(S2,'tshy'+g.id,`${g.name} is thunder-shy and quit to come back to you.`,1)}
+    // livestock and gates on the landowner's place
+    if(!S2.mode&&h&&h.area){for(const g of S2.dogs){if(g.st==='leash'||!(g.st==='cast'||g.st==='hot'||g.st==='track'))continue;
+        if(hwT(g.x,g.y)===T_GRASS&&!X.said['stock'+g.id]&&R()<T/9000*(1.2-g.at.obd)){X.said['stock'+g.id]=1;X.stock=(X.stock||0)+1;hwEvent(S2,'stock'+g.id,`${g.name} is running the landowner’s cattle! Call it off.`,1)}}}
+    // another crew comes in on your bay
+    const tg=S2.target;if(!S2.mode&&tg&&S2.phase==='bay'&&X.rival===undefined){X.rival=R()<.08?S2.t+ri(60,180):0}
+    if(X.rival&&!X.rivalIn&&S2.t>=X.rival&&S2.phase==='bay'&&!S2.released){X.rivalIn=S2.t;hwEvent(S2,'rival','Another crew’s dogs are coming in on your bay! Get your catch dogs in before they do.',1);hwBanner(S2,'OTHER DOGS!');
+      for(const g of S2.dogs)if(g.st==='bay'&&R()<.25)WE.hurt(S2,g,'bitten in a fight with the other crew’s dogs',ri(8,18))}
+    if(X.rivalIn&&!S2.released&&S2.phase==='bay'&&S2.t-X.rivalIn>90&&!S2.over){hwEvent(S2,'rivalwon','The other crew’s catch dogs got there first and took your hog.',1);return hwEnd(S2,false,['Another crew’s dogs took the hog off your bay. Release faster next time.'])}},
+  // a rough dog grabs instead of baying
+  bayStart(S2,g,h){if(!g.d||!(g.d.traits||[]).includes('rough')||R()>.4)return;hwEvent(S2,'rough'+g.id,`${g.name} is a rough dog: it grabbed the hog instead of baying!`,1);if(R()<.5)WE.hurt(S2,g,'cut grabbing the hog alone',ri(10,20));h.st='run';h.stam=Math.min(1,h.stam+.2)},
+  // ---- after the hunt ----
+  end(h){const S2=h&&h.sim;if(!S2||S2.r2Done)return;S2.r2Done=1;const L=h.result?h.result.lines:[],X=S2.r2||{},win=S2.win,tg=S2.target,area=h.area&&h.area.id;
+    for(const g of S2.dogs){const d=S.dogs.find(x=>x.id===g.id);if(!d)continue;R2.traits(d);
+      if(S2.practice){d.conf=Math.min(100,(d.conf??70)+10);if(d.wasShy&&d.conf>=60)R2.cameBack(d,L);continue}
+      const hurt=g.m&&g.m.hurt;if(hurt&&hurt.dmg>=18){const was=R2.shy(d);d.conf=Math.max(0,(d.conf??70)-ri(15,25)*((d.traits||[]).includes('tough')?.5:1));if(!was&&R2.shy(d)){d.wasShy=1;L.push(`${d.name} got hurt bad and has lost its nerve: it’s hog-shy now. Rebuild it on easy hogs in hog training or the bay pen.`)}}
+      else if(win&&((g.m&&g.m.bayT>60)||(g.m&&g.m.catchT>0))){d.conf=Math.min(100,(d.conf??70)+4);if(d.wasShy&&d.conf>=60)R2.cameBack(d,L)}
+      // pseudorabies: catch dogs on a hog can pick it up
+      if(!S2.mode&&win&&g.role==='catch'&&g.m&&g.m.catchT>0&&!d.prv&&R()<.01){d.prv={day:S.day+ri(1,2),src:'catching a hog'}}
+      // ticks and lepto on dogs without prevention
+      if(!S2.mode||S2.mode==='coon'){const t=area;if(!R2.prevOn()&&(t==='pine'||t==='thicket')&&!d.tick&&R()<.04){d.tick={day:S.day};L.push(`${d.name} came in loaded with ticks.`)}
+        if((t==='swamp'||t==='creek')&&!R2.leptoOk(d)&&!d.lepto&&R()<.02)d.lepto={day:S.day}}
+      // bloat in deep-chested dogs after a hard run
+      if(DEEP_CHEST.includes(d.breed)&&S2.t>2400&&!d.bloat&&R()<.004){d.bloat=1;L.push(`🚨 ${d.name}’s belly is swelling hard: bloat. It needs emergency surgery today (${fmt(R2_BLOAT)}) or it won’t make it.`)}}
+    // gear wears out
+    if(!S2.practice&&S.inv.vest>0&&S2.dogs.some(g=>g.role==='catch')){S.vestWear=(S.vestWear||0)+15+(S2.dogs.some(g=>g.m&&g.m.hurt)?15:0);if(S.vestWear>=100){S.vestWear=0;S.inv.vest--;L.push('A cut vest finally tore through. You have '+S.inv.vest+' left.')}}
+    if(!S2.practice){const trip=!!(h.area&&h.area.trip);S.truckWear=(S.truckWear||0)+(trip?6:2);if(!S.truckBroke&&S.truckWear>40&&R()<(S.truckWear-40)/200){S.truckBroke=ri(R2_REPAIR[0],R2_REPAIR[1]);L.push(`🛻 The truck broke down on the way home. Repairs will run ${fmt(S.truckBroke)} (More → Vet & paperwork). No road trips or leases until it’s fixed.`)}}
+    // the landowner
+    if(!S2.mode&&!S2.practice&&area){const O=R2.owner(area);O.last=S.day;if(win){O.trust=Math.min(100,O.trust+3)}
+      if(X.stock){O.trust=Math.max(0,O.trust-10*X.stock);L.push(`${O.name} wasn’t happy: your dogs ran the cattle (trust ${Math.round(O.trust)}).`)}
+      if(R()<.04){O.trust=Math.max(0,O.trust-6);L.push(`You left one of ${O.name}’s gates open. Word got back to him.`)}
+      if(O.trust<25&&!O.pulled){O.pulled=1;L.push(`${O.name} pulled your permission to hunt the ${areaName(area)}. Win him back with meat or by clearing his hogs on a job.`)}
+      const B=S.hogBoom||(S.hogBoom={});B[area]=Math.max(0,(B[area]||0)-.25-(win?.1:0))}
+    // tusks and age by the teeth
+    if(!S2.mode&&win&&tg&&tg.sex==='M'&&tg.w>=120){const age=clamp(Math.round(tg.w/70+R()*1.5),1,9),tusk=Math.round(clamp(1+(tg.w-120)/90+age*.18+gauss()*.3,.8,5)*8)/8,score=Math.round((tusk*2+age*.25)*8)/8;
+      tg.tusk=tusk;tg.ageY=age;L.push(`🦷 Tusks ${R2.inch(tusk)} long; aged about ${age} year${age>1?'s':''} by his teeth. Tusk score ${score}.`);
+      const T=S.tusks||(S.tusks=[]);T.push({w:tg.w,tusk,age,score,day:S.day,area:h.area.name,name:tg.name});T.sort((a,b)=>b.score-a.score);if(T.length>10)T.length=10}},
+  cameBack(d,L){d.wasShy=0;if(R()<.5&&!(d.traits||[]).includes('tough')){(d.traits=d.traits||[]).push('tough');L.push(`${d.name} got its nerve back and came back tougher than before.`)}else L.push(`${d.name} has its nerve back.`)},
+  inch(t){const w=Math.floor(t),f=Math.round((t-w)*8),fr=['','⅛','¼','⅜','½','⅝','¾','⅞'][f]||'';return`${w}${fr}"`},
+  // ---- landowners ----
+  owner(k){const O=S.owners||(S.owners={});if(!O[k]){const[who]=pick(JOB_OWNERS);O[k]={name:who,trust:60,last:S.day}}return O[k]},
+  pulled(k){return!!(S.owners&&S.owners[k]&&S.owners[k].pulled)},
+  // ---- prevention and vaccines ----
+  prevOn:()=>S.prev!==false,
+  leptoOk:d=>!!(d.leptoVax&&S.day-d.leptoVax<R2_LEPTO_DAYS),
+  // ---- one day (a month) ----
+  daily(msgs){const se=weSeason(),warm=se<=2,W=WE.ensure();
+    if(R2.prevOn()){const c=S.dogs.length*R2_PREV;S.money-=c;S.prevSpent=(S.prevSpent||0)+c}
+    for(const d of[...S.dogs]){R2.traits(d);
+      if(d.prv&&d.prv.day<=S.day){if(!d.prv.sick){d.prv.sick=1;msgs.push(`☠️ ${d.name} has pseudorabies (the "mad itch") from ${d.prv.src}. There is no cure.`)}else if(R()<.97){R2.lose(d,'died of pseudorabies',msgs);continue}else{delete d.prv;msgs.push(`${d.name} somehow pulled through pseudorabies.`)}}
+      if(!R2.prevOn()&&warm&&!d.hw&&R()<.03)d.hw={day:S.day};
+      if(d.hw){d.hcap=Math.max(40,d.hcap-2);d.health=Math.min(d.health,d.hcap);d.energy=Math.min(d.energy,70);if(S.day-d.hw.day===2)msgs.push(`${d.name} is coughing and tires fast: heartworm. Treat it (${fmt(R2_HW_TREAT)}) under the dog’s profile.`)}
+      if(d.tick){d.energy=Math.min(d.energy,50);d.health=Math.max(10,d.health-4)}
+      if(d.lepto){d.health=Math.max(5,d.health-15);if(S.day-d.lepto.day>=3&&R()<.2){R2.lose(d,'died of leptospirosis',msgs);continue}}
+      if(d.bloat){R2.lose(d,'died of bloat',msgs);continue}
+      if(d.inj&&d.inj.bone&&d.inj.left<=1&&!d.inj.set){d.stats.spd=Math.max(10,d.stats.spd-4);d.inj.set=1;msgs.push(`${d.name}’s leg healed crooked without surgery. It will always be a step slower.`)}}
+    // hog numbers climb where nobody hunts; landowners complain about crop damage
+    const B=S.hogBoom||(S.hogBoom={});for(const k in W.pop){B[k]=Math.min(1,(B[k]||0)+.08*(se===0||se===2?1.5:1));W.pop[k].n=clamp(W.pop[k].n*(1+B[k]*.05),.25,2.2);
+      const O=R2.owner(k);if(W.pop[k].n>1.4&&S.day-(O.last||0)>=3){O.trust=Math.max(0,O.trust-3);if(!O.warned||S.day-O.warned>=4){O.warned=S.day;msgs.push(`${O.name} says hogs are tearing up his place in the ${areaName(k)} and wants them gone.`)}}
+      if(O.pulled&&O.trust>=40){O.pulled=0;msgs.push(`${O.name} is letting you hunt the ${areaName(k)} again.`)}}
+    if(S.land&&R()<.03)msgs.push('You found tracks and a four-wheeler rut: somebody has been hunting your land without asking.')},
+  lose(d,why,msgs){S.dogs=S.dogs.filter(x=>x!==d);for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);if(UI.sire===d.id)UI.sire='';if(UI.dam===d.id)UI.dam='';REAL.memorial(d,why);msgs.push(`🕊️ ${d.name} ${why}.`)},
+  // ---- hauling ----
+  haul(){return 2+(VEH.has('trailer')?4:0)+(VEH.get().truck==='dually'?4:0)},
+  // ---- UI ----
+  profile(d){R2.traits(d);const s=R2.sick(d),c=d.conf??70,gr=R2.grade(d),T=d.traits||[];
+    const tr=[T.includes('thunder')&&'Thunder-shy',T.includes('rough')&&'Rough (grabs instead of baying)',T.includes('silent')&&'Silent trailer',T.includes('tough')&&'Tough (came back from a bad cut)'].filter(Boolean);
+    return`<div class="panel" style="margin-top:8px"><div class="spread small"><b>Nerve: ${c<35?'<span style="color:var(--bad)">Hog-shy</span>':c<60?'Shaky':c<85?'Steady':'Fearless'}</b><span class="num">${Math.round(c)}/100</span></div><div class="meter" style="height:6px"><i style="width:${c}%;background:var(--gold)"></i></div>
+    <div class="small" style="margin-top:6px">${gr?`<b>${gr}</b> · `:''}${esc(MOUTHS[d.mouth]||'')}${tr.length?' · '+tr.map(esc).join(' · '):''}</div>
+    <div class="small" style="margin-top:4px">Hips: ${d.tested?esc(d.tested.hips):'not screened'} · Hearing: ${d.tested?esc(d.tested.hear):'not screened'} · Eyes: ${d.tested?esc(d.tested.eyes):'not screened'}${d.coi?` · Inbreeding ${Math.round(d.coi*100)}%`:''}${R2.leptoOk(d)?' · Lepto vaccine current':''}</div>
+    ${s.length?`<div class="small" style="color:var(--bad);margin-top:4px"><b>${s.map(esc).join(', ')}</b></div>`:''}
+    <div class="row" style="margin-top:6px">${d.hw?`<button class="btn sm" data-act="r2Treat" data-id="${d.id}" data-k="hw">Heartworm treatment (${fmt(R2_HW_TREAT)})</button>`:''}${d.tick?`<button class="btn sm" data-act="r2Treat" data-id="${d.id}" data-k="tick">Tick fever meds (${fmt(R2_TICK_TREAT)})</button>`:''}${d.lepto?`<button class="btn sm" data-act="r2Treat" data-id="${d.id}" data-k="lepto">Lepto treatment (${fmt(R2_LEPTO_TREAT)})</button>`:''}${d.bloat?`<button class="btn sm" data-act="r2Treat" data-id="${d.id}" data-k="bloat">Emergency bloat surgery (${fmt(R2_BLOAT)})</button>`:''}
+    ${!d.tested&&d.age>=12?`<button class="btn sm ghost" data-act="r2Screen" data-id="${d.id}">Health screening: hips, hearing, eyes (${fmt(R2_SCREEN)})</button>`:''}${!R2.leptoOk(d)&&d.age>=4?`<button class="btn sm ghost" data-act="r2Lepto" data-id="${d.id}">Lepto vaccine (${fmt(R2_LEPTO)})</button>`:''}</div></div>`},
+  vetPanel(){const W=WE.ensure(),O=S.owners||{};
+    return`<div class="panel" style="margin-top:8px"><b>Parasite prevention</b><div class="small">Heartworm, flea and tick prevention for every dog: ${fmt(R2_PREV)} per dog a month (${fmt(R2_PREV*S.dogs.length)} a month now). Without it, dogs catch heartworm in warm weather and tick fever in the brush.</div><button class="btn sm ${R2.prevOn()?'ghost':''}" style="margin-top:6px" data-act="r2Prev">${R2.prevOn()?'Stop prevention':'Start prevention'}</button></div>
+    <div class="panel" style="margin-top:8px"><b>Diseases from hogs and water</b><div class="small"><b>Pseudorabies</b> comes from wild hogs; catch dogs can pick it up on a catch and it is almost always fatal. Never feed raw hog to dogs. <b>Leptospirosis</b> lives in creek and swamp water; the lepto vaccine (${fmt(R2_LEPTO)}, a year) prevents it.</div><button class="btn sm ghost" style="margin-top:6px" data-act="r2LeptoAll">Lepto vaccine for every dog due (${fmt(R2_LEPTO*S.dogs.filter(d=>d.age>=4&&!R2.leptoOk(d)).length)})</button></div>
+    <div class="panel" style="margin-top:8px"><b>Health screening and breeding</b><div class="small">Double merles (merle × merle) are often born blind or deaf, and a lot of white carries deafness. Big dogs can have bad hips, and deep-chested breeds can bloat. Close breeding raises the risks. Screen your breeding dogs (${fmt(R2_SCREEN)}): screened, clear dogs are worth more, and so are their pups.</div></div>
+    <div class="panel" style="margin-top:8px"><b>Gear and truck</b><div class="small">Cut vests: ${S.inv.vest} on hand, the one in use is ${Math.round(S.vestWear||0)}% worn. GPS handheld battery: ${GPS_HOURS[S.trk||0]?GPS_HOURS[S.trk]+' hours a charge':'no handheld'}. Truck wear: ${Math.round(S.truckWear||0)}.</div>
+    <div class="row" style="margin-top:6px">${S.truckBroke?`<button class="btn sm" data-act="r2Repair">Fix the truck (${fmt(S.truckBroke)})</button>`:''}${(S.truckWear||0)>20?`<button class="btn sm ghost" data-act="r2Service">Service the truck (${fmt(150)})</button>`:''}</div></div>
+    <div class="panel" style="margin-top:8px"><b>Meat in the freezer: ${Math.round(S.meat||0)} lb</b><div class="small">Give meat to landowners to keep them happy. Cooked, it can feed the dogs (never raw).</div>
+    <div class="row" style="margin-top:6px"><button class="btn sm ghost" data-act="r2Feed" ${(S.meat||0)>=20?'':'disabled'}>Cook 20 lb for the dogs (1 bag of feed)</button></div></div>
+    <h3>Landowners</h3>${Object.keys(HW_AREAS).map(k=>{const o=R2.owner(k);return`<div class="panel spread small" style="margin-bottom:6px"><div><b>${esc(o.name)}</b> · ${esc(areaName(k))}<div class="muted">Trust ${Math.round(o.trust)}${o.pulled?' · <b style="color:var(--bad)">permission pulled</b>':''} · hog numbers ${W.pop[k]&&W.pop[k].n>1.4?'high':W.pop[k]&&W.pop[k].n>.9?'fair':'low'}</div></div><button class="btn sm ghost" data-act="r2Gift" data-k="${k}" ${(S.meat||0)>=20?'':'disabled'}>Give 20 lb of meat</button></div>`}).join('')}
+    ${(S.tusks||[]).length?'':''}`},
+  pupPanel(){const P=S.dogs.filter(d=>d.age>=4&&d.age<12&&!d.started);if(!P.length)return'';
+    return`<div class="panel" style="margin-top:10px"><b>Start pups on shoats</b><div class="small muted">Pups started on small hogs in the bay pen between 4 and 12 months turn out bolder and steadier (${fmt(R2_SHOATS)} each).</div>${P.map(d=>`<div class="spread small" style="margin-top:4px"><span>${esc(d.name)} (${ageStr(d.age)})</span><button class="btn sm" data-act="r2Start" data-id="${d.id}">Start on shoats</button></div>`).join('')}</div>`}
+};
+const R2_ACTIONS={
+  r2Treat:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x)return;const c={hw:R2_HW_TREAT,tick:R2_TICK_TREAT,lepto:R2_LEPTO_TREAT,bloat:R2_BLOAT}[d.k];if(S.money<c)return toast('Not enough cash.');S.money-=c;
+    if(d.k==='hw'){delete x.hw;x.energy=Math.min(x.energy,30)}else if(d.k==='tick')delete x.tick;else if(d.k==='lepto')delete x.lepto;else if(d.k==='bloat'){delete x.bloat;x.health=Math.min(x.health,40)}
+    addLog(`Vet treated ${x.name} for ${d.k==='hw'?'heartworm':d.k==='tick'?'tick fever':d.k==='lepto'?'leptospirosis':'bloat'} (${fmt(c)}).`);toast(`${x.name} is treated.`);save();dogProfile(x.id)},
+  r2Screen:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||S.money<R2_SCREEN)return toast('Not enough cash.');S.money-=R2_SCREEN;
+    x.tested={hips:x.hips>=70?'Good':x.hips>=45?'Fair':'Poor',hear:x.deaf?'Deaf':'Normal',eyes:x.blind?'Defect':'Clear'};toast(`${x.name}: hips ${x.tested.hips}, hearing ${x.tested.hear}, eyes ${x.tested.eyes}.`);save();dogProfile(x.id)},
+  r2Lepto:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||S.money<R2_LEPTO)return toast('Not enough cash.');S.money-=R2_LEPTO;x.leptoVax=S.day;toast(`${x.name} got the lepto vaccine.`);save();dogProfile(x.id)},
+  r2LeptoAll:()=>{const due=S.dogs.filter(d=>d.age>=4&&!R2.leptoOk(d)),c=due.length*R2_LEPTO;if(!due.length||S.money<c)return toast(due.length?'Not enough cash.':'Everyone is current.');S.money-=c;due.forEach(d=>d.leptoVax=S.day);toast(`Vaccinated ${due.length} dogs.`);save();render()},
+  r2Prev:()=>{S.prev=!R2.prevOn();toast(S.prev?'Parasite prevention started.':'Parasite prevention stopped.');save();render()},
+  r2Repair:()=>{if(!S.truckBroke||S.money<S.truckBroke)return toast('Not enough cash.');S.money-=S.truckBroke;S.truckBroke=0;S.truckWear=10;toast('The truck is fixed.');save();render()},
+  r2Service:()=>{if(S.money<150)return toast('Not enough cash.');S.money-=150;S.truckWear=Math.max(0,(S.truckWear||0)-25);toast('Truck serviced.');save();render()},
+  r2Gift:d=>{if((S.meat||0)<20)return;S.meat-=20;const o=R2.owner(d.k);o.trust=Math.min(100,o.trust+8);toast(`${o.name} appreciated the meat (trust ${Math.round(o.trust)}).`);save();render()},
+  r2Feed:()=>{if((S.meat||0)<20)return;S.meat-=20;S.inv.feed=(S.inv.feed||0)+1;toast('Cooked 20 lb of hog for the dogs: one bag of feed saved.');save();render()},
+  r2Start:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||S.money<R2_SHOATS)return toast('Not enough cash.');S.money-=R2_SHOATS;x.started=true;x.conf=Math.min(100,(x.conf??70)+12);['int','obd'].forEach(k=>x.pot[k]=Math.min(99,x.pot[k]+2));toast(`${x.name} was started on shoats in the bay pen.`);save();render()}
+};
+// ---- wiring ----
+{const mk=makeDog;makeDog=function(o){const d=mk(o);R2.traits(d);R2.health(d);return d}}
+{const mp=makePuppy;makePuppy=function(a,b){const d=mp(a,b);d.coi=R2.coi(a,b);R2.traits(d);R2.health(d,a,b);if(a.tested&&b.tested&&a.tested.hips!=='Poor'&&b.tested.hips!=='Poor'&&a.tested.hear==='Normal'&&b.tested.hear==='Normal')d.pedTested=true;return d}}
+{const ha=huntAttrs;huntAttrs=function(d,lh){const a=ha(d,lh);try{R2.attrs(d,a)}catch(e){}return a}}
+{const o=WE.step;WE.step=function(S2,dt){o.call(WE,S2,dt);try{R2.step(S2,dt)}catch(e){console.warn('r2',e)}}}
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{R2.daily(msgs)}catch(e){console.warn('r2',e)}}}
+{const o=hwBayStart;hwBayStart=function(S2,g,h){const r=o(S2,g,h);try{R2.bayStart(S2,g,h)}catch(e){}return r}}
+{const f6=finishHunt;finishHunt=function(win,lines){const r=f6(win,lines);try{R2.end(UI.hunt)}catch(e){console.warn('r2',e)}return r}}
+{const o=CMD.listens;CMD.listens=g=>!(g.d&&g.d.deaf&&R()<.85)&&o(g)}
+{const o=TRK.tier;TRK.tier=function(){const h=UI.hunt;if(h&&h.sim&&h.sim.gpsDead)return null;return o.call(TRK)}}
+// broken bones: some hard hits break a leg; the vet sets it (X-ray and surgery), or it heals crooked
+{const o=WE.injure;WE.injure=function(d,what,dmg){o.call(WE,d,what,dmg);if(dmg>=24&&R()<.35&&d.inj&&!d.inj.bone){d.inj={what:'broken leg ('+what+')',sev:3,left:8,day:S.day,bone:true}}}}
+{const o=WE.vet;WE.vet=function(d){if(d.inj&&d.inj.bone){if(S.money<R2_BONE)return false;S.money-=R2_BONE;addLog(`The vet X-rayed and set ${d.name}’s broken leg for ${fmt(R2_BONE)}.`);d.inj.left=3;d.inj.what='healing leg (set by the vet)';d.inj.bone=false;d.inj.sev=2;return true}return o.call(WE,d)}}
+// lease pulled / truck broken: those grounds are out of reach
+{const o=VEH.open;VEH.open=function(a){if(R2.pulled(a.id))return false;if(S.truckBroke&&!VEH.own(a)&&(a.trip||Prop.tier()<a.land))return false;return o.call(VEH,a)}}
+{const o=JB.areaTag;JB.areaTag=function(id){return o.call(JB,id)+(R2.pulled(id)?' <span class="tag warn">Permission pulled</span>':'')}}
+{const o=dogValue;dogValue=function(d){let v=o(d);const g=R2.grade(d);if(g==='Finished dog')v*=1.25;else if(g==='Started dog'||g==='Started pup')v*=1.1;if(d.tested&&d.tested.hips!=='Poor'&&d.tested.hear==='Normal'&&d.tested.eyes==='Clear')v*=1.1;if(d.pedTested)v*=1.08;if(d.blind||d.deaf)v*=.5;if(R2.shy(d))v*=.8;return Math.round(v)}}
+{const o=dogCard;dogCard=function(d,act,extra){const html=o(d,act,extra);try{const t=[];if(R2.sick(d).length)t.push('<span class="tag warn">Sick</span>');if(R2.shy(d))t.push('<span class="tag warn">Hog-shy</span>');if(d.blind)t.push('<span class="tag warn">Blind</span>');else if(d.deaf)t.push('<span class="tag">Deaf</span>');const g=R2.grade(d);if(g==='Finished dog')t.push('<span class="tag ok">Finished</span>');return t.length?html.replace('<div class="badges">','<div class="badges">'+t.join('')):html}catch(e){return html}}}
+{const o=PR.offer;PR.offer=function(h,S2,pay){o.call(PR,h,S2,pay);const t=S2&&S2.target,P=S.pendingHog;if(P&&t&&t.tusk){P.tusk=t.tusk;P.ageY=t.ageY}}}
+{const o=PR.resolve;PR.resolve=function(k,quiet){const P=S.pendingHog;if(k==='freezer'&&P){const lb=Math.round(P.w*.35);S.meat=(S.meat||0)+lb;const m=`Processed the ${P.w} lb ${P.name.toLowerCase()} for the freezer: ${lb} lb of meat.`;S.pendingHog=null;UI.pendingHogView=null;addLog(m);if(!quiet)toast(m);save();render();return}return o.call(PR,k,quiet)}}
+{const o=A.rlTrapSell;A.rlTrapSell=function(d){if(d.k!=='live')return o(d);const got=S.trapped||[],cap=R2.haul();if(got.length<=cap)return o(d);const extra=got.slice(cap);S.trapped=got.slice(0,cap);o(d);const v=extra.reduce((s,x)=>s+REAL.trapProc(x),0);earn(v);toast(`Your rig only hauls ${cap} live hogs. The other ${extra.length} went to the processor for ${fmt(v)}.`);save();render()}}
+{const o=SCREENS.papers;SCREENS.papers=function(){return o()+R2.vetPanel()}}
+{const o=SCREENS.train;SCREENS.train=function(){return o()+R2.pupPanel()}}
+{const o=SCREENS.trophies;SCREENS.trophies=function(){const T=S.tusks||[];return o()+(T.length?`<h3>Best tusks</h3>${T.map(t=>`<div class="panel small spread" style="margin-bottom:4px"><span>🦷 ${R2.inch(t.tusk)} · ${t.w} lb ${esc(String(t.name||'boar').toLowerCase())}, about ${t.age} yrs</span><span class="muted">${esc(t.area)} · day ${t.day} · score ${t.score}</span></div>`).join('')}`:'')}}
+// existing dogs get their traits the first time they hunt, see a new day or open their profile
+Object.assign(A,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
