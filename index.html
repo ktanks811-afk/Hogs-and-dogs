@@ -3319,8 +3319,8 @@ function hwStep(S2,dt){S2.t+=dt;const P=S2.player;WE.step(S2,dt);if(S2.practice)
   if(S2.mode==='coon'&&CN.end(S2,bays))return;
   if(S2.allGone!==undefined&&S2.phase!=='won'&&S2.t-S2.allGone>60)return hwEnd(S2,false,['Every rabbit the dogs could find went to ground. You leashed them up and walked out.']);
   if(bays.every(g=>g.sta<.04)&&!S2.baying)return hwEnd(S2,false,[S2.mode==='rabbit'?'The dogs are run out. You leashed them up and walked out.':'The bay dogs are spent. You leashed them up and walked out.']);
-  if(S2.phase==='won'&&S2.t-S2.wonAt>4)return hwEnd(S2,true,[]);
-  if(S2.t>=S2.limit)return hwEnd(S2,false,[S2.target&&S2.target.rev?`Dark fell with the ${S2.target.name.toLowerCase()} still loose.`:(S2.mode==='rabbit'?'The dogs ran out of time without taking a rabbit.':'The dogs ran out of daylight without finding a hog.')])}
+  if(S2.phase==='won'&&!TIE.step(S2)&&S2.t-S2.wonAt>4)return hwEnd(S2,true,[]);
+  if(S2.t>=S2.limit&&S2.phase!=='won')return hwEnd(S2,false,[S2.target&&S2.target.rev?`Dark fell with the ${S2.target.name.toLowerCase()} still loose.`:(S2.mode==='rabbit'?'The dogs ran out of time without taking a rabbit.':'The dogs ran out of daylight without finding a hog.')])}
 function hwEnd(S2,win,lines){if(S2.over)return;S2.over=true;S2.win=win;if(win)hwBanner(S2,'HUNT COMPLETE');finishHunt(win,lines);render()}
 function huntFast(sec){const h=UI.hunt;if(!h||!h.sim)return;for(let t=0;t<sec&&!h.sim.over;t+=.25)hwStep(h.sim,.25)}
 
@@ -3430,7 +3430,7 @@ function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=
   const bays=huntDogs(S2,'bay'),lead=bays.reduce((a,b)=>(['bay','hot','track'].indexOf(b.st)>['bay','hot','track'].indexOf(a.st)?b:a),bays[0]);
   $('hStat').textContent=S2.mode==='rabbit'?(S2.phase==='won'?(S2.rbHow==='caught'?'RABBIT CAUGHT':'RABBIT LOCATED'):lead&&lead.st==='hot'?'Running a rabbit!':lead&&lead.st==='track'?'Dogs on a rabbit trail':lead&&lead.st==='recast'?'Dogs lost it: circling for scent':'Dogs searching'):S2.mode==='coon'?CN.stat(S2,lead):S2.phase==='won'?'HOG CONTROLLED':S2.phase==='catch'?'CATCHING...':S2.phase==='bay'?(S2.released?'Catch dogs going in':'Bayed: release the catch dogs'):S2.phase==='chase'?'The hog is running':lead&&lead.st==='track'?'Dogs on a track':lead&&lead.st==='hot'?'Dogs close on a hog':'Dogs searching';
   const rel=$('hRelease');if(rel){const ok=!!(H0&&H0.rev)&&!S2.released;rel.disabled=!ok;rel.textContent=S2.released?'Catch dogs released':'RELEASE CATCH DOGS';rel.classList.toggle('ready',ok&&S2.phase==='bay')}
-  $('hMeters').innerHTML=S2.phase==='bay'||S2.phase==='chase'?`<div class="small">Bay holding</div><div class="meter"><i style="width:${Math.max(0,S2.hold)}%;background:var(--good)"></i></div>`:
+  if(!TIE.wanted(S2))$('hMeters').innerHTML=S2.phase==='bay'||S2.phase==='chase'?`<div class="small">Bay holding</div><div class="meter"><i style="width:${Math.max(0,S2.hold)}%;background:var(--good)"></i></div>`:
     S2.phase==='catch'||S2.phase==='won'?`<div class="small">Hog under control</div><div class="meter"><i style="width:${clamp(S2.ctl,0,100)}%;background:var(--blaze)"></i></div>`:'';
   $('hDogs').innerHTML=HR.hud(S2)+S2.dogs.map(g=>`<div class="spread small"><span><i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${DOG_ST[g.goTrack?'go':g.st]||g.st}</span><span class="muted">${g.st==='leash'?'':yd(Math.hypot(g.x-P.x,g.y-P.y))+' yd · '}${Math.round(g.sta*100)}%</span></div>`).join('')+
     (S2.mode==='coon'?CN.hud(S2):H0&&H0.rev?(H0.rabbit?`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${H0.st==='caught'?esc(H0.species):'Rabbit'}</b> ${H0.st==='caught'?H0.w+' lb':'running'}</span><span class="muted">~${Math.round(yd(Math.hypot(RB.markPos(S2,H0).x-P.x,RB.markPos(S2,H0).y-P.y))/10)*10} yd</span></div>`:`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${esc(H0.name)}</b> ~${H0.w} lb</span><span class="muted">${yd(Math.hypot(H0.x-P.x,H0.y-P.y))} yd</span></div>`):'')+(S2.mode==='rabbit'&&S2.rb.found.size?`<div class="small muted">Rabbits found so far: ${S2.rb.found.size}</div>`:'');
@@ -3718,10 +3718,12 @@ const PR={
   // ---------- after a catch ----------
   offer(h,S2,pay){const H=S2&&S2.target;
     S.pendingHog={id:'TH-'+String(S.nextId++).padStart(5,'0'),key:h.hogKey,name:h.hog.name,w:h.hog.w,mult:h.hog.mult,pay,area:h.area.id,day:S.day,
-      sp:H?H.sp:1,end:H?H.end:1,aggr:H?H.aggr:.5,aware:H?H.aware:.5,seed:H&&H.seed||ri(1,2e9),sex:H&&H.sex||(/boar/i.test(h.hog.name)?'M':'F')}},
+      sp:H?H.sp:1,end:H?H.end:1,aggr:H?H.aggr:.5,aware:H?H.aware:.5,seed:H&&H.seed||ri(1,2e9),sex:H&&H.sex||(/boar/i.test(h.hog.name)?'M':'F'),tie:S2&&S2.tie&&S2.tie.q||1,bruise:!!(S2&&S2.tie&&S2.tie.bruise)}},
   resolve(k,quiet){const o=S.pendingHog;if(!o)return;const nm=`${o.w} lb ${o.name.toLowerCase()}`;let msg;
     if((k==='keep'||k==='pen')&&HOGG.room()>0){const h=HOGG.fromWild(o);S.hogs.push(h);S.st.keptHogs=(S.st.keptHogs||0)+1;UI.pendingHogView=null;msg=`Kept the ${nm}: ${h.name} (${h.id}) is in your Hog Pin.`}
     else if(k==='release'){msg=`Turned the ${nm} loose.`}
+    else if(k==='live'){const v=HOG_SALE.live(o);earn(v);msg=`Sold the ${nm} to the live-hog buyer for ${fmt(v)}.`}
+    else if(k==='proc'){const v=HOG_SALE.proc(o);earn(v);msg=`Sold the ${nm} to the processor for ${fmt(v)}.`}
     else{earn(o.pay);msg=`Sold the ${nm} for ${fmt(o.pay)}.`}
     S.pendingHog=null;UI.pendingHogView=null;addLog(msg);if(!quiet)toast(msg);save();render()},
   // an unanswered choice sells the hog, so a caught hog is never lost
@@ -4889,10 +4891,10 @@ const HOGUI={
      <div class="row" style="margin-top:10px"><button class="btn" data-act="tab" data-t="hogpin">Go to the Hog Pin</button></div>`)},
   // after a catch: keep it, sell it or turn it loose
   choice(){const o=S.pendingHog;if(!o)return'';const v=UI.pendingHogView&&UI.pendingHogView.id0===o.id?UI.pendingHogView:(UI.pendingHogView=HOGG.preview(o)),room=HOGG.room()>0;
-    return`<div class="panel" style="margin-top:10px;border:2px solid var(--blaze)"><h3 style="margin-top:0">Keep, sell or turn it loose?</h3>
+    return`<div class="panel" style="margin-top:10px;border:2px solid var(--blaze)"><h3 style="margin-top:0">Keep, sell or turn it loose?</h3><div class="small muted" style="margin:-4px 0 6px">${o.tie>1?'🪢 Clean tie: the live buyer pays 10% more.':o.bruise?'He got bruised in the tie-up: the processor pays less.':''} The live buyer pays best for big boars; the processor pays by the pound.</div>
      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:0 0 auto">${HOGG.art(v,200)}</div><div class="small"><b>${o.w} lb ${esc(o.name.toLowerCase())}</b> · ${o.sex==='M'?'boar':'sow'} · ${esc(v.coat)}<div class="muted">About ${ageStr(v.age)} · grows to ~${HOGG.maxW(v)} lb · strength ${HOGG.stats(v).str}, growth ${HOGG.stats(v).grow}</div>
       <div class="muted" style="margin-top:4px">Keeping it brings this exact hog, genes and all, into your Hog Pin to breed or train dogs on. If you don't choose, it's sold when you head out again or end the day.</div></div></div>
-     <div class="row" style="margin-top:8px"><button class="btn alt" data-act="hogpick" data-k="keep" ${room?'':'disabled'}>Keep (Hog Pin)</button><button class="btn" data-act="hogpick" data-k="sell">Sell ${fmt(o.pay)}</button><button class="btn ghost" data-act="hogpick" data-k="release">Turn it loose</button></div>
+     <div class="row" style="margin-top:8px"><button class="btn alt" data-act="hogpick" data-k="keep" ${room?'':'disabled'}>Keep (Hog Pin)</button><button class="btn" data-act="hogpick" data-k="live">Live buyer ${fmt(HOG_SALE.live(o))}</button><button class="btn" data-act="hogpick" data-k="proc">Processor ${fmt(HOG_SALE.proc(o))}</button><button class="btn ghost" data-act="hogpick" data-k="release">Turn it loose</button></div>
      ${room?'':'<div class="small muted" style="margin-top:6px">Your Hog Pin is full. Build or upgrade Hog Pins on your land to keep more.</div>'}</div>`}
 };
 // a preview of the hog from the hunt, exactly as it would be kept (it isn't on the ranch until you choose Keep)
@@ -6134,7 +6136,44 @@ const TRK={
 };
 const TRK_ACTIONS={trkBuy:()=>TRK.buy()};
 {const hh2=huntHud;huntHud=function(f){hh2(f);try{const h=UI.hunt;if(h&&h.sim)TRK.hud(h.sim)}catch(e){}}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- TYING THE HOG ----------
+// When the catch dogs have the hog, walk in and tie it: three quick, timed moves (grab a back leg, flip it, tie the
+// front leg). A clean tie is worth more to a live-hog buyer; fumbles bruise the meat, and three misses and the hog
+// tears loose. If you never walk in, the dogs hold it and it gets tied for you after a while, with no bonus.
+const TIE_STEPS=['Grab a back leg','Flip him on his side','Tie the front leg'],TIE_AUTO=240;
+const TIE={
+  wanted:S2=>S2&&!S2.practice&&!S2.mode&&S2.phase==='won'&&!(S2.tie&&S2.tie.done),
+  step(S2){if(!TIE.wanted(S2))return false;const T=S2.tie||(S2.tie={step:0,miss:0,active:false,walk:false});const H=S2.target,P=S2.player;
+    if(T.walk&&!T.active&&H&&Math.hypot(P.x-H.x,P.y-H.y)<4){T.active=true;T.t0=performance.now();T.zone=.25+R()*.5;T.sp0=S2.speed;S2.speed=0;hwEvent(S2,'tie','You walked in on the hog. Tie him up!',1);huntHud(true)}
+    if(!T.active&&S2.t-S2.wonAt>(T.walk?TIE_AUTO*5:TIE_AUTO)){TIE.finish(S2,1,'The dogs held the hog until it got tied up.');return false}
+    return true},
+  walk(){const S2=UI.hunt&&UI.hunt.sim;if(!S2||!TIE.wanted(S2))return;const T=S2.tie||(S2.tie={step:0,miss:0,active:false});T.walk=true;HV.follow='walk';if(S2.speed<1)S2.speed=4;huntHud(true)},
+  pos(T){return(Math.sin((performance.now()-T.t0)/(520/(1+T.step*.3)))+1)/2},
+  tap(){const S2=UI.hunt&&UI.hunt.sim,T=S2&&S2.tie;if(!T||!T.active)return;const p=TIE.pos(T),hit=Math.abs(p-T.zone)<.11;
+    if(hit){T.step++;sfx.ok();if(T.step>=TIE_STEPS.length)return TIE.finish(S2,T.miss===0?1.1:T.miss===1?1:.85,T.miss===0?'Clean tie! The live buyer will pay extra for this one.':T.miss===1?'Tied him up after a little scuffle.':'Tied him, but he fought hard and got bruised.');T.zone=.2+R()*.6;T.t0=performance.now()}
+    else{T.miss++;sfx.bad&&sfx.bad();const g=S2.dogs.filter(x=>x.role==='catch'&&x.st==='hold');
+      if(T.miss>=3){T.active=false;S2.speed=T.sp0||4;const h=S2.target;h.st='run';h.stam=Math.min(1,(h.stam||.5)+.3);S2.phase='chase';S2.ctl=0;g.forEach(x=>{x.st='shaken';x.next=5+R()*5});S2.tie=null;
+        hwEvent(S2,'tiefail','The hog tore loose from you and the dogs!',1);hwBanner(S2,'HOG BROKE FREE');huntHud(true);return}
+      const d=g.length&&pick(g);if(d&&R()<.35){d.m.hurt=d.m.hurt||{what:'kicked while you tied the hog',dmg:ri(3,8)}}hwEvent(S2,'kick'+T.miss,T.miss===1?'The hog kicked free a leg. Try again.':'He nearly got loose! One more miss and he’s gone.',1)}
+    huntHud(true)},
+  finish(S2,q,msg){const T=S2.tie||(S2.tie={});T.done=true;T.active=false;T.q=q;T.bruise=(T.miss||0)>=2;if(T.sp0!==undefined)S2.speed=T.sp0;hwEvent(S2,'tied',msg,1);hwBanner(S2,'HOG TIED');S2.wonAt=S2.t-5},
+  hud(S2){const el=document.getElementById('hMeters');if(!el||!TIE.wanted(S2))return;const T=S2.tie||{};
+    if(!T.active){const key=T.walk?'w1':'w0',cur=el.querySelector('[data-tiew]');if(cur&&cur.dataset.tiew===key)return;el.innerHTML=`<div data-tiew="${key}"><div class="small">Hog under control: the catch dogs are holding him.</div><button class="btn big" data-act="tieWalk" style="margin-top:6px;width:100%">${T.walk?'Walking in…':'🪢 WALK IN AND TIE HIM'}</button><div class="small muted">A clean tie pays 10% more at the live-hog buyer. Stay back and he gets tied for you in a few minutes.</div></div>`;return}
+    if(document.getElementById('tieBar'))return;
+    el.innerHTML=`<div class="panel" style="border-color:var(--blaze)"><b id="tieStep">${esc(TIE_STEPS[T.step])}</b> <span class="small muted" id="tieMiss">${T.miss?`${T.miss} miss${T.miss>1?'es':''}`:''}</span>
+      <div id="tieBar" style="position:relative;height:26px;background:#3a2e22;border-radius:13px;margin:8px 0;overflow:hidden"><i id="tieZone" style="position:absolute;top:0;bottom:0;background:rgba(80,200,120,.75)"></i><i id="tieMark" style="position:absolute;top:-2px;bottom:-2px;width:6px;background:#fff;border-radius:3px;box-shadow:0 0 6px #000"></i></div>
+      <button class="btn big" data-act="tieTap" style="width:100%">TIE!</button><div class="small muted">Tap when the white mark is in the green.</div></div>`;
+    const loop=()=>{const S3=UI.hunt&&UI.hunt.sim,T3=S3&&S3.tie,z=document.getElementById('tieZone'),m=document.getElementById('tieMark');if(!T3||!T3.active||!z){return}
+      z.style.left=((T3.zone-.11)*100)+'%';z.style.width='22%';m.style.left=`calc(${TIE.pos(T3)*100}% - 3px)`;const st=document.getElementById('tieStep');if(st)st.textContent=TIE_STEPS[T3.step]||'';const ms=document.getElementById('tieMiss');if(ms)ms.textContent=T3.miss?`${T3.miss} miss${T3.miss>1?'es':''}`:'';requestAnimationFrame(loop)};requestAnimationFrame(loop)}
+};
+// selling a caught hog: the live buyer pays for big boars and a clean tie; the processor pays by the pound
+const HOG_SALE={
+  live(o){return Math.round(o.pay*(o.sex==='M'&&o.w>=150?1.2:.95)*(o.tie||1))},
+  proc(o){return Math.round(o.w*4.2*(o.bruise?.8:1))}
+};
+const TIE_ACTIONS={tieWalk:()=>TIE.walk(),tieTap:()=>TIE.tap()};
+{const hh3=huntHud;huntHud=function(f){hh3(f);try{const h=UI.hunt;if(h&&h.sim&&TIE.wanted(h.sim))TIE.hud(h.sim)}catch(e){}}}
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
