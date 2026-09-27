@@ -2027,7 +2027,7 @@ function dogProfile(id){
   <p class="small muted" style="margin:6px 0 0">Temperament: ${esc(TEMP_FX[d.temp])}</p></div>
   ${mixSection(d)}
   <h3>Stats <span class="small muted">current / genetic potential</span></h3>${statBars(d)}
-  <div class="row small" style="margin-top:6px"><span class="tag">Bay score ${Math.round(bayScore(d))}</span><span class="tag">Catch score ${Math.round(catchScore(d))}</span><span class="tag">Hunts ${d.hunt.n}</span><span class="tag">Bays ${d.hunt.bays}</span><span class="tag">Catches ${d.hunt.catches}</span>${RB.profileRow(d)}${CN.profileRow(d)}<span class="tag">Training sessions ${d.trained}</span></div>
+  <div class="row small" style="margin-top:6px"><span class="tag">Bay score ${Math.round(bayScore(d))}</span><span class="tag">Catch score ${Math.round(catchScore(d))}</span><span class="tag">Hunts ${d.hunt.n}</span><span class="tag">Bays ${d.hunt.bays}</span><span class="tag">Catches ${d.hunt.catches}</span>${RB.profileRow(d)}${CN.profileRow(d)}${SPEC.row(d)}<span class="tag">Training sessions ${d.trained}</span></div>
   <h3>Genetics</h3><p class="small" style="margin:0 0 6px"><b>Coat:</b> ${esc(coatName(d))}</p><p class="small" style="margin:0 0 6px"><b>Genetic ID:</b> <span class="gt" style="user-select:all">${esc(geneticId(d))}</span></p><p class="small" style="margin:0 0 6px"><b>Eyes:</b> ${(()=>{const c=gameCoat(d);return c.eyes===c.eyes2?esc(c.eyes):esc(c.eyes)+' and '+esc(c.eyes2)+' (mismatched)'})()}</p><p class="small muted" style="margin:0 0 6px">White modifier ${(d.whiteMod||0)>=0?'+':''}${Math.round((d.whiteMod||0)*100)}%, pattern strength ${Math.round((d.patMod??.5)*100)}%</p>
   <div class="tablewrap"><table>${Object.entries(LOCI).map(([L,o])=>`<tr><td>${o.name}</td><td><span class="gt">${genoText(d,L,' / ')}</span>${d.genes[L].some(a=>!known(a))?' <span class="small muted">Unknown trait</span>':''}</td></tr>`).join('')}</table></div>
   ${(()=>{const u=unknownCarried(d);return u.length?`<div class="panel small" style="margin-top:8px"><b>${u.length} unknown trait${u.length>1?'s':''}</b> <span class="muted">${d.dna?'DNA tested.':'Breed or DNA-test this dog to learn more.'}</span>${u.map(a=>`<div class="spread" style="gap:8px;margin-top:4px"><span class="muted">Unknown trait</span><div class="meter" style="height:6px;flex:1;max-width:140px"><i style="width:${researchPct(a)}%;background:var(--gold)"></i></div><span class="num muted">${researchPct(a)}%</span></div>`).join('')}</div>`:''})()}
@@ -3267,7 +3267,7 @@ function hwSniff(S2,g,dt,bonus){g.sn=(g.sn||0)-dt;if(g.sn>0)return false;g.sn=.5
   const q=hwQuarry(S2),b=hsBest(S2,g.x,g.y,(1.5+g.at.air*5)*(.6+.4*g.at.nose),S2.t,undefined,q?q.k:undefined);if(!b)return false;const rate=1.8*g.at.nose*g.at.nose*bonus*b.s;if(R()>1-Math.exp(-rate*.5))return false;
   if(S2.tracks[b.k].deer&&R()<CMD.broke(g))return false;
   g.st='track';g.goTrack=null;g.k=b.k;g.i=b.i;g.s0=b.s;const tr=S2.tracks[b.k];g.hog=tr.h>=0?S2.hogs[tr.h]:null;g.trash=!!tr.deer;
-  if(g.trash){g.dir=1;hwEvent(S2,'trash'+g.id,`${g.name} is running trash: a deer track! Call it off.`,60);return true}
+  if(g.trash){g.m.trash=true;g.dir=1;hwEvent(S2,'trash'+g.id,`${g.name} is running trash: a deer track! Call it off.`,60);return true}
   // which way is fresher? smarter, keener dogs usually get it right
   g.dir=R()<.6+g.at.int*.3+(g.at.nose-1)*.2?1:-1;hwStrike(S2,g,b.s,false);return true}
 // stay on one hog: once the pack strikes a live hog, that's the hog they run until they lose it for good
@@ -3283,7 +3283,7 @@ function hwStrike(S2,g,s,hot){g.m.strike++;WE.struck(S2,g);const first=!S2.struc
   // the pack honours the strike dog if they can hear it
   for(const o of S2.dogs)if(o!==g&&o.role==='bay'&&(o.st==='cast'||o.st==='recast')&&Math.hypot(o.x-g.x,o.y-g.y)<(250*(.4+g.at.voice)*HWX.hear)){o.st='join';o.lead=g.id}}
 function hwLose(S2,g,msg){g.st='recast';g.trash=false;g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;hwEvent(S2,'lost',msg||`${g.name} lost the scent.`,45)}
-function hwBayStart(S2,g,h){S2.baying=true;S2.phase='bay';S2.hold=100;S2.bayAt=S2.t;hwReveal(S2,h,`${g.name} located the hog.`);hwEvent(S2,'bay',`BAY STARTED: ${g.name} has the ${h.name.toLowerCase()} bayed.`,1);
+function hwBayStart(S2,g,h){g.m.located=true;S2.baying=true;S2.phase='bay';S2.hold=100;S2.bayAt=S2.t;hwReveal(S2,h,`${g.name} located the hog.`);hwEvent(S2,'bay',`BAY STARTED: ${g.name} has the ${h.name.toLowerCase()} bayed.`,1);
   hwBanner(S2,'BAY STARTED');setTimeout(()=>{if(UI.hunt&&UI.hunt.sim===S2&&S2.phase==='bay')hwBanner(S2,'CATCH DOGS READY')},1500);sfx.bark();
   huntDogs(S2,'bay').forEach(o=>{if(o!==g&&o.st!=='bay'&&Math.hypot(o.x-h.x,o.y-h.y)<700){o.st='hot';o.hog=h}})}
 function hwCatchStart(S2,h){if(h.st!=='fight'){h.st='fight';S2.ctl=Math.max(S2.ctl,0);S2.phase='catch';hwBanner(S2,'CATCHING...');hwEvent(S2,'catching','CATCHING... the catch dogs are on the hog.',45)}}
@@ -6206,7 +6206,7 @@ const NIGHT_ACTIONS={ngBuy:d=>NIGHT.buy(d.k)};
 // in the heat. How well a dog listens comes from its obedience and training; "trash-broke" dogs ignore deer.
 const CMD={
   listens:g=>R()<clamp(.3+g.at.obd*.6+(g.at.exp-1)*.5,.1,.97),
-  broke:g=>clamp(.3+g.at.obd*.4+g.at.int*.2+(g.spec&&g.spec.includes('straight')?.2:0),.15,.95),
+  broke:g=>clamp(.3+g.at.obd*.4+g.at.int*.2+.15*SPEC.rank(g.d,'straight'),.15,.95),
   // a few long, fresh deer tracks cross every hog-hunting ground
   deer(S2,ent){for(let i=0;i<2+ri(0,1);i++){const k=S2.tracks.length;S2.tracks.push({h:-1,pts:[],deer:true});const an=R()*6.283,d=60+R()*300;let x=clamp(ent.x+Math.cos(an)*d,20,HW.N-20),y=clamp(ent.y+Math.sin(an)*d,20,HW.N-20),hd=R()*6.283;
     const n=200+ri(0,200),T0=-(300+R()*2400)-n*3;for(let j=0;j<n;j++){hd+=(R()-.5)*.35;x=clamp(x+Math.cos(hd)*1.5,5,HW.N-6);y=clamp(y+Math.sin(hd)*1.5,5,HW.N-6);hsLay(S2,k,x,y,T0+j*3)}
@@ -6317,6 +6317,35 @@ const HOGAI={
 ITEMS.kit={name:'Trauma kit',price:60,qty:1,desc:'Stitch a dog’s cut in the field: heals faster and won’t get infected.'};
 const HOGAI_ACTIONS={stitch:d=>HOGAI.stitch(d.id)};
 if(S&&S.inv&&S.inv.kit===undefined)S.inv.kit=0;
+// ---------- DOG SPECIALTIES ----------
+// A dog becomes what it does. Enough first strikes make a Strike dog, enough located bays a Locate dog, and so on.
+// Each specialty has two ranks and a small, real edge on the hunt; a dog can hold several.
+const SPECS={
+  strike:{n:'Strike dog',ic:'👃',d:'first to strike a track',c:d=>d.hunt.strikes||0,need:8,bonus:'+8% nose per rank'},
+  locate:{n:'Locate dog',ic:'📍',d:'found and started a bay',c:d=>d.hunt.locates||0,need:5,bonus:'+10% range per rank'},
+  bay:{n:'Bay dog',ic:'🗣️',d:'bays held',c:d=>d.hunt.bays||0,need:10,bonus:'+8% grit per rank, better in bay trials'},
+  catch:{n:'Catch dog',ic:'🦷',d:'hogs caught',c:d=>d.hunt.catches||0,need:8,bonus:'+6% catch per rank'},
+  tree:{n:'Tree dog',ic:'🌳',d:'coons treed',c:d=>(d.hunt.coon&&d.hunt.coon.trees)||0,need:10,bonus:'+8% nose on coon hunts per rank'},
+  rabbit:{n:'Rabbit dog',ic:'🐇',d:'rabbits caught',c:d=>(d.hunt.rab&&d.hunt.rab.catches)||0,need:6,bonus:'+8% agility on rabbit hunts per rank'},
+  straight:{n:'Straight dog',ic:'🎯',d:'hog hunts without running trash',c:d=>d.hunt.clean||0,need:12,bonus:'ignores deer tracks far more'}};
+const SPEC={
+  rank(d,k){if(!d||!d.hunt)return 0;const S0=SPECS[k],n=S0.c(d);return n>=S0.need*3?2:n>=S0.need?1:0},
+  of(d){return Object.keys(SPECS).filter(k=>SPEC.rank(d,k)>0)},
+  // hunting attributes with specialty edges
+  apply(d,a){if(!d||!d.hunt)return a;const r=k=>SPEC.rank(d,k);a.nose*=1+.08*r('strike');a.range*=1+.1*r('locate');a.grit*=1+.08*r('bay');a.catch*=1+.06*r('catch');return a},
+  // record what each dog did this hunt
+  record(h){const S2=h&&h.sim;if(!S2)return;const hog=!S2.mode&&!S2.practice;
+    for(const g of S2.dogs){const d=S.dogs.find(x=>x.id===g.id);if(!d)continue;const H=d.hunt||(d.hunt={n:0,bays:0,catches:0,xp:0});const was=SPEC.of(d);
+      if(g.m.first)H.strikes=(H.strikes||0)+1;if(g.m.located)H.locates=(H.locates||0)+1;if(hog&&g.role==='bay'&&S2.t>120&&!g.m.trash)H.clean=(H.clean||0)+1;
+      const now=SPEC.of(d);for(const k of now)if(!was.includes(k)&&h.result)h.result.lines.push(`⭐ ${d.name} is now a ${SPECS[k].n}!`);
+      for(const k of now){const r=SPEC.rank(d,k),key=k+r;d.specSeen=d.specSeen||{};if(r===2&&!d.specSeen[key]&&h.result){d.specSeen[key]=1;h.result.lines.push(`⭐⭐ ${d.name} is a top ${SPECS[k].n}!`)}}}},
+  row(d){if(!d.hunt)return'';return Object.entries(SPECS).map(([k,S0])=>{const r=SPEC.rank(d,k),n=S0.c(d);if(!r&&n<S0.need/2)return'';
+    return`<span class="tag" style="${r?'background:var(--gold);color:#111':''}" title="${esc(S0.bonus)}">${S0.ic} ${esc(S0.n)}${r===2?' II':r?' I':` ${n}/${S0.need}`}</span>`}).join('')}
+};
+{const ha=huntAttrs;huntAttrs=function(d,lh){return SPEC.apply(d,ha(d,lh))}}
+{const ca=CN.attrs;CN.attrs=function(g){ca.call(CN,g);g.at.nose*=1+.08*SPEC.rank(g.d,'tree')}}
+{const ra=RB.attrs;RB.attrs=function(g){ra.call(RB,g);g.at.agil*=1+.08*SPEC.rank(g.d,'rabbit')}}
+{const f3=finishHunt;finishHunt=function(win,lines){const r=f3(win,lines);try{SPEC.record(UI.hunt)}catch(e){console.warn('spec',e)}return r}}
 Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
