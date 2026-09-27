@@ -4691,8 +4691,15 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.1.0';
-const PATCH_NOTES=[{v:'2.1.0',title:'Ranch & registry',items:[
+const GAME_VERSION='2.2.0';
+const PATCH_NOTES=[{v:'2.2.0',title:'Hands-on hunts',items:[
+  ['Walk in yourself','Sneak, walk or run to the dogs. Running is fast but burns your wind, and a winded hunter slows way down. Sneak in quiet when you get close.'],
+  ['Hunt by ear','Hear the dogs: a chop at the bay, a bawl on a track, louder when they are close and from the side they are on. Tap 👂 Listen to stop and place each dog you can hear, marked on the map.'],
+  ['Read sign','Tap 🔎 Read sign to look over the hog sign around you: fresh rooting, old wallows, tracks. Pick the freshest and the bay dogs go to it.'],
+  ['Hold the bay together','Where you stand matters: close enough and the dogs work harder, too close and the hog fixes on you (and may charge). Holler the dogs up, but not too much.'],
+  ['Time the catch','The Bay set meter shows when the hog is worn down. Send each catch dog yourself: too early and the hog is fresh, on time and the dogs start ahead, too late and the bay dogs are spent.'],
+  ['Your hunt','After the hunt you see how far you walked, how fast you got to the bay and how well you timed the catch.']]},
+  {v:'2.1.0',title:'Ranch & registry',items:[
   ['Share and print papers','Every dog\'s papers can be saved as a picture, shared or printed: a full certificate with the dog, its IDs, record, pedigree and stamps.'],
   ['Papers on the market','Dogs for sale online show their papers before you buy. A traded dog keeps its Dog ID, registration number and whole history, with the new owner added.'],
   ['Stud book','Breed a line five generations deep and register it in the stud book. Registered dogs are worth 10% more and their papers carry the line\'s name.'],
@@ -7665,7 +7672,112 @@ SCREENS.staff=()=>R21.staffScreen();
 SCREENS.journal=()=>{const J=S.journal||[];return`<h2>Hunt journal</h2><p class="sub">Every hunt, written up. Each dog's papers keep its own hunts too.</p>${J.length?J.map(R21.jCard).join(''):'<p class="small muted">Go hunting and the journal fills itself in.</p>'}`};
 {const o=SCREENS.more;SCREENS.more=function(){const tiles=[['staff','🧑‍🌾','Kennel staff','Trainer, vet tech and handler work the dogs daily'],['journal','📓','Hunt journal','Every hunt, written up']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('');
   return o().replace('<div class="grid">','<div class="grid">'+tiles)}}
-Object.assign(A,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- INTERACTIVE HUNTS ----------
+// Walk in yourself (sneak, walk or run, with your own wind), hunt by ear (the dogs' voices, and Listen to place them),
+// read sign to pick where to start the dogs, keep the bay together (where you stand and when you holler), and time the
+// catch: send each catch dog yourself when the bay is set. The tie was already hands-on.
+const IH_PACE={sneak:{n:'Sneak',ic:'🤫',sp:.55,drain:0},walk:{n:'Walk',ic:'🚶',sp:1,drain:.0008},run:{n:'Run',ic:'🏃',sp:1.6,drain:.012}};
+const IH={
+  st(S2){return S2.ih||(S2.ih={pace:'walk',stam:1,set:0,hol:[],holT:-99,sign:-999,listen:null,bayAt:null,arrive:null,walked:0,said:{}})},
+  hog:S2=>!S2.mode,
+  // ---- your own legs ----
+  gait(S2,r){if(r[1]!=='man')return r;const X=IH.st(S2),p=IH_PACE[X.pace]||IH_PACE.walk,tired=X.stam<.15?.6:1;
+    if(X.stopUntil&&S2.t<X.stopUntil)return[0,'man'];return[r[0]*p.sp*tired,'man']},
+  step(S2,dt){if(!S2||S2.over)return;const X=IH.st(S2),P=S2.player,h=S2.target;
+    const moved=X.px!==undefined?Math.hypot(P.x-X.px,P.y-X.py):0;X.px=P.x;X.py=P.y;X.walked+=moved;
+    if(!P.mounted){const p=IH_PACE[X.pace]||IH_PACE.walk,cost=(HNAVW.man&&HNAVW.man[hwT(P.x,P.y)])||1;
+      if(moved>.01*dt){X.stam-=p.drain*dt*cost;if(X.pace==='walk')X.stam=Math.max(Math.min(X.stam,1),Math.min(.3,X.stam+.01*dt));if(X.stam<.15&&!X.said.wind){X.said.wind=1;hwEvent(S2,'wind','You’re out of wind. Slow down and catch your breath.',1)}}
+      else X.stam+=.02*dt;X.stam=clamp(X.stam,0,1);if(X.stam>.5)X.said.wind=0}else X.stam=clamp(X.stam+.02*dt,0,1);
+    if(!IH.hog(S2)||!h)return;
+    // the bay: how long it has been set, where you are standing, how you walked in
+    if(S2.phase==='bay'&&S2.baying){if(X.bayAt===null)X.bayAt=S2.t;X.set=Math.min(140,X.set+dt*2.5);const d=Math.hypot(P.x-h.x,P.y-h.y);
+      if(d<45&&X.arrive===null){X.arrive=S2.t;hwEvent(S2,'arrive',`You made it to the bay ${Math.max(0,Math.round((S2.t-X.bayAt)/60))} min after it started.`,1)}
+      if(!S2.released){if(d<10){S2.hold-=dt*1.1;if(!X.said.close){X.said.close=1;hwEvent(S2,'close','You’re too close: the hog is fixing on you instead of the dogs. Back off a little.',1)}
+          if(R()<dt*.012){const a=Math.atan2(P.y-h.y,P.x-h.x);P.x=clamp(P.x+Math.cos(a)*14,2,HW.N-3);P.y=clamp(P.y+Math.sin(a)*14,2,HW.N-3);P.tx=null;X.stam=Math.max(0,X.stam-.3);hwEvent(S2,'charged','The hog charged you! You jumped behind a tree.',1);hwBanner(S2,'HOG CHARGED YOU')}}
+        else if(d<=45){S2.hold=Math.min(100,S2.hold+dt*.25);X.said.close=0}
+        if(d<45&&X.pace==='run'&&moved>0){S2.hold-=dt*.9;if(!X.said.run){X.said.run=1;hwEvent(S2,'crash','You came crashing in at a run. The hog is getting nervous.',1)}}}}
+    else if(S2.phase!=='bay'&&S2.phase!=='catch'&&S2.phase!=='won'){X.set=Math.max(0,X.set-dt*5)}},
+  zone(S2){const h=S2.target,P=S2.player;if(!h||!h.rev)return null;const d=Math.hypot(P.x-h.x,P.y-h.y);return d<10?['Too close','var(--bad)']:d<=45?['Good spot: the dogs know you’re here','var(--good)']:[`${yd(d)} yd off: get in there`,'#d9a521']},
+  // ---- hollering the dogs up ----
+  holler(){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.over)return;const X=IH.st(S2),P=S2.player,h=S2.target;if(S2.t-X.holT<8)return;X.holT=S2.t;X.hol=X.hol.filter(t=>S2.t-t<40);X.hol.push(S2.t);sfx.bark();
+    const bays=huntDogs(S2,'bay'),near=h?Math.hypot(P.x-h.x,P.y-h.y)<250:false;
+    if(X.hol.length>=3&&S2.phase==='bay'){S2.hold-=12;hwEvent(S2,'holler',`Too much hollering: the hog is getting riled up.`,1)}
+    else if(S2.phase==='bay'){S2.hold=Math.min(100,S2.hold+(near?10:4));hwEvent(S2,'holler',near?'“Hunt ’em up! Get him, dogs!” The dogs lean in on the bay.':'You hollered, but you’re a long way off. Get closer.',1)}
+    else if(S2.phase==='chase'){bays.forEach(g=>g.sta=Math.min(1,g.sta+.04));hwEvent(S2,'holler','You hollered the dogs on: they dig in after the hog.',1)}
+    else{bays.forEach(g=>{if(g.st==='cast'||g.st==='recast')g.sta=Math.min(1,g.sta+.02)});hwEvent(S2,'holler','“Hunt ’em up!” The dogs push out ahead of you.',1)}
+    huntHud(true)},
+  // ---- the catch: when to send, and who ----
+  relQ(S2){const s=IH.st(S2).set;return s<40?'early':s<=100?'good':'late'},
+  onRelease(S2){const X=IH.st(S2),q=IH.relQ(S2);X.relq=q;X.ctlB=q==='good'?20:q==='early'?-8:5;
+    if(q==='early'){if(S2.target)S2.target.stam=Math.min(1,S2.target.stam+.05);hwEvent(S2,'timing','Too early: the bay wasn’t set and the hog is fresh. This could get rough.',1)}
+    else if(q==='good')hwEvent(S2,'timing','Good timing: the bay was set and the hog was worn down.',1);
+    else{huntDogs(S2,'bay').forEach(g=>g.sta=Math.max(0,g.sta-.08));hwEvent(S2,'timing','Late: the bay dogs were getting worn out holding him.',1)}},
+  send(id){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.over)return;const g=S2.dogs.find(x=>x.id===id&&x.role==='catch');if(!g||g.st!=='leash')return;
+    if(!S2.released){const others=huntDogs(S2,'catch').filter(x=>x!==g&&x.st==='leash');huntRelease();if(!S2.released)return;others.forEach(x=>x.st='leash');hwEvent(S2,'send',`You slipped ${g.name} off the lead.`,1)}
+    else{g.st='run';hwEvent(S2,'send',`You sent ${g.name} in to help.`,1);sfx.bark()}huntHud(true)},
+  // ---- reading sign: pick the freshest to start the dogs ----
+  signs(S2){const P=S2.player,out=[];for(const k in S2.tracks){const tr=S2.tracks[k];let bi=-1,bd=1e9;for(let i=0;i<tr.pts.length;i+=3){const p=tr.pts[i],d=Math.hypot(p.x-P.x,p.y-P.y);if(d<bd){bd=d;bi=i}}
+      if(bi>=0&&bd<420)out.push({k:+k,i:bi,d:bd,s:scentOf(tr.pts[bi],S2.t),x:tr.pts[bi].x,y:tr.pts[bi].y})}
+    out.sort((a,b)=>b.s-a.s);const best=out[0];if(!best)return[];const rest=out.slice(1).sort(()=>R()-.5).slice(0,2);return[best,...rest].sort(()=>R()-.5)},
+  clue(s){const f=s>.35?0:s>.12?1:2,C=[['Dirt is still wet and dark','roots torn out and still white','sharp-edged tracks, water seeping in','hair on a rub, still greasy'],['rooting starting to dry at the edges','tracks softened by dew','a wallow with the water settled clear','droppings, not fresh'],['rooting crusted over','leaves blown into the tracks','a dry wallow cracking','old droppings gone gray']][f];
+    return C.slice().sort(()=>R()-.5).slice(0,2).join(', ')},
+  readSign(){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.over)return;const X=IH.st(S2);if(S2.t-X.sign<300)return toast('You just read sign here. Give it a few minutes.');const L=IH.signs(S2);X.sign=S2.t;
+    if(!L.length){hwEvent(S2,'sign','You looked around but found no sign close by. Walk further in.',1);return huntHud(true)}
+    X.cards=L.map(s=>({...s,txt:IH.clue(s)}));const P=S2.player;
+    openSheet(`<h2>🔎 Read the sign</h2><p class="sub">You found hog sign in a few places. Pick the freshest and put the bay dogs on it.</p>${X.cards.map((c,i)=>`<button class="panel" style="display:block;width:100%;text-align:left;margin-bottom:8px" data-act="ihSign" data-k="${i}"><b>${['A','B','C'][i]}: ${yd(c.d)} yd ${dirName(Math.atan2(c.y-P.y,c.x-P.x))}</b><div class="small">${esc(c.txt)}</div></button>`).join('')}`)},
+  pickSign(i){const S2=UI.hunt&&UI.hunt.sim,X=S2&&IH.st(S2),c=X&&X.cards&&X.cards[+i];if(!c)return;closeSheet();const best=Math.max(...X.cards.map(x=>x.s)),right=c.s>=best-1e-9;
+    hwKnow(S2,c.k,c.i);hwPutOnScent(S2,c.k,c.i);X.signOK=(X.signOK||0)+(right?1:0);hwEvent(S2,'sign',right?'Good read: that’s the freshest sign here.':c.s>.12?'Fair sign, but there was fresher.':'That sign was old. The dogs may not do much with it.',1);X.cards=null;huntHud(true)},
+  // ---- hunting by ear ----
+  voice(g){const d=g.d||{},m=d.mouth||'chop';return g.st==='bay'?'chop':g.st==='hot'||g.st==='track'?(m==='bawl'?'bawl':m==='squall'?'squall':'chop'):null},
+  word:{chop:'chopping',bawl:'bawling',squall:'squalling'},
+  listen(){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.over)return;const X=IH.st(S2),P=S2.player;X.stopUntil=S2.t+20;P.tx=null;const heard=[],marks=[],hear=(HWX&&HWX.hear)||1;
+    for(const g of S2.dogs){const v=IH.voice(g);if(!v&&g.st!=='treed')continue;const d=Math.hypot(g.x-P.x,g.y-P.y),range=900*((g.d&&(g.d.traits||[]).includes('silent'))?.35:1)*hear;if(d>range)continue;
+      const err=12+d*.18,a=Math.atan2(g.y-P.y,g.x-P.x)+(R()-.5)*.5*(d/range),rd=Math.max(0,d+(R()-.5)*err);marks.push({x:P.x+Math.cos(a)*rd,y:P.y+Math.sin(a)*rd,r:err,n:g.name,bay:g.st==='bay'});
+      heard.push(`${g.name} is ${g.st==='bay'?'chopping at a bay':g.st==='treed'?'barking treed':IH.word[v]+' on a track'}, about ${Math.max(50,Math.round(yd(rd)/50)*50)} yd ${dirName(a)}`)}
+    X.listen={until:S2.t+12,marks};hwEvent(S2,'listen',heard.length?'You stop and listen. '+heard.join('. ')+'.':'You stop and listen. Nothing but the woods: the dogs are quiet or out of hearing.',1);sfx.ok();huntHud(true)},
+  // bark sounds, from where the dogs are
+  audio(S2){if(!S||!S.sound||document.hidden||UI.tab!=='hunt'||!S2||S2.over)return;const now=performance.now();if(now<(IH._next||0))return;IH._next=now+1100+Math.random()*900;
+    const P=S2.player,cand=S2.dogs.map(g=>({g,v:IH.voice(g),d:Math.hypot(g.x-P.x,g.y-P.y)})).filter(o=>o.v&&o.d<900);if(!cand.length)return;const o=cand.sort((a,b)=>a.d-b.d)[Math.random()<.7?0:Math.floor(Math.random()*cand.length)];
+    const vol=.06*clamp(1-o.d/900,.08,1),pan=clamp((o.g.x-P.x)/Math.max(60,o.d),-1,1);IH.bark(o.v,vol,pan,(hashStr(o.g.id)%40)-20)},
+  bark(kind,vol,pan,det){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const t0=AC.currentTime,out=AC.createGain(),pn=AC.createStereoPanner?AC.createStereoPanner():null,lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1600;
+      if(pn){pn.pan.value=pan;out.connect(pn);pn.connect(AC.destination)}else out.connect(AC.destination);lp.connect(out);out.gain.value=vol;
+      const tone=(f0,f1,st,du,type='sawtooth')=>{const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0+det,t0+st);o.frequency.exponentialRampToValueAtTime(Math.max(60,f1+det),t0+st+du);g.gain.setValueAtTime(.0001,t0+st);g.gain.exponentialRampToValueAtTime(1,t0+st+.015);g.gain.exponentialRampToValueAtTime(.0001,t0+st+du);o.connect(g);g.connect(lp);o.start(t0+st);o.stop(t0+st+du+.02)};
+      if(kind==='chop'){const n=2+Math.floor(Math.random()*3);for(let i=0;i<n;i++)tone(420,300,i*.2,.09)}
+      else if(kind==='bawl'){tone(520,330,0,.75,'triangle');tone(1040,660,0,.75,'sawtooth')}
+      else{tone(760,520,0,.35);tone(760,520,.45,.3)}}catch(e){}},
+  drawMarks(){const cv=HV.cv,h=UI.hunt;if(!cv||!h||!h.sim)return;const S2=h.sim,X=S2.ih;if(!X||!X.listen||S2.t>X.listen.until)return;const ctx=cv.getContext('2d'),dpr=Math.min(2,window.devicePixelRatio||1),v=hvView(cv),z=HV.cam.z;ctx.setTransform(dpr,0,0,dpr,0,0);
+    for(const m of X.listen.marks){const x=(m.x-v.x0)*z,y=(m.y-v.y0)*z,r=Math.max(10,m.r*z);ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=2.5;ctx.strokeStyle=m.bay?'#ff7a1a':'#ffd24a';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.stroke();ctx.setLineDash([]);
+      ctx.font='700 12px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.85)';const t=`👂 ${m.n}${m.bay?' (bay)':''}`;ctx.strokeText(t,x,y-r-4);ctx.fillStyle='#fff';ctx.fillText(t,x,y-r-4);ctx.restore()}},
+  // ---- the hunt panel ----
+  key(S2){const X=IH.st(S2),leash=S2.dogs.filter(g=>g.role==='catch'&&g.st==='leash').map(g=>g.id).join(',');return[S2.phase,X.pace,!!S2.player.mounted,leash,!!(S2.target&&S2.target.rev),S2.released?1:0].join('|')},
+  panel(S2){const X=IH.st(S2),hogHunt=IH.hog(S2),P=S2.player,bayish=hogHunt&&(S2.phase==='bay'),leash=S2.dogs.filter(g=>g.role==='catch'&&g.st==='leash');
+    return`<div class="panel" style="padding:8px 10px"><div class="spread small" style="gap:8px"><span>${P.mounted?'🐎 Riding':'Your wind'}</span><div class="meter" style="flex:1;height:8px"><i id="ihStam" style="width:${Math.round(X.stam*100)}%;background:#4aa3ff"></i></div></div>
+      ${P.mounted?'':`<div class="seg" style="margin:6px 0">${Object.entries(IH_PACE).map(([k,o])=>`<button class="${X.pace===k?'on':''}" data-act="ihPace" data-k="${k}">${o.ic} ${o.n}</button>`).join('')}</div>`}
+      <div class="row" style="gap:6px;margin-top:4px"><button class="btn sm" data-act="ihListen">👂 Listen</button><button class="btn sm alt" data-act="ihHoller">📢 Holler</button>${hogHunt&&S2.phase!=='bay'&&S2.phase!=='catch'&&S2.phase!=='won'&&!(S2.target&&S2.target.rev)?'<button class="btn sm ghost" data-act="ihRead">🔎 Read sign</button>':''}</div>
+      ${bayish?`<div class="small" style="margin-top:8px"><b>Bay set</b> <span id="ihSetTxt" class="muted"></span></div><div class="meter" style="height:10px;position:relative"><i id="ihSet" style="width:0%;background:#d9a521"></i><span style="position:absolute;left:28.5%;top:-2px;bottom:-2px;width:2px;background:#fff8"></span><span style="position:absolute;left:71.4%;top:-2px;bottom:-2px;width:2px;background:#fff8"></span></div>
+        <div class="small" id="ihZone" style="margin-top:4px"></div>
+        ${leash.length?`<div class="row" style="gap:6px;margin-top:6px">${leash.map(g=>`<button class="btn sm" data-act="ihSend" data-id="${g.id}">🐕 Send ${esc(g.name)}</button>`).join('')}</div>`:''}`:''}</div>`},
+  hud(S2){const el=document.getElementById('ihPanel');if(!el)return;const k=IH.key(S2);if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=IH.panel(S2)}const X=IH.st(S2),$=id=>document.getElementById(id);
+    const st=$('ihStam');if(st)st.style.width=Math.round(X.stam*100)+'%';const se=$('ihSet');if(se){const q=IH.relQ(S2);se.style.width=Math.min(100,X.set/1.4)+'%';se.style.background=q==='good'?'var(--good)':q==='early'?'#d9a521':'var(--bad)';
+      const t=$('ihSetTxt');if(t)t.textContent=q==='early'?'building: let the dogs wear him down':q==='good'?'SET: send the catch dog now':'bay dogs tiring: send them in!'}
+    const z=$('ihZone'),zz=IH.zone(S2);if(z&&zz){z.innerHTML=`Where you are: <b style="color:${zz[1]}">${zz[0]}</b>`}},
+  summary(S2){const X=S2&&S2.ih;if(!X||!IH.hog(S2))return[];const L=[];if(X.walked>5)L.push(`🚶 You covered ${yd(X.walked).toLocaleString()} yd on ${S2.player.horse&&S2.player.mounted?'horseback':'foot'}.`);
+    if(X.arrive!==null&&X.bayAt!==null)L.push(`⏱️ You reached the bay ${Math.max(0,Math.round((X.arrive-X.bayAt)/60))} min after it started.`);if(X.relq)L.push(`🎯 Catch timing: ${X.relq==='good'?'right on time':X.relq==='early'?'too early':'late'}.`);if(X.signOK)L.push('🔎 You read the sign right.');return L}
+};
+const IH_ACTIONS={
+  ihPace:d=>{const S2=UI.hunt&&UI.hunt.sim;if(!S2)return;IH.st(S2).pace=d.k;huntHud(true)},
+  ihListen:()=>IH.listen(),ihHoller:()=>IH.holler(),ihRead:()=>IH.readSign(),ihSign:d=>IH.pickSign(d.k),ihSend:d=>IH.send(d.id)
+};
+// ---- wiring ----
+{const o=HR.gait;HR.gait=function(S2){const r=o.call(HR,S2);try{return IH.gait(S2,r)}catch(e){return r}}}
+{const o=hwStep;hwStep=function(S2,dt){o(S2,dt);try{IH.step(S2,dt);IH.audio(S2)}catch(e){console.warn('ih',e)}}}
+{const o=huntRelease;huntRelease=function(){const S2=UI.hunt&&UI.hunt.sim,was=S2&&S2.released;o();try{if(S2&&S2.released&&!was&&IH.hog(S2))IH.onRelease(S2)}catch(e){}}}
+{const o=hwCatchStart;hwCatchStart=function(S2,h){const first=h.st!=='fight';o(S2,h);try{const X=S2.ih;if(first&&X&&X.ctlB){S2.ctl+=X.ctlB;X.ctlB=0}}catch(e){}}}
+{const o=huntDraw;huntDraw=function(){o();try{IH.drawMarks()}catch(e){}}}
+{const o=huntHud;huntHud=function(f){o(f);try{const h=UI.hunt;if(h&&h.sim)IH.hud(h.sim)}catch(e){}}}
+{const o=huntPlayLive;huntPlayLive=function(){return o().replace('<div id="hMeters"','<div id="ihPanel" style="margin:6px 0"></div><div id="hMeters"')}}
+{const o=finishHunt;finishHunt=function(win,lines){try{const S2=UI.hunt&&UI.hunt.sim;if(S2&&Array.isArray(lines))lines.push(...IH.summary(S2))}catch(e){}return o(win,lines)}}
+Object.assign(A,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
