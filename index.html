@@ -1927,7 +1927,7 @@ function endDay(){
     if(d.age===12)msgs.push(`${d.name} is grown and ready to work.`)}
   for(const d of[...S.dogs]){if(!(d.frail>0)||d.age>30||R()>=d.frail*FRAIL_DAILY)continue;S.dogs=S.dogs.filter(x=>x!==d);
     for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);if(UI.sire===d.id)UI.sire='';if(UI.dam===d.id)UI.dam='';
-    msgs.push(`${d.name} died young. The ${frameText(d)} gave out.`);addLog(`${d.name} (${breedName(d)}) died at ${d.age} months: ${frameText(d)}.`)}
+    msgs.push(`${d.name} died young. The ${frameText(d)} gave out.`);try{PAPERS.arch(d,'DECEASED','Died young: '+frameText(d))}catch(e){}addLog(`${d.name} (${breedName(d)}) died at ${d.age} months: ${frameText(d)}.`)}
   const due=S.preg.filter(p=>p.due<=S.day);S.preg=S.preg.filter(p=>p.due>S.day);
   for(const p of due){const dam=S.dogs.find(d=>d.id===p.dam);const sire=p.sireSnap;
     if(!dam){msgs.push('A litter was lost when the dam left the kennel.');continue}
@@ -2069,10 +2069,10 @@ const PUPB={
 };
 function dogProfile(id){
   const d=S.dogs.find(x=>x.id===id);if(!d)return;const t=rarTier(d);
-  const ped=d.parents?`<table><tr><th>Sire</th><td>${esc(d.parents[0].name)} <span class="muted small">${esc(d.parents[0].breed)}, ${esc(d.parents[0].coat)}</span><br><span class="small muted">${d.parents[0].parents?'× '+d.parents[0].parents.map(esc).join(' & '):'Foundation stock'}</span>${bdgUI('snapRow',d.parents[0])}</td></tr>
-    <tr><th>Dam</th><td>${esc(d.parents[1].name)} <span class="muted small">${esc(d.parents[1].breed)}, ${esc(d.parents[1].coat)}</span><br><span class="small muted">${d.parents[1].parents?'× '+d.parents[1].parents.map(esc).join(' & '):'Foundation stock'}</span>${bdgUI('snapRow',d.parents[1])}</td></tr></table>`
+  const ped=d.parents?`<table><tr><th>Sire</th><td>${d.parents[0].id&&findDog(d.parents[0].id)?`<button class="linkbtn" data-act="papers" data-id="${d.parents[0].id}">${esc(d.parents[0].name)}</button>`:esc(d.parents[0].name)} <span class="muted small">${esc(d.parents[0].breed)}, ${esc(d.parents[0].coat)}</span><br><span class="small muted">${d.parents[0].parents?'× '+d.parents[0].parents.map(esc).join(' & '):'Foundation stock'}</span>${bdgUI('snapRow',d.parents[0])}</td></tr>
+    <tr><th>Dam</th><td>${d.parents[1].id&&findDog(d.parents[1].id)?`<button class="linkbtn" data-act="papers" data-id="${d.parents[1].id}">${esc(d.parents[1].name)}</button>`:esc(d.parents[1].name)} <span class="muted small">${esc(d.parents[1].breed)}, ${esc(d.parents[1].coat)}</span><br><span class="small muted">${d.parents[1].parents?'× '+d.parents[1].parents.map(esc).join(' & '):'Foundation stock'}</span>${bdgUI('snapRow',d.parents[1])}</td></tr></table>`
     :'<p class="small muted">Foundation stock — no recorded parents.</p>';
-  openSheet(`<div class="small muted num">${d.id}${d.gen?' · Generation '+d.gen:''}</div>
+  openSheet(`<div class="spread"><div class="small muted num">${d.id}${d.gen?' · Generation '+d.gen:''}</div><button class="btn sm ghost" data-act="papers" data-id="${d.id}">📜 View dog papers</button></div>
   <h2 style="margin-top:2px">${esc(d.name)} <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span></h2>
   <div class="dcard" style="--rc:var(${RAR[t][1]});padding:0;border-width:0 0 4px"><div class="art">${dogArt(d,300)}</div></div>
   <div class="row" style="margin:8px 0">${rarTag(d)}${gradeTag(d)}${d.mut?'<span class="tag" style="background:var(--gold);color:#fff">✦ Mutation</span>':''}<span class="tag">${esc(breedName(d))}</span><span class="tag">${ageStr(d.age)}</span><span class="tag">${d.kg} kg</span><span class="tag">${esc(d.temp)}</span></div>
@@ -4691,8 +4691,17 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.9.1';
-const PATCH_NOTES=[{v:'1.9.1',title:'Millions of dog names',items:[
+const GAME_VERSION='2.0.0';
+const PATCH_NOTES=[{v:'2.0.0',title:'Official dog papers',items:[
+  ['Every dog has papers','Each dog now has an official record with a permanent Dog ID (HD-DOG-…) and registration number (HDA-…) that never change, even if you rename the dog. Tap "View dog papers" on any dog profile.'],
+  ['11 tabs','Overview, Genetics, Pedigree, Hunting, Training, Badges, Health, Breeding, Career, Legacy and Ownership. Everything reads from the dog itself, so the papers are always up to date.'],
+  ['Records that fill themselves in','Hunts, largest hog, best hunt, earnings, training sessions, injuries, vet visits, litters, awards, sales and owners are written into the record as they happen.'],
+  ['Genetics certificate','Genetic ID, trait genes and every coat gene marked KNOWN, CARRIER, HIDDEN or DISCOVERED.'],
+  ['Pedigree','Parents, grandparents and further back, from real breedings only. Tap a name to open that dog\'s papers.'],
+  ['Records live on','Sold, lost and passed dogs keep their papers, so pedigrees and legacies never lose them. Retired and passed dogs get a lifetime record.'],
+  ['Dog registry','More → Dog registry: search every dog by name, ID, breed, sex, career, role, bloodline, badge or generation, filter by status, and compare two dogs side by side.'],
+  ['Papers everywhere','Open papers from the profile, the training yard, the breeding pen, the hunt screen and the market.']]},
+  {v:'1.9.1',title:'Millions of dog names',items:[
   ['Every dog gets its own name','New dogs and pups draw from millions of names: call names like Tater or Magnolia, two-part names like Sadie Mae and Rowdy Boone, and handles like Ol\' Blue or Big Red. No dog on your ranch ever gets a name another dog has had, and you can\'t rename a dog to a name another of your dogs is using. Dogs that already shared a name got a numeral (Blue, Blue II).'],
   ['Balance','Dogs only lose their nerve from serious cuts, and it comes back a little every day. Other crews show up less often, give you more time, and sometimes pull out. Rough dogs break the bay less often.']]},
   {v:'1.9.0',title:'Real woods II',items:[
@@ -5366,7 +5375,7 @@ const TROPHY={
 SCREENS.trophies=()=>TROPHY.screen();
 
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['fair','🎡','County fair','Every season: dog show, barrel racing, cutting, hog weigh-off'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['trophies','🏆','Trophy wall','Record hogs, ribbons, badges and records'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['cams','📷','Trail cameras','Scout hogs with cameras and bait'],['traps','🪤','Hog traps','Trap hogs, check traps daily, sell them live'],['papers','💉','Vet & paperwork','License, rabies shots, snake protection, the warden'],['replay','🎬','Hunt replays','Watch your last hunts back and share clips'],['baytrial','🐗','Bay pen trials','Judged bay trials: grit, control, voice'],['career','📖','Career','Old Man Tate\'s story and the Parish Circuit'],['club','🤝','Hunting clubs','Club chat, lend dogs, club vs club'],['coop','🐾','Co-op hunt','Hunt live with a friend'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['fair','🎡','County fair','Every season: dog show, barrel racing, cutting, hog weigh-off'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['trophies','🏆','Trophy wall','Record hogs, ribbons, badges and records'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['cams','📷','Trail cameras','Scout hogs with cameras and bait'],['traps','🪤','Hog traps','Trap hogs, check traps daily, sell them live'],['registry','📜','Dog registry','Official papers for every dog: search, compare, pedigrees, sold and passed dogs'],['papers','💉','Vet & paperwork','License, rabies shots, snake protection, the warden'],['replay','🎬','Hunt replays','Watch your last hunts back and share clips'],['baytrial','🐗','Bay pen trials','Judged bay trials: grit, control, voice'],['career','📖','Career','Old Man Tate\'s story and the Parish Circuit'],['club','🤝','Hunting clubs','Club chat, lend dogs, club vs club'],['coop','🐾','Co-op hunt','Hunt live with a friend'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
@@ -7191,7 +7200,232 @@ const R2_ACTIONS={
 // existing dogs get their traits the first time they hunt, see a new day or open their profile
 {const sv0=save;save=function(){try{DOGNAME.fixDupes()}catch(e){}return sv0.apply(this,arguments)}}
 try{DOGNAME.fixDupes()}catch(e){}
-Object.assign(A,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- OFFICIAL DOG PAPERS ----------
+// Every dog's official record. ONE source of truth: the dog object itself. Genes, stats, pedigree snapshots, hunt counts
+// (d.hunt), badges (d.bdg), bloodline (d.bl), health and so on are read straight from the systems that own them; the
+// only new data is d.rec, a compact log of things nothing else remembers (birth day, owners and sales, hunt highlights,
+// training, vet and injury history, litters, awards). Dogs that leave the ranch (sold, died, given away) are not
+// deleted: a trimmed copy of the same object moves to S.arch so pedigrees, bloodlines and legacies never lose them.
+// IDs are permanent: HD-DOG-00000173 and registration HDA-000173 come from the dog's own id, which never changes.
+const ARCH_MAX=1200;
+const PAPER_TABS=[['overview','Overview'],['genetics','Genetics'],['pedigree','Pedigree'],['hunting','Hunting'],['training','Training'],['badges','Badges'],['health','Health'],['breeding','Breeding'],['career','Career'],['legacy','Legacy'],['ownership','Ownership']];
+const PAPERS={
+  // ---- identity ----
+  dogId:d=>'HD-'+d.id,
+  regNo:d=>'HDA-'+String(parseInt(String(d.id).replace(/\D/g,''),10)||0).padStart(6,'0'),
+  owner:()=>(S.online&&S.online.user)||'You',
+  // the small record of things no other system keeps; created the first time a dog is seen
+  rec(d){if(d.rec)return d.rec;const r=d.rec={born:S.day-(d.age||0),own:[{day:S.day,owner:PAPERS.owner(),ranch:S.name,how:d.parents&&d.age<=1?'Bred on the ranch':d.age<=1?'Born on the ranch':'Came to the ranch'}],
+    h:{ok:0,trk:0,loc:0,bay:0,cat:0,rab:0,oth:0,big:null,long:0,best:null,earn:0,last:[]},t:{n:0,xp:0,by:{},last:0,ms:[]},vet:[],inj:[],br:[],aw:[],car:[],disc:{}};return r},
+  get(id){return S.dogs.find(d=>d.id===id)||(S.arch&&S.arch[id])||(S.market||[]).find(d=>d.id===id)||(S.featured||[]).find(d=>d.id===id)||allLineup().find(d=>d.id===id)||(UI.previewPups||[]).find(d=>d.id===id)||null},
+  mine:d=>S.dogs.includes(d),
+  stage:d=>d.age<12?'PUPPY':d.age<36?'YOUNG':d.age<96?'ADULT':'SENIOR',
+  status(d){if(d.arch)return d.arch.status;if(!S.dogs.includes(d))return'FOR SALE';if(d.retired)return'RETIRED';if(d.inj)return d.inj.left>2?'INJURED':'RECOVERING';
+    if(S.preg.some(p=>p.dam===d.id)||d.cool>0)return'BREEDING';if(UI.hunt&&UI.hunt.sim&&!UI.hunt.sim.over&&UI.hunt.sim.dogs.some(g=>g.id===d.id))return'HUNTING';if(d.rec&&d.rec.t.last===S.day)return'TRAINING';return'ACTIVE'},
+  dob:d=>{const b=PAPERS.rec(d).born;const m=((WE_MONTH0+b-1)%12+12)%12,y=Math.floor((WE_MONTH0+b-1)/12)+1;return`${['January','February','March','April','May','June','July','August','September','October','November','December'][m]}, `+(y>=1?`year ${y}`:`${1-y} yr${y<0?'s':''} before the ranch opened`)},
+  // ---- the dog's hunting role and career come from what it has actually done ----
+  role(d){const H=d.hunt||{},trk=(H.strikes||0)+(H.locates||0),bay=H.bays||0,cat=H.catches||0,tot=trk+bay+cat;
+    if(tot<3){const b=bayScore(d),c=catchScore(d);return Math.abs(b-c)<6?'VERSATILE':b>c?'BAY DOG':'CATCH DOG'}
+    const mx=Math.max(trk,bay,cat);if([trk,bay,cat].filter(v=>v>=mx*.7).length>1)return'VERSATILE';return mx===cat?'CATCH DOG':mx===bay?'BAY DOG':'TRACKER'},
+  career(d){const r=PAPERS.rec(d),H=d.hunt||{},lit=r.br.length,hof=typeof DB!=='undefined'?DB.earned(d).filter(id=>d.bdg.t[id]>=4).length:0,wins=r.aw.length;
+    const xp=Math.round((H.xp||0)+r.t.xp/2+(d.bdg?Object.values(d.bdg.p).reduce((s,v)=>s+v,0)/10:0)+lit*40);
+    let c=(H.n||0)>=3?PAPERS.role(d):lit>=2?'BREEDING':'COMPANION';if(hof||wins>=3||(r.h.ok>=50&&(H.catches||0)+(H.bays||0)>=40))c='CHAMPION';else if(lit>=3&&lit*6>(H.n||0))c='BREEDING';
+    const lvl=Math.max(1,Math.floor(Math.sqrt(xp/25))+1),ms=[];const add=(ok,t)=>{if(ok)ms.push(t)};
+    add((H.n||0)>=1,'First hunt');add((H.catches||0)>=1,'First catch');add((H.bays||0)>=10,'10 bays');add((H.n||0)>=25,'25 hunts');add((H.n||0)>=100,'100 hunts');add(r.h.big&&r.h.big.w>=250,'Heavyweight: a 250 lb hog');add(lit>=1,'First litter');add(r.t.n>=25,'25 training sessions');add(hof>0,'Hall of Fame badge');
+    return{c,xp,lvl,ms}},
+  // ---- legacy: what the dog leaves behind ----
+  offspring(d){const out=[];const ch=x=>x&&x.parents&&x.parents.some(p=>p&&p.id===d.id);for(const x of S.dogs)if(ch(x))out.push(x);for(const id in(S.arch||{}))if(ch(S.arch[id]))out.push(S.arch[id]);return out},
+  famous(x){const t=x.bdg&&x.bdg.t?Object.values(x.bdg.t):[];return t.some(v=>v>=3)||(x.hunt&&x.hunt.n>=40)||rarTier(x)>=4},
+  legacy(d){const H=d.hunt||{},r=PAPERS.rec(d),off=PAPERS.offspring(d),fam=off.filter(PAPERS.famous),tiers=d.bdg?Object.values(d.bdg.t).reduce((s,v)=>s+v,0):0;
+    return{score:Math.round((H.catches||0)*2+(H.bays||0)+tiers*10+off.length*3+fam.length*25+r.aw.length*15+(r.h.big?r.h.big.w/20:0)),off,fam}},
+  quality(d){const a=avg(Object.values(d.pot));return a>=88?'A+':a>=82?'A':a>=76?'B+':a>=70?'B':a>=62?'C':'D'},
+  fertility(d){if(d.age<12)return 0;const a=d.age<24?.9:d.age<72?1:d.age<96?.75:d.age<120?.45:.2;return Math.round(a*(d.health/(d.hcap||100))*((d.coi||0)>.2?.85:1)*100)},
+  // ---- archive: dogs that leave the ranch keep their record ----
+  arch(d,status,note){if(!d||!S)return;const A=S.arch||(S.arch={});const keep=['id','name','breed','cross','category','sex','age','genes','whiteMod','patMod','coatInt','eyes','eyes2','merleMod','tickMod','speckMod','featherMod','featherDen','texture','kg','pot','stats','temp','hunt','parents','gen','bl','rec','bdg','morph','bodyOf','mut','base','hips','tested','traits','mouth','coi','conf','retired','dna','health','hcap'];
+    const o={};for(const k of keep)if(d[k]!==undefined)o[k]=d[k];o.arch={status,day:S.day,note:note||''};A[d.id]=o;
+    if(Object.keys(A).length>ARCH_MAX)PAPERS.trim()},
+  // the save lives on the phone, so the archive is capped. What goes first: dogs sold or given away that left no mark (no
+  // pups, no ancestors of living dogs, few hunts, no badges), oldest first. Dogs that died, ancestors and notable dogs stay.
+  trim(){const A=S.arch,par=new Set();for(const x of[...S.dogs,...Object.values(A)])(x.parents||[]).forEach(q=>q&&q.id&&par.add(q.id));
+    const score=x=>(x.arch.status==='DECEASED'?1e6:0)+(par.has(x.id)?1e6:0)+((x.hunt&&x.hunt.n)||0)*10+(x.bdg&&x.bdg.t?Object.values(x.bdg.t).reduce((s,v)=>s+v,0)*50:0)+(x.rec&&x.rec.aw?x.rec.aw.length*200:0);
+    const list=Object.values(A).map(x=>[score(x),x.arch.day,x.id]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);let n=list.length-(ARCH_MAX-50);for(const[,,id]of list){if(n--<=0)break;delete A[id]}},
+  // dogs that vanished from the kennel since the last look (sold, died, given away) go into the archive
+  seen:null,
+  sweep(){if(!S||!S.dogs)return;const now=new Map(S.dogs.map(d=>[d.id,d]));if(PAPERS.seen){for(const[id,d]of PAPERS.seen){if(now.has(id)||(S.arch&&S.arch[id]&&S.arch[id].arch.status!=='LOST'))continue;
+        const lost=(S.world&&S.world.lost||[]).some(L=>L.dog.id===id);if(lost){if(!S.arch||!S.arch[id])PAPERS.arch(d,'LOST','Missing in the woods');continue}
+        const mem=(S.memorial||[]).find(m=>m.name===d.name&&m.day>=S.day-1);PAPERS.arch(d,mem?'DECEASED':'SOLD',mem?mem.why:'Left the ranch')}}
+    for(const d of S.dogs){const r=PAPERS.rec(d);if(S.arch&&S.arch[d.id]&&S.arch[d.id].arch.status==='LOST')delete S.arch[d.id]}
+    PAPERS.seen=now},
+  // ---- appearance, straight from the genetics and the master model ----
+  look(d){const s=gameCoat(d),T=Coat.TEMPLATES[coatBreed(d)]||{},P=d.morph&&d.morph.t?d.morph.t:profileOf(d.breed),w=v=>v>=.75?'high':v>=.45?'medium':'low',tpl=v=>v;
+    const nose=s.nose&&s.nose!=='Auto'?s.nose:(/Blue/.test(coatName(d))?'Blue':/Isabella|Lilac/.test(coatName(d))?'Isabella':/Liver|Chocolate|Red/.test(coatName(d))&&d.genes.B&&d.genes.B[0]==='b'?'Liver':'Black');
+    return[['Coat',coatName(d)],['Base coat',s.base],['Secondary color',s.secondary],['Pattern',s.pattern],['Pattern intensity',Math.round((s.intensity??.5)*100)+'%'],['White amount',Math.round((s.white||0)*100)+'%'],
+      ['White markings',s.white>=.85?'Mostly white':s.white>=.3?'Heavy':s.white>=.08?'Markings':'None'],['Mask',s.mask||'None'],['Ticking',s.ticking>0?Math.round(s.ticking*100)+'%':'None'],['Saddle',s.pattern==='saddle'?'Yes':'No'],
+      ['Dilution',s.dilution?'Dilute':'None'],['Merle',s.merle>0?'Merle':'None'],['Eye color',d.eyes&&d.eyes!=='Auto'?d.eyes+(d.eyes2&&d.eyes2!==d.eyes&&d.eyes2!=='Auto'?' / '+d.eyes2:''):'Brown'],['Nose color',nose],['Skin color',nose==='Black'?'Dark pigment':'Pink'],
+      ['Coat length',(s.coatLen||0)>.3?'Long':'Short'],['Coat texture',(d.texture||0)>.5?'Rough':'Smooth'],['Body size',`${d.kg} kg · ${sizeLabel(P.weight||d.kg)}`],['Body build',w(P.muscleBuild??.7)+' muscle, '+w(P.chestWidth??.7)+' chest'],
+      ['Head shape',(P.headShape??.7)>=.85?'Broad':(P.headShape??.7)>=.6?'Medium':'Narrow'],['Ear shape',(P.earType??.4)>=.5?'Drop':(P.earType??.4)>=.3?'Rose':'Prick / cropped'],['Tail shape',(P.tailType??.3)>=.5?'Long':'Medium'],
+      ['Master model',d.breed==='Cross'&&d.morph?'Assembled from '+[...new Set(Object.values(d.morph.reg||{}).map(o=>Object.keys(o).sort((a,b)=>o[b]-o[a])[0]))].join(' + '):String(T.body||'—').replace(/_stack_v1$/,'').replace(/_/g,' ')],['Model variant',geneticId(d)]]},
+  // ---- genetics certificate ----
+  // same visibility rule as the rest of the game: an allele is known unless it is a rare trait nobody has discovered yet
+  genes(d){const out=[];
+    for(const L of Object.keys(LOCI)){const pair=d.genes[L]||[],ord=Coat.GLOCI[L]||[];
+      const st=pair.map(a=>!known(a)?'HIDDEN':DISCOVER[a]?'DISCOVERED':'KNOWN');
+      const rec=pair.length===2&&pair[0]!==pair[1]?(ord.indexOf(pair[0])>ord.indexOf(pair[1])?pair[0]:pair[1]):null;
+      out.push({L,name:LOCI[L].name,pair,st,carrier:rec&&known(rec)?rec:null})}return out},
+  geneScores(d){const p=d.pot,bl=blOf(d);return[['Body size',Math.round(clamp((d.kg||25)/60*100,5,100))],['Strength',p.str],['Speed',p.spd],['Endurance',p.sta],['Health',Math.round(d.vigor||d.hcap||80)],['Athleticism',Math.round((p.spd+p.sta)/2)],
+    ['Intelligence',p.int],['Temperament',Math.round((p.obd+(TEMPS.indexOf(d.temp)>=0?60:50))/2)],['Scent',p.trk],['Recovery',Math.round(40+(bl.hardy||2)*12)]]},
+  // ---- pedigree: parents from real breeding events, looked up through the registry for further generations ----
+  parentsOf(x){if(!x||!x.parents)return[null,null];return x.parents.map(p=>{if(!p)return null;const full=p.id&&PAPERS.get(p.id);return full||{id:p.id,name:p.name,breed:p.breed,coat:p.coat,parents:p.parents?p.parents.map(n=>n?{name:n}:null):null,snap:true}})},
+  tree(d,depth=4){const lv=[[d]];for(let i=1;i<depth;i++){const prev=lv[i-1],row=[];for(const x of prev){const[s,m]=x?PAPERS.parentsOf(x):[null,null];row.push(s,m)}lv.push(row);if(row.every(x=>!x))break}return lv},
+  // ---- the papers themselves ----
+  open(id,tab){const d=PAPERS.get(id);if(!d)return toast('No record for that dog.');UI.ppId=id;if(tab)UI.ppTab=tab;if(!UI.ppTab)UI.ppTab='overview';PAPERS.rec(d);
+    openSheet(PAPERS.html(d));try{const el=document.getElementById('sheetInner');if(el)el.scrollTop=0}catch(e){}},
+  art(d,w){if(d.arch)return`<div style="position:relative">${dogArt(d,w)}</div>`;return dogArt(d,w)},
+  bar(v,max=100){return`<div class="meter" style="height:7px"><i style="width:${clamp(v/max*100,0,100)}%;background:var(--gold)"></i></div>`},
+  row:(k,v)=>`<div class="pp-row"><span>${esc(k)}</span><b>${v}</b></div>`,
+  html(d){const tab=UI.ppTab||'overview',r=PAPERS.rec(d),st=PAPERS.status(d);
+    return`<div class="pp"><div class="pp-head"><div class="pp-brand">HOGS &amp; DOGS</div><div class="pp-title">OFFICIAL DOG RECORD</div>
+      <div class="pp-ids"><span>DOG ID <b>${PAPERS.dogId(d)}</b></span><span>REG. NO. <b>${PAPERS.regNo(d)}</b></span></div></div>
+      <div class="pp-tabs">${PAPER_TABS.map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="ppTab" data-k="${k}">${l}</button>`).join('')}</div>
+      <div class="pp-body">${(PAPERS['t_'+tab]||PAPERS.t_overview)(d,r,st)}</div>
+      <div class="row" style="margin-top:10px">${PAPERS.mine(d)?`<button class="btn sm ghost" data-act="dog" data-id="${d.id}">Dog profile</button>`:''}<button class="btn sm ghost" data-act="ppCompare" data-id="${d.id}">${UI.ppCmp&&UI.ppCmp!==d.id?'Compare with the marked dog':'Mark to compare'}</button><button class="btn sm ghost" data-act="tab" data-t="registry">Dog registry</button></div></div>`},
+  t_overview(d,r,st){const lg=PAPERS.legacy(d),cr=PAPERS.career(d),top=typeof DB!=='undefined'?DB.top(d,5):[];
+    const gone=d.arch&&['SOLD','DECEASED','LOST'].includes(st);
+    return`<div class="pp-art">${PAPERS.art(d,320)}</div><h2 style="margin:4px 0 0">${esc(d.name)} <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span></h2>
+    <div class="small muted">${esc(breedName(d))} · ${d.sex==='M'?'Male':'Female'} · ${ageStr(d.age)} (${PAPERS.stage(d)})</div>
+    <div class="row" style="margin:6px 0"><span class="tag pp-st pp-${st.toLowerCase()}">${st}</span><span class="tag">${PAPERS.role(d)}</span><span class="tag">${esc(tierName(d))} bloodline</span>${rarTag(d)}</div>
+    ${PAPERS.row('Breed',esc(breedName(d))+(d.breed==='Cross'?' (mix)':' (purebred)'))}${PAPERS.row('Born',PAPERS.dob(d))}${PAPERS.row('Owner',esc(gone?(r.own[r.own.length-1].to||'—'):PAPERS.owner()))}${PAPERS.row('Ranch',esc(gone?'—':S.name))}${PAPERS.row('Kennel',gone?'—':'Home kennel')}${PAPERS.row('Bloodline',esc(blOf(d).line||'—'))}${PAPERS.row('Current value',fmt(dogValue(d)))}
+    <h3>Overall</h3>${[['Bay',bayScore(d)],['Catch',catchScore(d)],['Tracking',d.stats.trk],['Speed',d.stats.spd],['Strength',d.stats.str],['Stamina',d.stats.sta]].map(([k,v])=>`<div class="pp-stat"><span>${k}</span>${PAPERS.bar(v)}<b class="num">${Math.round(v)}</b></div>`).join('')}
+    ${top.length?`<h3>Badges</h3><div class="row">${top.map(x=>`<span class="tag">${DB.B[x.id].ic} ${esc(DB.B[x.id].name)} ${DB.chip(x.t)}</span>`).join('')}</div>`:''}
+    ${['RETIRED','DECEASED'].includes(st)?`<div class="panel" style="margin-top:10px"><b>${st==='RETIRED'?'RETIREMENT RECORD':'LIFETIME RECORD'}</b>${PAPERS.row('Total hunts',d.hunt?d.hunt.n:0)}${PAPERS.row('Total earnings',fmt(r.h.earn))}${PAPERS.row('Largest hog',r.h.big?r.h.big.w+' lb':'—')}${PAPERS.row('Badges',top.length)}${PAPERS.row('Career level',cr.lvl)}${PAPERS.row('Offspring',lg.off.length)}${PAPERS.row('Legacy score',lg.score)}${d.arch&&d.arch.note?`<div class="small muted">${esc(d.arch.note)}</div>`:''}</div>`:''}`},
+  t_genetics(d){const G=PAPERS.genes(d),known2=G.flatMap(g=>g.pair.filter((a,i)=>g.st[i]!=='HIDDEN')),hid=G.reduce((s,g)=>s+g.st.filter(x=>x==='HIDDEN').length,0);
+    return`${PAPERS.row('Genetic ID','<span class="gt" style="user-select:all">'+esc(geneticId(d))+'</span>')}${PAPERS.row('Genetic quality',PAPERS.quality(d))}${PAPERS.row('Genetic potential',Math.round(avg(Object.values(d.pot))))}${PAPERS.row('Generation',d.gen||0)}${d.coi?PAPERS.row('Inbreeding',Math.round(d.coi*100)+'%'):''}
+    <h3>Trait genes</h3>${PAPERS.geneScores(d).map(([k,v])=>`<div class="pp-stat"><span>${k}</span>${PAPERS.bar(v)}<b class="num">${v}</b></div>`).join('')}
+    <h3>Coat genes</h3><div class="small muted" style="margin-bottom:4px">${hid?`${hid} hidden gene${hid===1?'':'s'}: a trait nobody has discovered yet. Breed or DNA-test to find out what it is.`:'No hidden genes.'} CARRIER means the dog carries a recessive gene it does not show and can pass on.</div>
+    <div class="tablewrap"><table>${G.map(g=>`<tr><td>${esc(g.name)}</td><td>${g.pair.map((a,i)=>`<span class="gt">${g.st[i]==='HIDDEN'?'?':esc(a)}</span> <span class="small pp-g ${g.st[i].toLowerCase()}">${g.st[i]}</span>`).join(' / ')}${g.carrier?` <span class="small pp-g carrier">CARRIER ${esc(g.carrier)}</span>`:''}</td></tr>`).join('')}</table></div>
+    <div class="small" style="margin-top:6px"><b>Look:</b></div>${PAPERS.look(d).map(([k,v])=>PAPERS.row(k,esc(String(v))+'')).join('')}`},
+  t_pedigree(d){const T=PAPERS.tree(d,5),lab=['Dog','Parents','Grandparents','Great-grandparents','Earlier generation'];
+    const cell=x=>{if(!x)return'<div class="pp-ped none">Unknown</div>';const full=!x.snap&&PAPERS.get(x.id);return`<div class="pp-ped">${full?`<button class="linkbtn" data-act="papers" data-id="${x.id}">${esc(x.name)}</button>`:`<b>${esc(x.name)}</b>`}<div class="small muted">${esc(x.breed?breedName(x):'')}${x.id?' · '+esc('HD-'+x.id):''}</div></div>`};
+    return`${PAPERS.row('Generation',d.gen||0)}${PAPERS.row('Bloodline',esc(blOf(d).line||'—'))}${PAPERS.row('Bloodline quality',esc(tierName(d)))}
+    ${T.map((row,i)=>`<h3>${lab[i]||'Generation '+i}</h3><div class="pp-pedrow" style="grid-template-columns:repeat(${Math.min(row.length,4)},1fr)">${row.map(cell).join('')}</div>`).join('')}
+    ${!d.parents?'<p class="small muted">Foundation stock: no parents on record.</p>':''}`},
+  t_hunting(d,r){const H=d.hunt||{},h=r.h,a=huntAttrs(d,{});
+    return`${PAPERS.row('Primary hunting role',PAPERS.role(d))}
+    <h3>Hunting ability</h3>${[['Tracking',d.stats.trk],['Scent',Math.round(clamp(a.nose*70,0,100))],['Baying',bayScore(d)],['Catch',catchScore(d)],['Speed',d.stats.spd],['Strength',d.stats.str],['Stamina',d.stats.sta],['Agility',RB.score(d)],['Courage',d.conf??70],['Intelligence',d.stats.int],['Teamwork',d.stats.obd],['Recovery',Math.round(40+(blOf(d).hardy||2)*12)]].map(([k,v])=>`<div class="pp-stat"><span>${k}</span>${PAPERS.bar(v)}<b class="num">${Math.round(v)}</b></div>`).join('')}
+    <h3>Lifetime</h3>${PAPERS.row('Hunts completed',H.n||0)}${PAPERS.row('Successful hunts',h.ok)}${PAPERS.row('Hogs tracked',h.trk)}${PAPERS.row('Hogs located',H.locates||h.loc)}${PAPERS.row('Hogs bayed',H.bays||0)}${PAPERS.row('Hogs caught',H.catches||0)}${PAPERS.row('Rabbits hunted',h.rab)}${PAPERS.row('Other animals hunted',h.oth)}
+    ${PAPERS.row('Largest hog',h.big?`${h.big.w} lb ${esc(h.big.name||'')} (day ${h.big.day})`:'—')}${PAPERS.row('Longest track',h.long?h.long.toLocaleString()+' yd':'—')}${PAPERS.row('Best hunt',h.best?`${fmt(h.best.pay)}: ${esc(h.best.what)} (day ${h.best.day})`:'—')}${PAPERS.row('Total hunting earnings',fmt(h.earn))}
+    ${h.last.length?`<h3>Recent hunts</h3>${h.last.map(x=>`<div class="small pp-row"><span>Day ${x.day} · ${esc(x.area)}</span><b>${esc(x.res)}</b></div>`).join('')}`:''}`},
+  t_training(d,r){const t=r.t,lvl=Math.floor(t.xp/40)+1,map=[['Obedience','obd'],['Tracking','trk'],['Baying','sta'],['Catch','grip'],['Endurance','sta'],['Agility','spd'],['Scent training','trk'],['Recall','obd'],['Teamwork','obd']];
+    return`${PAPERS.row('Training level',lvl)}${PAPERS.row('Training XP',t.xp)}${PAPERS.row('Training sessions',d.trained||t.n)}${PAPERS.row('Training hours',(d.trained||t.n)*2)}${d.started?PAPERS.row('Started on shoats','Yes'):''}
+    <h3>Skills</h3>${map.map(([k,s])=>`<div class="pp-stat"><span>${k}</span>${PAPERS.bar(d.stats[s])}<b class="num">${d.stats[s]}<span class="muted">/${d.pot[s]}</span></b></div>`).join('')}
+    <h3>Sessions by drill</h3>${Object.keys(TRAIN).map(k=>PAPERS.row(TRAIN[k],t.by[k]||0)).join('')}
+    ${t.ms.length?`<h3>Milestones</h3>${t.ms.map(m=>`<div class="small">🏅 ${esc(m.t)} <span class="muted">day ${m.day}</span></div>`).join('')}`:''}`},
+  t_badges(d){if(typeof DB==='undefined')return'';const B=d.bdg||{p:{},t:{},h:[]};
+    return Object.entries(BDG_CATS).map(([c,C])=>{const list=DOG_BADGES.filter(b=>b.cat===c&&((B.p||{})[b.id]||0)>0);return`<h3>${esc(C.n.toUpperCase())}</h3>${list.length?list.map(b=>{const t=(B.t||{})[b.id]||0,p=B.p[b.id]||0,e=(B.h||[]).find(x=>x.id===b.id&&x.tier===t);
+      return`<button class="bdg-card" data-act="badge" data-id="${d.id}" data-b="${b.id}" style="margin-bottom:6px"><div class="spread"><span><span class="bdg-ic">${b.ic}</span> <b>${esc(b.name)}</b></span>${DB.chip(t)}</div>${DB.bar(p,t)}${e?`<div class="small muted">Earned day ${e.day}</div>`:''}</button>`}).join(''):'<div class="small muted">None yet.</div>'}`}).join('')},
+  t_health(d,r){const s=typeof R2!=='undefined'?R2.sick(d):[];
+    return`${PAPERS.row('Health',`${d.health}/${d.hcap}`)}${PAPERS.bar(d.health,d.hcap||100)}${PAPERS.row('Weight',d.kg+' kg')}${PAPERS.row('Energy',d.energy)}${PAPERS.row('Condition',typeof REAL!=='undefined'?REAL.condWord(REAL.cond(d)):'—')}
+    ${PAPERS.row('Injuries',d.inj?esc(d.inj.what):'None')}${PAPERS.row('Recovery',d.inj?`${d.inj.left} day${d.inj.left===1?'':'s'} to heal`:'—')}${PAPERS.row('Vet status',s.length?esc(s.join(', ')):d.inj?'Under care':'Clear')}
+    ${d.tested?PAPERS.row('Screening',`Hips ${esc(d.tested.hips)} · Hearing ${esc(d.tested.hear)} · Eyes ${esc(d.tested.eyes)}`):''}${typeof REAL!=='undefined'&&d.age>=4?PAPERS.row('Rabies',REAL.rabiesOk(d)?'Current':'Due'):''}
+    <h3>Injury history</h3>${r.inj.length?r.inj.slice().reverse().map(x=>`<div class="small pp-row"><span>Day ${x.day}</span><b>${esc(x.what)}</b></div>`).join(''):'<div class="small muted">No injuries on record.</div>'}
+    <h3>Vet visits</h3>${r.vet.length?r.vet.slice().reverse().map(x=>`<div class="small pp-row"><span>Day ${x.day} · ${esc(x.what)}</span><b>${fmt(x.cost||0)}</b></div>`).join(''):'<div class="small muted">No vet visits on record.</div>'}`},
+  t_breeding(d,r){const off=PAPERS.offspring(d),ok=isAdult(d)&&d.health>=40&&!d.cool&&!S.preg.some(p=>p.dam===d.id)&&!d.arch;
+    return`${PAPERS.row('Breeding status',d.arch?'—':ok?'Available':d.age<12?'Too young':S.preg.some(p=>p.dam===d.id)?'Expecting':d.cool?'Resting after a litter':'Not fit')}${PAPERS.row('Fertility',PAPERS.fertility(d)+'%')}${PAPERS.row('Breeding quality',PAPERS.quality(d)+' · '+esc(tierName(d)))}
+    ${PAPERS.row('Breeding count',r.br.length)}${PAPERS.row('Successful litters',r.br.filter(x=>x.pups.length).length)}${PAPERS.row('Offspring',off.length)}
+    <h3>Breeding history</h3>${r.br.length?r.br.slice().reverse().map(x=>`<div class="panel small" style="margin-bottom:6px"><b>Day ${x.day}</b>: ${esc(x.a)} × ${esc(x.b)} · ${x.pups.length} pup${x.pups.length===1?'':'s'}<div class="muted">${x.pups.map(p=>esc(p.n)+' ('+esc(p.c)+')').join(', ')}</div>${x.disc&&x.disc.length?`<div>Hidden genes found: ${x.disc.map(esc).join(', ')}</div>`:''}</div>`).join(''):'<div class="small muted">No litters yet.</div>'}
+    ${off.length?`<h3>Offspring</h3>${off.slice(0,30).map(o=>`<div class="pp-row small"><button class="linkbtn" data-act="papers" data-id="${o.id}">${esc(o.name)}</button><span class="muted">${esc('HD-'+o.id)} · ${esc(PAPERS.status(o))}</span></div>`).join('')}`:''}`},
+  t_career(d){const c=PAPERS.career(d);
+    return`${PAPERS.row('Career',c.c)}${PAPERS.row('Career level',c.lvl)}${PAPERS.row('Career XP',c.xp)}${PAPERS.bar(c.xp%Math.max(1,Math.pow(c.lvl,2)*25),Math.pow(c.lvl,2)*25)}
+    <div class="small muted" style="margin:6px 0">The career follows what this dog actually does: most of its work tracking, baying or catching, raising litters, or winning.</div>
+    <h3>Milestones</h3>${c.ms.length?c.ms.map(m=>`<div class="small">✔ ${esc(m)}</div>`).join(''):'<div class="small muted">None yet.</div>'}`},
+  t_legacy(d,r){const L=PAPERS.legacy(d);
+    return`${PAPERS.row('Legacy score',L.score)}${PAPERS.row('Offspring',L.off.length)}${PAPERS.row('Bloodline',esc(blOf(d).line||'—'))}
+    <h3>Famous offspring</h3>${L.fam.length?L.fam.map(o=>`<div class="pp-row small"><button class="linkbtn" data-act="papers" data-id="${o.id}">${esc(o.name)}</button><span class="muted">${esc('HD-'+o.id)}</span></div>`).join(''):'<div class="small muted">None yet: an offspring with a Gold badge, 40 hunts or legendary quality becomes famous.</div>'}
+    <h3>Notable hunts and records</h3>${r.h.big?`<div class="small">Largest hog caught: ${r.h.big.w} lb</div>`:''}${r.h.best?`<div class="small">Best hunt: ${fmt(r.h.best.pay)} (${esc(r.h.best.what)})</div>`:''}<div class="small">Total hunts: ${(d.hunt||{}).n||0} · Successful: ${r.h.ok}</div>
+    <h3>Awards</h3>${r.aw.length?r.aw.map(a=>`<div class="small">🏆 ${esc(a.t)} <span class="muted">day ${a.day}</span></div>`).join(''):'<div class="small muted">No awards yet.</div>'}`},
+  t_ownership(d,r){const first=r.own[0],cur=r.own[r.own.length-1],bought=r.own.find(x=>x.price&&/Bought/.test(x.how));
+    return`${PAPERS.row('Current owner',esc(d.arch?(cur.to||'—'):PAPERS.owner()))}${PAPERS.row('Current ranch',esc(d.arch?(cur.to||'—'):S.name))}${PAPERS.row('Current kennel',d.arch?'—':'Home kennel')}${PAPERS.row('Original owner',esc(first.owner))}${PAPERS.row('Purchase price',bought?fmt(bought.price):'—')}${PAPERS.row('Current value',fmt(dogValue(d)))}
+    <h3>History</h3>${r.own.map(x=>`<div class="pp-row small"><span>Day ${x.day} · ${esc(x.how)}${x.to?' to '+esc(x.to):''}</span><b>${x.price?fmt(x.price):''}</b></div>`).join('')}`},
+  // ---- registry: search every dog on record ----
+  all(){return[...S.dogs,...Object.values(S.arch||{})]},
+  search(q,f){q=String(q||'').trim().toLowerCase();const out=[];for(const d of PAPERS.all()){const st=PAPERS.status(d);
+      if(f&&f!=='ALL'&&!(f===st||(f==='ACTIVE'&&['ACTIVE','TRAINING','HUNTING','BREEDING'].includes(st))))continue;
+      if(q){const hay=[d.name,PAPERS.dogId(d),PAPERS.regNo(d),breedName(d),d.sex==='M'?'male':'female',PAPERS.career(d).c,PAPERS.role(d),blOf(d).line,PAPERS.owner(),'gen '+(d.gen||0),'generation '+(d.gen||0),...(typeof DB!=='undefined'?DB.earned(d).map(id=>DB.B[id].name):[])].join(' | ').toLowerCase();if(!hay.includes(q))continue}
+      out.push(d)}return out},
+  screen(){const f=UI.ppF||'ALL',q=UI.ppQ||'',res=PAPERS.search(q,f),shown=res.slice(0,60);
+    return`<h2>Dog registry</h2><p class="sub">Every dog that has lived on your ranch has official papers here: search by name, ID, breed, sex, career, role, bloodline, owner, badge or generation. Sold and deceased dogs keep their records.</p>
+    <input id="ppQ" type="search" placeholder="Search dogs…" value="${esc(q)}" style="width:100%;padding:10px;font-size:16px;margin-bottom:8px">
+    <div class="seg" style="flex-wrap:wrap">${['ALL','ACTIVE','RETIRED','BREEDING','TRAINING','HUNTING','INJURED','SOLD','DECEASED'].map(k=>`<button class="${f===k?'on':''}" data-act="ppF" data-k="${k}">${k[0]+k.slice(1).toLowerCase()}</button>`).join('')}</div>
+    <div class="small muted" style="margin:6px 0">${res.length.toLocaleString()} dog${res.length===1?'':'s'}${res.length>shown.length?`, showing the first ${shown.length}`:''}</div>
+    ${shown.map(d=>`<div class="panel spread pp-list" style="margin-bottom:6px"><div><b>${esc(d.name)}</b> <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span><div class="small muted">${esc(PAPERS.dogId(d))} · ${esc(breedName(d))} · ${PAPERS.status(d)} · ${PAPERS.role(d)}</div></div><div class="row"><button class="btn sm" data-act="papers" data-id="${d.id}">Papers</button><button class="btn sm ghost" data-act="ppCompare" data-id="${d.id}">${UI.ppCmp===d.id?'Marked':'Compare'}</button></div></div>`).join('')}`},
+  compare(a,b){const rows=[['Dog ID',x=>PAPERS.dogId(x)],['Breed',x=>breedName(x)],['Sex',x=>x.sex==='M'?'Male':'Female'],['Age',x=>ageStr(x.age)],['Status',x=>PAPERS.status(x)],['Genetic quality',x=>PAPERS.quality(x)],['Genetic potential',x=>Math.round(avg(Object.values(x.pot)))],
+      ...STATS.map(([k,l])=>[l,x=>`${x.stats[k]}/${x.pot[k]}`]),['Bay score',x=>Math.round(bayScore(x))],['Catch score',x=>Math.round(catchScore(x))],['Badges',x=>typeof DB!=='undefined'?DB.earned(x).length:0],['Best badge',x=>{const t=typeof DB!=='undefined'?DB.top(x,1)[0]:null;return t?DB.B[t.id].name+' '+BDG_TIERS[t.t-1].n:'—'}],
+      ['Sire',x=>x.parents&&x.parents[0]?x.parents[0].name:'—'],['Dam',x=>x.parents&&x.parents[1]?x.parents[1].name:'—'],['Bloodline',x=>blOf(x).line],['Bloodline quality',x=>tierName(x)],['Hunts',x=>(x.hunt||{}).n||0],['Catches',x=>(x.hunt||{}).catches||0],['Bays',x=>(x.hunt||{}).bays||0],
+      ['Largest hog',x=>{const h=PAPERS.rec(x).h.big;return h?h.w+' lb':'—'}],['Career',x=>{const c=PAPERS.career(x);return c.c+' (lvl '+c.lvl+')'}],['Fertility',x=>PAPERS.fertility(x)+'%'],['Offspring',x=>PAPERS.offspring(x).length],['Legacy score',x=>PAPERS.legacy(x).score],['Value',x=>fmt(dogValue(x))]];
+    openSheet(`<h2>Compare dogs</h2><div class="pp-cmp"><div></div><div class="pp-art">${PAPERS.art(a,150)}<b>${esc(a.name)}</b></div><div class="pp-art">${PAPERS.art(b,150)}<b>${esc(b.name)}</b></div>
+      ${rows.map(([k,f])=>`<div class="small muted">${esc(k)}</div><div class="small">${esc(String(f(a)))}</div><div class="small">${esc(String(f(b)))}</div>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="papers" data-id="${a.id}">${esc(a.name)}’s papers</button><button class="btn sm ghost" data-act="papers" data-id="${b.id}">${esc(b.name)}’s papers</button></div>`)},
+  // buttons other screens use
+  btn:(id,label)=>`<button class="btn sm ghost" data-act="papers" data-id="${id}">📜 ${label||'View dog papers'}</button>`
+};
+document.head.insertAdjacentHTML('beforeend',`<style>
+.pp{background:linear-gradient(180deg,rgba(214,190,140,.08),transparent 140px);border:2px solid #8a6b3a;border-radius:10px;padding:10px;outline:1px solid rgba(138,107,58,.35);outline-offset:3px}
+.pp-head{text-align:center;border-bottom:2px double #8a6b3a;padding-bottom:8px;margin-bottom:8px}.pp-brand{font-family:Georgia,serif;letter-spacing:.2em;font-size:13px;color:#c9a45c}
+.pp-title{font-family:Georgia,serif;font-size:21px;font-weight:700;letter-spacing:.08em}.pp-ids{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:4px}.pp-ids b{font-family:ui-monospace,monospace}
+.pp-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}.pp-tabs button{flex:0 0 auto;min-height:36px;padding:6px 12px;border-radius:18px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:14px}.pp-tabs button.on{background:#8a6b3a;color:#fff;border-color:#8a6b3a}
+.pp-art{text-align:center}.pp-art img{max-width:100%}.pp-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}.pp-row b{text-align:right}
+.pp-stat{display:grid;grid-template-columns:100px 1fr 44px;align-items:center;gap:8px;font-size:14px;margin:4px 0}.pp-stat b{text-align:right}
+.pp-pedrow{display:grid;gap:6px}.pp-ped{border:1px solid var(--line);border-radius:6px;padding:5px;font-size:13px;min-width:0;overflow:hidden}.pp-ped.none{opacity:.5}
+.linkbtn{background:none;border:0;padding:0;color:#d9a521;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;text-align:left}
+.pp-g{padding:0 4px;border-radius:4px}.pp-g.known{color:var(--good)}.pp-g.hidden{opacity:.6}.pp-g.discovered{color:#d9a521}.pp-g.carrier{color:#7fb3ff}
+.pp-st{font-weight:700}.pp-deceased{background:#444;color:#fff}.pp-sold{background:#6b5a3a;color:#fff}.pp-retired{background:#5a6b7a;color:#fff}.pp-injured{background:var(--bad);color:#fff}
+.pp-cmp{display:grid;grid-template-columns:minmax(80px,1fr) 1fr 1fr;gap:4px 8px;align-items:center}
+</style>`);
+// ---- keeping the record current ----
+const PAPER_ACTIONS={
+  papers:d=>PAPERS.open(d.id),
+  ppTab:d=>{UI.ppTab=d.k;const x=PAPERS.get(UI.ppId);if(x){openSheet(PAPERS.html(x))}},
+  ppF:d=>{UI.ppF=d.k;render()},
+  ppCompare:d=>{if(!UI.ppCmp||UI.ppCmp===d.id){UI.ppCmp=UI.ppCmp===d.id?null:d.id;toast(UI.ppCmp?'Marked. Pick a second dog to compare.':'Unmarked.');if(UI.tab==='registry')render();else{const x=PAPERS.get(d.id);if(x&&document.querySelector('#sheet:not(.hidden) .pp'))openSheet(PAPERS.html(x))}return}
+    const a=PAPERS.get(UI.ppCmp),b=PAPERS.get(d.id);UI.ppCmp=null;if(a&&b)PAPERS.compare(a,b)}
+};
+SCREENS.registry=()=>PAPERS.screen();
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='ppQ'){UI.ppQ=e.target.value;clearTimeout(PAPERS._t);PAPERS._t=setTimeout(()=>{const pos=e.target.selectionStart;render();const el=document.getElementById('ppQ');if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(x){}}},250)}});
+// dogs arriving: record how they came; pups: record the litter on both parents, and hidden genes the litter reveals
+{const mk=makeDog;makeDog=function(o){const d=mk(o);return d}}
+{const mp=makePuppy;makePuppy=function(a,b){const d=mp(a,b);try{const r=PAPERS.rec(d);r.born=S.day;r.own=[{day:S.day,owner:PAPERS.owner(),ranch:S.name,how:'Bred on the ranch'}];
+    const live=x=>S.dogs.find(y=>y.id===x.id)||(S.arch&&S.arch[x.id]);const disc=[];
+    for(const L of Object.keys(LOCI)){const p=d.genes[L];if(!p||p[0]!==p[1])continue;const ord=Coat.GLOCI[L]||[],a0=p[0];if(ord.indexOf(a0)<=0)continue;
+      for(const par of[a,b]){const P=live(par);if(!P||!P.genes||!P.genes[L])continue;if(P.genes[L][0]!==a0&&P.genes[L].includes(a0)){const rr=PAPERS.rec(P);if(rr.disc[L]!==a0){rr.disc[L]=a0;disc.push(`${P.name} carries ${DISCOVER[a0]||a0}`)}}}}
+    for(const par of[a,b]){const P=live(par);if(!P)continue;const rr=PAPERS.rec(P),key=a.id+'|'+b.id+'|'+S.day;let e=rr.br.find(x=>x.k===key);if(!e){e={k:key,day:S.day,a:a.name,b:b.name,pups:[],disc:[]};rr.br.push(e);if(rr.br.length>60)rr.br.shift()}
+      e.pups.push({id:d.id,n:d.name,c:coatName(d)});disc.forEach(x=>{if(!e.disc.includes(x))e.disc.push(x)})}}catch(e){console.warn('papers',e)}return d}}
+// sales keep the record and hand it on
+{const o=sellDogOut;sellDogOut=function(dog,v,msg){try{const r=PAPERS.rec(dog),to=(String(msg||'').match(/ to (.+?) for /)||[])[1]||'a buyer';r.own.push({day:S.day,how:'Sold',price:v,to,owner:PAPERS.owner()});PAPERS.arch(dog,'SOLD','Sold to '+to+' for '+fmt(v))}catch(e){}return o(dog,v,msg)}}
+// hunts, training, injuries, vet visits and awards write themselves into the record
+{const f7=finishHunt;finishHunt=function(win,lines){const r0=f7(win,lines);try{const h=UI.hunt,S2=h&&h.sim;if(S2){const tg=h.hog||S2.target,pay=h.lastPay||0,n=S2.dogs.length||1,mode=S2.mode,area=h.area?h.area.name:'';
+    for(const g of S2.dogs){const d=S.dogs.find(x=>x.id===g.id);if(!d)continue;const r=PAPERS.rec(d).h,m=g.m||{};
+      if(win)r.ok++;if(m.strike)r.trk++;if(m.located)r.loc++;if(m.bayT>5)r.bay++;if(win&&g.role==='catch'&&m.catchT>0)r.cat++;if(mode==='rabbit')r.rab++;else if(mode)r.oth++;
+      const yds=Math.round(yd(g.dist||0));if(win&&yds>r.long)r.long=yds;
+      if(win&&tg&&!mode&&tg.w&&(!r.big||tg.w>r.big.w))r.big={w:tg.w,name:String(tg.name||'hog').toLowerCase(),day:S.day};
+      const share=Math.round(pay/n);r.earn+=share;if(win&&pay&&(!r.best||pay>r.best.pay))r.best={pay,day:S.day,what:tg&&tg.w?`${tg.w} lb ${String(tg.name||'hog').toLowerCase()}, ${area}`:area};
+      r.last.unshift({day:S.day,area,res:win?(tg&&tg.w?`${tg.w} lb caught`:'Success'):'No catch'});if(r.last.length>5)r.last.length=5}}}catch(e){console.warn('papers',e)}return r0}}
+{const o=A.train;A.train=function(d){const dog=S.dogs.find(x=>x.id===UI.trainDog),n0=dog&&dog.trained,s0=dog&&dog.stats[d.k];const r=o(d);try{if(dog&&dog.trained>n0){const t=PAPERS.rec(dog).t;t.n++;t.xp+=10+Math.max(0,dog.stats[d.k]-s0)*5;t.by[d.k]=(t.by[d.k]||0)+1;t.last=S.day;
+    for(const m of[10,25,50,100])if(t.n===m)t.ms.push({t:`${m} training sessions`,day:S.day})}}catch(e){}return r}}
+{const o=WE.injure;WE.injure=function(d,what,dmg){o.call(WE,d,what,dmg);try{const r=PAPERS.rec(d);r.inj.push({day:S.day,what:d.inj?d.inj.what:what,dmg});if(r.inj.length>40)r.inj.shift()}catch(e){}}}
+{const o=WE.vet;WE.vet=function(d){const what=d.inj&&d.inj.what,c=typeof vetCost==='function'?vetCost(d):0,ok=o.call(WE,d);try{if(ok){const r=PAPERS.rec(d);r.vet.push({day:S.day,what:what||'Vet visit',cost:c});if(r.vet.length>40)r.vet.shift()}}catch(e){}return ok}}
+if(typeof R2_ACTIONS!=='undefined'){const o=A.r2Treat;A.r2Treat=function(d){const x=S.dogs.find(y=>y.id===d.id),m0=S.money;o(d);try{if(x&&S.money<m0){PAPERS.rec(x).vet.push({day:S.day,what:{hw:'Heartworm treatment',tick:'Tick fever treatment',lepto:'Lepto treatment',bloat:'Bloat surgery'}[d.k]||'Treatment',cost:m0-S.money})}}catch(e){}}}
+{const o=DB.add;DB.add=function(d,id,n,note,out,src){const t0=DB.tierOf(d,id);o.call(DB,d,id,n,note,out,src);try{const t=DB.tierOf(d,id);if(t>t0&&t>=3)PAPERS.rec(d).aw.push({t:`${DB.B[id].name} ${BDG_TIERS[t-1].n}`,day:S.day})}catch(e){}}}
+{const o=REAL.memorial;REAL.memorial=function(d,why){const r=o.apply(REAL,arguments);try{PAPERS.arch(d,'DECEASED',why)}catch(e){}return r}}
+// every save: archive dogs that left the kennel so their papers live on
+{const sv=save;save=function(){try{PAPERS.sweep()}catch(e){}return sv.apply(this,arguments)}}
+// papers are reachable from anywhere a dog shows up
+{const o=findDog;findDog=function(id){return o(id)||(S.arch&&S.arch[id])||null}}
+{const o=SCREENS.train;SCREENS.train=function(){const html=o(),d=S.dogs.find(x=>x.id===UI.trainDog);return d?html.replace('<label>Dog <select',`<div style="margin-bottom:6px">${PAPERS.btn(d.id,'View '+esc(d.name)+'’s papers')}</div><label>Dog <select`):html}}
+{const o=SCREENS.breed;SCREENS.breed=function(){let html=o();const s=S.dogs.find(d=>d.id===UI.sire),m=S.dogs.find(d=>d.id===UI.dam);if(s||m){const row=`<div class="row" style="margin:6px 0">${s?PAPERS.btn(s.id,'Sire’s papers: '+esc(s.name)):''}${m?PAPERS.btn(m.id,'Dam’s papers: '+esc(m.name)):''}</div>`;const i=html.indexOf('<div class="grid wide">');html=i<0?html+row:html.slice(0,i)+row+html.slice(i)}return html}}
+{const o=SCREENS.hunt;SCREENS.hunt=function(){let html=o();try{if(!UI.hunt&&!UI.huntMode){const sel=[...(UI.huntSel.bay||[]),...(UI.huntSel.catch||[])].map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
+    if(sel.length){const row=`<div class="small" style="margin:6px 0">Papers for your pick: ${sel.map(d=>`<button class="linkbtn" data-act="papers" data-id="${d.id}">${esc(d.name)}</button>`).join(' · ')}</div>`;const i=html.indexOf('<h3>Hunt with a friend');html=i<0?html+row:html.slice(0,i)+row+html.slice(i)}}}catch(e){}return html}}
+{const o=marketView;marketView=function(id){o(id);try{const el=document.getElementById('sheetInner');if(el&&PAPERS.get(id))el.insertAdjacentHTML('beforeend',`<div style="margin-top:8px">${PAPERS.btn(id)}</div>`)}catch(e){}}}
+Object.assign(A,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
