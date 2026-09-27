@@ -1376,7 +1376,9 @@ const tplBreed=b=>Coat.TEMPLATES[b]&&Coat.TEMPLATES[b].body&&!Coat.TEMPLATES[b].
 // a pup is drawn from its breed's own picture, reshaped by age: at birth a big round head on a short muzzle, a short
 // plump body, short legs and a short tail; the shape grows out in two-month steps until the dog is grown at 12 months
 // (long coats and feathering grow in over the same months)
-const pupStage=d=>isAdult(d)?6:clamp(Math.floor(d.age/2),0,5);
+// every dog is drawn as a grown adult at every age (the owner turned the puppy pictures off). Age rules are unchanged:
+// young dogs still grow into their stats and can't hunt until they're grown. Stage 6 = adult shape.
+const pupStage=d=>6;
 function pupMorph(d){const vm=visualMorph(d),st=pupStage(d);if(st>=6)return vm;
   const f=Math.pow(1-st/6,1.1),body=Coat.TEMPLATES[tplBreed(coatBreed(d))].body,base=vm||{parts:{torso:body,head:body,front:body,hind:body,tail:body},k:{}},k0=base.k||{},q=v=>Math.round(v*100)/100;
   return{parts:base.parts,k:{tx:q((k0.tx||1)*(1-.22*f)),ty:q((k0.ty||1)*(1+.1*f)),leg:q((k0.leg||1)*(1-.34*f)),head:q((k0.head||1)*(1-.15*f)),hs:q(1+.12*f),tl:q(1-.5*f)}}}
@@ -4653,8 +4655,10 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.8.0';
-const PATCH_NOTES=[{v:'1.8.0',title:'New Pit Bull and the Pit × Mastiff',items:[
+const GAME_VERSION='1.8.1';
+const PATCH_NOTES=[{v:'1.8.1',title:'Every dog looks grown',items:[
+  ['No more puppy pictures','Every dog is drawn as a full-grown adult at every age again. Young dogs still grow into their stats and can\'t hunt until they\'re grown; they just look like the adult they\'ll become.']]},
+  {v:'1.8.0',title:'New Pit Bull and the Pit × Mastiff',items:[
   ['A new Pit Bull','The American Pit Bull Terrier has a brand-new master model: a lean, athletic, hard-muscled pit in full stride, with cropped ears and an open mouth. Every Pit Bull you own uses it, in its own genetic colours.'],
   ['New breed: Pit Bull Terrier × All Mastiff Mix','A heavier line with its own master model: bigger bone, broader chest, thicker neck, a bigger head and a wider muzzle. It breeds true (Pit×Mastiff to Pit×Mastiff gives Pit×Mastiff pups) and counts as a bandog. Find it in the Breeds tab and under a new Pit×Mastiffs filter in the kennel.'],
   ['Same coats, different bodies','Both breeds share one coat genetics system and one colour list: fawn, red, brindle, black, blue, chocolate, merle, black & tan, sable, seal, white, piebald, red & white, black & white, blue & white, tri-color, lilac, isabella and more, with the usual white markings, masks, ticking and dilution. A blue Pit Bull and a blue Pit×Mastiff carry the same genes on different frames.'],
