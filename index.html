@@ -6824,7 +6824,7 @@ const REAL={
         const cm=t===T_MARSH||t===T_MUD,kind=cm?'cottonmouth':'rattlesnake',vax=g.d&&REAL.snakeVax(g.d),dmg=Math.round(ri(18,30)*(vax?(cm?.75:.5):1));
         WE.hurt(S2,g,`bitten by a ${kind}${vax?' (vaccinated)':''}`,dmg);g.sta*=.4;hwEvent(S2,'snake'+g.id,`🐍 ${g.name} was bitten by a ${kind}! Get the dog to the vet after the hunt.`,1);sfx.bad&&sfx.bad()}
       // gators in the swamp in warm weather
-      if(warm&&(t===T_WATER||t===T_MARSH)&&(REAL.inSwamp(g)||(UI.hunt&&UI.hunt.area&&UI.hunt.area.trip==='florida'))&&R()<T/15000){
+      if(warm&&t===T_WATER&&(REAL.inSwamp(g)||(UI.hunt&&UI.hunt.area&&UI.hunt.area.trip==='florida'))&&R()<T/25000){
         if(R()<.1){g.m.dead='taken by an alligator';g.st='leash';g.sta=0;hwEvent(S2,'gator'+g.id,`🐊 An alligator took ${g.name} in the swamp.`,1);hwBanner(S2,'GATOR!')}
         else{WE.hurt(S2,g,'grabbed by an alligator',ri(22,34));g.sta*=.3;hwEvent(S2,'gator'+g.id,`🐊 A gator grabbed ${g.name} in the water! The dog tore loose, badly hurt.`,1);hwBanner(S2,'GATOR!')}}
       // barbed wire at speed
@@ -6918,7 +6918,10 @@ const REAL_ACTIONS={
 };
 SCREENS.papers=()=>REAL.papers();SCREENS.traps=()=>REAL.trapScreen();
 document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.f==='trapArea'){UI.trapArea=el.value}});
-if(S){if(!S.license)S.license={until:S.day+12};S.dogs.forEach(d=>{REAL.ensureDog(d);if(d.worked===undefined)d.worked=S.day})}
+if(S&&!S.license)S.license={until:S.day+12};
+// new dogs arrive with their shots (pups get theirs at 4 months) and in ordinary shape; older saves are filled in lazily
+{const mk=makeDog;makeDog=function(o){const d=mk(o);d.rabies=d.age>=4?S.day:null;d.worked=S.day;return d}}
+{const mp=makePuppy;makePuppy=function(a,b){const d=mp(a,b);d.rabies=null;d.worked=S.day;return d}}
 // wiring into the existing systems
 {const o=WE.step;WE.step=function(S2,dt){o.call(WE,S2,dt);try{REAL.step(S2,dt)}catch(e){console.warn('real',e)}}}
 {const o=WE.startNotes;WE.startNotes=function(S2){o.call(WE,S2);try{const R0=REAL.init(S2),w=S2.wind;if(S2.mode!=='blood')hwEvent(S2,'wind0',`💨 Wind out of the ${REAL.compass(w.from)}, ${Math.round(w.mph)} mph.${w.mph<3?' Dead calm.':''}`,1);if(!S2.mode&&!S2.practice)hwEvent(S2,'food0','🌰 '+REAL.food(),1)}catch(e){console.warn('real',e)}}}
