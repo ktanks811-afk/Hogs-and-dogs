@@ -3324,7 +3324,7 @@ function huntFast(sec){const h=UI.hunt;if(!h||!h.sim)return;for(let t=0;t<sec&&!
 // ---------- the live map ----------
 const HCOL={me:'#1e90ff',bay:'#22c55e',catch:'#ef4444',hog:'#8b5a2b'};
 function hvView(cv){const W=cv.clientWidth,H=cv.clientHeight,c=HV.cam;return{W,H,x0:c.x-W/2/c.z,y0:c.y-H/2/c.z,x1:c.x+W/2/c.z,y1:c.y+H/2/c.z}}
-function huntDraw(){const cv=HV.cv,h=UI.hunt;if(!cv||!h||!h.sim)return;const S2=h.sim,ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1,v=hvView(cv),z=HV.cam.z;
+function huntDraw(){const cv=HV.cv,h=UI.hunt;if(!cv||!h||!h.sim)return;const S2=h.sim,ctx=cv.getContext('2d'),dpr=Math.min(2,window.devicePixelRatio||1),v=hvView(cv),z=HV.cam.z;
   if(cv.width!==Math.round(v.W*dpr)||cv.height!==Math.round(v.H*dpr)){cv.width=Math.round(v.W*dpr);cv.height=Math.round(v.H*dpr)}
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#1d2616';ctx.fillRect(0,0,v.W,v.H);const sx=x=>(x-v.x0)*z,sy=y=>(y-v.y0)*z;
   const ov=hwOverview(z<2?8:3),crop=(X0,Y0,X1,Y1)=>{X0=Math.max(0,X0);Y0=Math.max(0,Y0);X1=Math.min(HW.N,X1);Y1=Math.min(HW.N,Y1);if(X1<=X0||Y1<=Y0)return;ctx.drawImage(ov,X0/4,Y0/4,(X1-X0)/4,(Y1-Y0)/4,sx(X0),sy(Y0),(X1-X0)*z,(Y1-Y0)*z)};
@@ -5622,7 +5622,7 @@ const COOP={
     return{t:Math.round(S2.t),w:h.area.trip||null,area:h.area.name,ph:S2.phase,stat:el?el.textContent:'',clock:WE.clock(S2.t),left:Math.max(0,Math.round((S2.limit-S2.t)/60)),p:[r(S2.player.x),r(S2.player.y)],
       d:S2.dogs.filter(g=>g.st!=='leash').map(g=>[g.name,g.role,r(g.x),r(g.y),g.st,Math.round(g.sta*100),g.d&&g.d.guest?1:0]),
       h:H0&&H0.rev?[r(H0.x),r(H0.y),H0.w,H0.name]:null,rel:!!S2.released,canRel:!!(H0&&H0.rev)&&!S2.released,b:S2.banner&&S2.t-S2.banner.t<8?S2.banner.txt:'',ev:S2.events.slice(0,8).map(e=>e.txt)}},
-  async hostTick(){const C=UI.coop;if(!C||C.role!=='host'||!C.guestDog||!UI.hunt||!UI.hunt.sim||UI.hunt.sim.over||COOP.busy)return;if(Date.now()-(COOP.lt||0)<1400)return;COOP.lt=Date.now();COOP.busy=1;
+  async hostTick(){const C=UI.coop;if(!C||C.role!=='host'||!C.guestDog||!UI.hunt||!UI.hunt.sim||UI.hunt.sim.over||COOP.busy)return;if(Date.now()-(COOP.lt||0)<700)return;COOP.lt=Date.now();COOP.busy=1;
     try{const cmds=await sbRpc('hd_coop_state',{...(await A2()),p_code:C.code,p_state:COOP.snap(),p_status:'live'})||[];const S2=UI.hunt&&UI.hunt.sim;C.live=1;
       for(const c of cmds){if(!S2)break;if(c.k==='release'&&!S2.released&&S2.target&&S2.target.rev){huntRelease();hwEvent(S2,'coopRel',`${C.guest} released the catch dogs.`,1)}
         else if(c.k==='say')hwEvent(S2,'say'+S2.t,`${C.guest}: ${String(c.t||'').slice(0,60)}`,0)}}catch(e){}COOP.busy=0},
@@ -5640,30 +5640,41 @@ const COOP={
     if(code.length!==6)return toast('Enter the six-letter code.');if(!dog)return toast('Pick a dog to send.');
     try{const r=await sbRpc('hd_coop_join',{...(await A2()),p_code:code,p_ranch:S.name,p_dog:leanDog(dog)});dog.energy-=35;UI.coop={role:'guest',code,dogId:dog.id,dogName:dog.name,hostRanch:r.host_ranch,state:null,status:'open'};
       TRACK.ev('coop_join');save();closeSheet();UI.tab='coop';render()}catch(e){toast(e.message)}},
-  async guestPoll(){const C=UI.coop;if(!C||C.role!=='guest')return;try{const r=await sbRpc('hd_coop_poll',{...(await A2()),p_code:C.code});C.status=r.status;C.state=r.state||C.state;C.age=r.age;
-      if(r.status==='done'&&r.result&&!C.paid)COOP.collect(r.result);if(UI.tab==='coop')COOP.hud()}catch(e){C.err=e.message}},
+  async guestPoll(){const C=UI.coop;if(!C||C.role!=='guest'||COOP.polling)return;COOP.polling=1;
+    try{const r=await sbRpc('hd_coop_poll',{...(await A2()),p_code:C.code});C.status=r.status;C.age=r.age;if(r.state&&(!C.state||r.state.t!==C.state.t||r.state.ev[0]!==C.state.ev[0]))COOP.onSnap(r.state);C.state=r.state||C.state;
+      if(r.status==='done'&&r.result&&!C.paid)COOP.collect(r.result);if(UI.tab==='coop')COOP.hud()}catch(e){C.err=e.message}finally{COOP.polling=0}},
+  // smooth movement: every marker glides from where it is to its new spot over the time between snapshots
+  onSnap(st){const now=performance.now(),A=COOP.anim||(COOP.anim={pts:{},last:0}),gap=A.last?clamp(now-A.last,300,2500):700;A.last=now;
+    const set=(k,x,y)=>{const p=A.pts[k],cur=p?COOP.at(p,now):null,far=!cur||Math.hypot(cur.x-x,cur.y-y)>80;A.pts[k]={x0:far?x:cur.x,y0:far?y:cur.y,x1:x,y1:y,t0:now,d:gap}};
+    set('me',st.p[0],st.p[1]);st.d.forEach(([n,role,x,y])=>set('d:'+role+':'+n,x,y));if(st.h)set('hog',st.h[0],st.h[1])},
+  at(p,now){const f=clamp((now-p.t0)/p.d,0,1);return{x:p.x0+(p.x1-p.x0)*f,y:p.y0+(p.y1-p.y0)*f}},
+  pos(k,x,y){const p=COOP.anim&&COOP.anim.pts[k];return p?COOP.at(p,performance.now()):{x,y}},
   collect(res){const C=UI.coop;C.paid=1;C.result=res;const d=S.dogs.find(x=>x.id===C.dogId);
     if(d){const H=d.hunt||(d.hunt={n:0,bays:0,catches:0,xp:0});H.n++;H.xp=(H.xp||0)+(res.xp||0);if(res.win&&res.hog)H.catches++}
     if(res.share>0){earn(res.share);addLog(`Co-op hunt with ${C.hostRanch}: ${res.win?`caught a ${res.hog?res.hog.w+' lb ':''}hog`:'no catch'}. Your share ${fmt(res.share)}.`)}
     else addLog(`Co-op hunt with ${C.hostRanch}: ${res.win?'hog caught':'no catch'}.`);TRACK.once('coop_hunt');S.st.coop=(S.st.coop||0)+1;save();render()},
   send(k,t){const C=UI.coop;if(!C||C.role!=='guest'||C.status!=='live')return;A2().then(a=>sbRpc('hd_coop_cmd',{...a,p_code:C.code,p_cmd:{k,t}})).then(()=>toast(k==='release'?'Release sent.':'Sent.')).catch(e=>toast(e.message))},
-  fake(st){return{t:st.t,phase:st.ph,player:{x:st.p[0],y:st.p[1],path:[],tx:null,mounted:false,horse:null},dogs:st.d.map(([name,role,x,y,s])=>({name,role,x,y,st:s,path:[]})),
-    target:st.h?{x:st.h[0],y:st.h[1],w:st.h[2],name:st.h[3],rev:true,path:[]}:null,known:{},tracks:[],mark:null,banner:st.b?{txt:st.b,t:st.t}:null,lostDog:null}},
+  fake(st){const me=COOP.pos('me',st.p[0],st.p[1]),hg=st.h?COOP.pos('hog',st.h[0],st.h[1]):null;return{t:st.t,phase:st.ph,player:{x:me.x,y:me.y,path:[],tx:null,mounted:false,horse:null},dogs:st.d.map(([name,role,x,y,s])=>{const q=COOP.pos('d:'+role+':'+name,x,y);return{name,role,x:q.x,y:q.y,st:s,path:[]}}),
+    target:st.h?{x:hg.x,y:hg.y,w:st.h[2],name:st.h[3],rev:true,path:[]}:null,known:{},tracks:[],mark:null,banner:st.b?{txt:st.b,t:st.t}:null,lostDog:null}},
   frame(){const cv=document.getElementById('coopcv'),C=UI.coop;if(!cv||!C){COOP.raf=0;return}
-    if(C.state){const st=C.state,save0=UI.hunt,cv0=HV.cv;TRIP.world(st.w);HV.cv=cv;const tx=st.p[0],ty=st.p[1];if(!COOP.cam){HV.cam={x:tx,y:ty,z:3.2};COOP.cam=1}HV.cam.x+=(tx-HV.cam.x)*.1;HV.cam.y+=(ty-HV.cam.y)*.1;
+    const now=performance.now();if(C.state&&!document.hidden&&now-(COOP.drawn||0)>33){COOP.drawn=now;const st=C.state,save0=UI.hunt,cv0=HV.cv;TRIP.world(st.w);HV.cv=cv;const me=COOP.pos('me',st.p[0],st.p[1]),tx=me.x,ty=me.y;if(!COOP.cam){HV.cam={x:tx,y:ty,z:3.2};COOP.cam=1}HV.cam.x+=(tx-HV.cam.x)*.1;HV.cam.y+=(ty-HV.cam.y)*.1;
       UI.hunt={sim:COOP.fake(st),phase:'coop'};try{huntDraw()}catch(e){}UI.hunt=save0;HV.cv=cv0}
     COOP.raf=requestAnimationFrame(COOP.frame)},
   hud(){const C=UI.coop,el=document.getElementById('coopHud');if(!el||!C)return;const st=C.state;
     if(C.status==='done'&&C.result){const r=C.result;el.innerHTML=`<div class="panel"><h3 style="margin-top:0">${r.win?`Hog caught${r.hog?`: ${r.hog.w} lb ${esc(r.hog.name.toLowerCase())}`:''}!`:'No hog this time'}</h3>${(r.lines||[]).map(l=>`<div class="small">${esc(l)}</div>`).join('')}
       <p>${r.share?`Your share: <b>${fmt(r.share)}</b>. `:''}${esc(r.dog||'')} earned ${r.xp||0} hunting XP.</p><button class="btn" data-act="coopLeave">Back to the ranch</button></div>`;return}
     if(!st){el.innerHTML=`<div class="panel small">Waiting for <b>${esc(C.hostRanch)}</b> to turn out the dogs… <span class="muted">(code ${esc(C.code)})</span></div>`;return}
-    el.innerHTML=`<div class="panel small"><b>${esc(st.stat||'')}</b> · ${esc(st.clock)} · ${st.left} min of daylight${C.age>20?' · <span class="muted">waiting for the host…</span>':''}</div>
-      <button class="btn big" data-act="coopRel" ${st.canRel?'':'disabled'} style="margin:6px 0">${st.rel?'Catch dogs released':'RELEASE CATCH DOGS'}</button>
+    if(!document.getElementById('cpStat'))el.innerHTML=`<div class="panel small" id="cpStat"></div>
+      <button class="btn big" id="cpRel" data-act="coopRel" style="margin:6px 0">RELEASE CATCH DOGS</button>
       <div class="row">${['Good dog!','Get in there!','Coming to you','He broke bay!'].concat(SEASON.emotes()).map(t=>`<button class="btn sm ghost" data-act="coopSay" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-      <h3>Dogs</h3><div class="panel small">${st.d.map(([n,role,,,s,sta,gst])=>`<div class="spread"><span><i class="hdot" style="background:${HCOL[role]}"></i><b>${esc(n)}</b>${gst?' <span class="tag">yours</span>':''} ${DOG_ST[s]||s}</span><span class="muted">${sta}%</span></div>`).join('')}</div>
-      <h3>Tracking updates</h3><div class="panel log">${st.ev.map(e=>`<div>${esc(e)}</div>`).join('')}</div>`},
+      <h3>Dogs</h3><div class="panel small" id="cpDogs"></div><h3>Tracking updates</h3><div class="panel log" id="cpLog"></div>`;
+    const put=(id,h)=>{const e=document.getElementById(id);if(e&&e.innerHTML!==h)e.innerHTML=h};
+    put('cpStat',`<b>${esc(st.stat||'')}</b> · ${esc(st.clock)} · ${st.left} min of daylight${C.age>20?' · <span class="muted">waiting for the host…</span>':''}`);
+    const rb=document.getElementById('cpRel');if(rb){rb.disabled=!st.canRel;const t=st.rel?'Catch dogs released':'RELEASE CATCH DOGS';if(rb.textContent!==t)rb.textContent=t}
+    put('cpDogs',st.d.map(([n,role,,,s,sta,gst])=>`<div class="spread"><span><i class="hdot" style="background:${HCOL[role]}"></i><b>${esc(n)}</b>${gst?' <span class="tag">yours</span>':''} ${DOG_ST[s]||s}</span><span class="muted">${sta}%</span></div>`).join(''));
+    put('cpLog',st.ev.map(e=>`<div>${esc(e)}</div>`).join(''))},
   screen(){const C=UI.coop;if(!C||C.role!=='guest')return`<h2>Co-op hunt</h2><p class="sub">Hunt with a friend in real time.</p><div class="row"><button class="btn" data-act="coopHost">Host a hunt</button><button class="btn alt" data-act="coopJoinSheet">Join a friend's hunt</button></div>`;
-    clearInterval(COOP.g);COOP.g=setInterval(()=>{if(UI.tab!=='coop'||!UI.coop){clearInterval(COOP.g);return}if(!document.hidden&&!(UI.coop.status==='done'&&UI.coop.paid))COOP.guestPoll()},1500);
+    clearInterval(COOP.g);COOP.g=setInterval(()=>{if(UI.tab!=='coop'||!UI.coop){clearInterval(COOP.g);return}if(!document.hidden&&!(UI.coop.status==='done'&&UI.coop.paid))COOP.guestPoll()},700);
     setTimeout(()=>{COOP.guestPoll();COOP.hud();if(!COOP.raf)COOP.raf=requestAnimationFrame(COOP.frame)},0);COOP.cam=0;
     return`<h2>Co-op hunt · ${esc(C.hostRanch)}</h2><p class="sub">You sent <b>${esc(C.dogName)}</b>. Watch live, release the catch dogs when the hog is bayed, and call out to your partner.</p>
       <div class="landwrap huntwrap"><canvas id="coopcv" aria-label="Your partner's hunt"></canvas><div class="hlegend"><span><i class="hdot" style="background:${HCOL.me}"></i>${esc(C.hostRanch)}</span><span><i class="hdot" style="background:${HCOL.bay}"></i>Bay dog</span><span><i class="hdot" style="background:${HCOL.catch}"></i>Catch dog</span><span><i class="hdot" style="background:${HCOL.hog}"></i>Hog</span></div></div>
