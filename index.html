@@ -2133,6 +2133,7 @@ SCREENS.hunt=()=>{
   <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const acc=S.land&&accessArea(S.land)===a.id,lock=!VEH.open(a),lease=VEH.lease(a);return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
    <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}${!lock&&lease?` <span class="tag">Lease ${fmt(lease)}</span>`:''}${JB.areaTag(a.id)}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div><div class="small muted">${WE.signText(a.id)}</div></button>`}).join('')}</div>
   ${TRIP.cards(sel)}
+  ${TRK.setup()}
   <h3>Bay dogs <span class="small muted">${sel.bay.length}/${maxBay} — track and hold the hog</span></h3><div class="dogpick">${byBay.map(d=>card(d,'bay')).join('')||'<p class="small muted">No adult dogs.</p>'}</div>
   <h3>Catch dogs <span class="small muted">${sel.catch.length}/${maxCatch} — take the hog down</span></h3><div class="dogpick">${byCatch.map(d=>card(d,'catch')).join('')}</div>
   <h3>Hunt with a friend <span class="small muted">optional</span></h3><div class="row" style="margin-bottom:8px">${UI.coop&&UI.coop.role==='host'?(UI.coop.guestDog?`<span class="small"><b>${esc(UI.coop.guest)}</b> is hunting with you (code ${esc(UI.coop.code)}).</span>`:`<button class="btn sm alt" data-act="coopShow">Waiting for your partner: code ${esc(UI.coop.code)}</button>`):'<button class="btn sm alt" data-act="coopHost">Host a co-op hunt</button><button class="btn sm ghost" data-act="coopJoinSheet">Join a friend\'s hunt</button>'}</div>
@@ -3444,7 +3445,7 @@ function huntPlayLive(){const h=UI.hunt,S2=h.sim;
   <p class="small muted" style="margin:4px 0">Tap the map to ${S2.player.mounted?'ride':'walk'} there, or tap a scent trail to put the bay dogs on it. Drag to look around, pinch or scroll to zoom.</p>
   <div class="seg" style="margin:4px 0">${[['me','Follow me'],['dogs','Follow dogs'],['hog','Follow hog'],['walk',h.coon?'Walk to the tree':S2.player.mounted?'Ride to the hog':'Walk to the hog']].map(([k,l])=>`<button data-act="hfollow" data-k="${k}">${l}</button>`).join('')}</div>
   <div class="seg" style="margin:4px 0">${[1,4,10].map(k=>`<button data-act="hspeed" data-k="${k}">${k}× time</button>`).join('')}${h.rabbit||h.coon?'':'<button data-act="hstick" id="hStickBtn">Stay on one hog</button>'}<button data-act="hscent" id="hScentBtn">Scent trails</button>${S2.player.horse?'<button data-act="hmount" id="hMountBtn">Dismount</button>':''}</div>
-  <div id="hMeters" style="margin:6px 0"></div>
+  <div id="hMeters" style="margin:6px 0"></div><div id="hTrk" style="margin:6px 0"></div>
   ${h.rabbit||h.coon?'':'<button class="btn big" id="hRelease" data-act="hrelease" disabled>RELEASE CATCH DOGS</button>'}
   <h3>Dogs</h3><div class="panel" id="hDogs"></div>
   <h3>Tracking updates</h3><div class="panel log" id="hLog"></div>
@@ -6105,7 +6106,35 @@ const TCAM={
 SCREENS.cams=()=>TCAM.screen();
 const TCAM_ACTIONS={camPlace:d=>TCAM.place(d.a,+d.i),camBait:d=>TCAM.bait(+d.id),camOff:d=>TCAM.remove(+d.id),camHunt:d=>TCAM.hunt(+d.id),camCancel:()=>{UI.camHunt=null;render()}};
 {const dm=WE.drawMarks;WE.drawMarks=function(S2,dot,edge){dm.call(WE,S2,dot,edge);try{TCAM.marks(S2,dot)}catch(e){}}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- TRACKING COLLAR HANDHELD ----------
+// A dog-tracking handheld, like the real ones: every collared dog's direction, distance and status, and how often
+// it's barking. Cheap units lose the signal at long range or deep in the swamp; better ones reach miles and tell a
+// running dog from a bayed or treed one.
+const TRK_TIERS=[null,
+  {n:'Basic tracking collars',price:350,range:1500,status:false,barks:false,swamp:true,d:'Direction and distance out to 1,500 yd. Loses dogs deep in the swamp or thick timber past 600 yd.'},
+  {n:'Pro handheld',price:1200,range:4000,status:true,barks:true,swamp:false,d:'4,000 yd. Tells you if a dog is trailing, running, bayed or treed, and counts barks a minute.'},
+  {n:'Elite handheld',price:3000,range:16000,status:true,barks:true,swamp:false,alert:true,d:'Nine miles. Status, barks a minute, speed, and it buzzes the moment a dog bays or trees.'}];
+const TRK_ST={cast:'Searching',recast:'Circling',join:'Honoring',track:'Trailing',hot:'Running',bay:'BAYED',hold:'Caught',run:'Running in',shaken:'Shaken off',treed:'TREED',leash:'With you',go:'Heading out',recall:'Coming in',trash:'Running trash',down:'Down'};
+const TRK={
+  tier(){return TRK_TIERS[S.trk||0]||null},
+  buy(){const n=(S.trk||0)+1,T=TRK_TIERS[n];if(!T)return;if(S.money<T.price)return toast(`${T.n} cost ${fmt(T.price)}.`);S.money-=T.price;S.trk=n;addLog(`Bought ${T.n}.`);sfx.ok();save();render()},
+  setup(){const T=TRK.tier(),N=TRK_TIERS[(S.trk||0)+1];return`<div class="panel small" style="margin-bottom:8px"><div class="spread"><b>📡 ${T?esc(T.n):'No tracking collars'}</b>${N?`<button class="btn sm ${T?'ghost':''}" data-act="trkBuy">${T?'Upgrade':'Buy'}: ${esc(N.n)} ${fmt(N.price)}</button>`:''}</div><div class="muted">${T?esc(T.d):'Tracking collars show where every dog is and what it’s doing, even out of sight.'}</div></div>`},
+  signal(S2,g,T,distYd){if(g.st==='leash')return true;if(distYd>T.range)return false;if(T.swamp&&distYd>600){const t=hwT(g.x,g.y);if(t===T_MARSH||t===T_HARD||t===T_WATER)return false}return true},
+  // called with the HUD (4 times a second)
+  hud(S2){const el=document.getElementById('hTrk'),T=TRK.tier();if(!el)return;if(!T){if(el.innerHTML)el.innerHTML='';return}const P=S2.player,dt=S2.t-(S2.trkT??S2.t);S2.trkT=S2.t;
+    const rows=[],pts=[];for(const g of S2.dogs){const b=barking(g);if(dt>0)g.bpm=(g.bpm||0)*.97+(b?(g.st==='bay'||g.st==='treed'?95:60):0)*.03;
+      const dx=g.x-P.x,dy=g.y-P.y,dist=yd(Math.hypot(dx,dy)),on=TRK.signal(S2,g,T,dist),ang=Math.atan2(dy,dx)*180/Math.PI;
+      if(T.alert&&(g.st==='bay'||g.st==='treed')&&!g.trkAlert){g.trkAlert=1;try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}hwBanner(S2,g.st==='bay'?'BAY STARTED':'TREED')}if(g.st!=='bay'&&g.st!=='treed')g.trkAlert=0;
+      const st=on?(T.status?(TRK_ST[g.st]||g.st):'Signal'):'No signal',hot=on&&(g.st==='bay'||g.st==='treed');
+      rows.push(`<div class="spread" style="margin:3px 0;${hot?'color:#ff5a3c;font-weight:700':''}"><span><span style="display:inline-block;width:18px;transform:rotate(${on?ang:0}deg);opacity:${on?1:.3}">➤</span> <i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${esc(st)}</span><span class="num muted">${on?dist.toLocaleString()+' yd':'—'}${on&&T.barks&&g.st!=='leash'?` · ${Math.round(g.bpm)} b/m`:''}</span></div>`);
+      if(on&&g.st!=='leash')pts.push([dx,dy,HCOL[g.role],hot])}
+    const R0=Math.max(80,...pts.map(p=>Math.hypot(p[0],p[1])))*1.15,sz=132;
+    const svg=`<svg width="${sz}" height="${sz}" viewBox="-66 -66 132 132" style="flex:0 0 auto;background:#0e1a12;border-radius:50%;border:2px solid #3c5a44"><circle r="44" fill="none" stroke="#2c4a34"/><circle r="22" fill="none" stroke="#2c4a34"/><line x1="-64" x2="64" y1="0" y2="0" stroke="#1f3a28"/><line y1="-64" y2="64" x1="0" x2="0" stroke="#1f3a28"/><text y="-54" text-anchor="middle" fill="#6f9" font-size="9">N</text><circle r="4" fill="${HCOL.me}"/>${pts.map(([x,y,c,h])=>`<circle cx="${(x/R0*62).toFixed(1)}" cy="${(y/R0*62).toFixed(1)}" r="${h?5:3.5}" fill="${c}" stroke="${h?'#ff5a3c':'#000'}" stroke-width="${h?2:1}"/>`).join('')}<text y="62" text-anchor="middle" fill="#6f9" font-size="8">${yd(R0).toLocaleString()} yd</text></svg>`;
+    el.innerHTML=`<div class="panel" style="display:flex;gap:10px;align-items:center;background:#131c16;border-color:#3c5a44"><div>${svg}</div><div class="small" style="flex:1;min-width:0"><b style="color:#8fd">📡 ${esc(T.n)}</b>${rows.join('')}</div></div>`}
+};
+const TRK_ACTIONS={trkBuy:()=>TRK.buy()};
+{const hh2=huntHud;huntHud=function(f){hh2(f);try{const h=UI.hunt;if(h&&h.sim)TRK.hud(h.sim)}catch(e){}}}
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
