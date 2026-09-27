@@ -1,0 +1,21 @@
+{
+  "packageId": "app.vercel.hogs_and_dogs.twa",
+  "host": "hogs-and-dogs.vercel.app",
+  "name": "Hogs & Dogs",
+  "launcherName": "Hogs & Dogs",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#120d09",
+  "navigationColor": "#120d09",
+  "backgroundColor": "#120d09",
+  "enableNotifications": true,
+  "startUrl": "/?app=1",
+  "iconUrl": "https://hogs-and-dogs.vercel.app/assets/app/icon-512.png",
+  "maskableIconUrl": "https://hogs-and-dogs.vercel.app/assets/app/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "appVersionName": "2.1.0",
+  "appVersionCode": 1,
+  "webManifestUrl": "https://hogs-and-dogs.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "generatorApp": "bubblewrap-cli"
+}
