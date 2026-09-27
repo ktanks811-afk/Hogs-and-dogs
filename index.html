@@ -476,6 +476,7 @@ function geneHealth(d){if(homo(d.genes,'M','M')){d.hcap=80;d.health=Math.min(d.h
 function snap(d){return{id:d.id,name:d.name,breed:breedName(d),coat:coatName(d),parents:d.parents?d.parents.map(p=>p.name):null,bdg:bdgUI('top',d,4)}}
 // badges load later in the file; these calls can run earlier (market pups, first render), so they go through a guard
 function bdgUI(f,a,b){try{return DB[f](a,b)}catch(e){return f==='top'?[]:''}}
+function realUI(f,a,b){try{return REAL[f](a,b)}catch(e){return''}}
 function crossName(a,b){
   const s=d=>d.cross?null:BREEDS[d.breed].short;const x=s(a),y=s(b);
   if(!x||!y)return'Hog dog mix';if(x===y)return x+' mix';
@@ -2030,6 +2031,7 @@ function dogProfile(id){
   ${mixSection(d)}
   <h3>Stats <span class="small muted">current / genetic potential</span></h3>${statBars(d)}
   <div class="row small" style="margin-top:6px"><span class="tag">Bay score ${Math.round(bayScore(d))}</span><span class="tag">Catch score ${Math.round(catchScore(d))}</span><span class="tag">Hunts ${d.hunt.n}</span><span class="tag">Bays ${d.hunt.bays}</span><span class="tag">Catches ${d.hunt.catches}</span>${RB.profileRow(d)}${CN.profileRow(d)}${SPEC.row(d)}<span class="tag">Training sessions ${d.trained}</span></div>
+  ${realUI('profile',d)}
   ${bdgUI('section',d)}
   <h3>Genetics</h3><p class="small" style="margin:0 0 6px"><b>Coat:</b> ${esc(coatName(d))}</p><p class="small" style="margin:0 0 6px"><b>Genetic ID:</b> <span class="gt" style="user-select:all">${esc(geneticId(d))}</span></p><p class="small" style="margin:0 0 6px"><b>Eyes:</b> ${(()=>{const c=gameCoat(d);return c.eyes===c.eyes2?esc(c.eyes):esc(c.eyes)+' and '+esc(c.eyes2)+' (mismatched)'})()}</p><p class="small muted" style="margin:0 0 6px">White modifier ${(d.whiteMod||0)>=0?'+':''}${Math.round((d.whiteMod||0)*100)}%, pattern strength ${Math.round((d.patMod??.5)*100)}%</p>
   <div class="tablewrap"><table>${Object.entries(LOCI).map(([L,o])=>`<tr><td>${o.name}</td><td><span class="gt">${genoText(d,L,' / ')}</span>${d.genes[L].some(a=>!known(a))?' <span class="small muted">Unknown trait</span>':''}</td></tr>`).join('')}</table></div>
@@ -2127,7 +2129,7 @@ SCREENS.hunt=()=>{
   if(UI.huntMode==='rabbit')return RB.setup();
   if(['coon','squirrel','west'].includes(UI.huntMode))return CN.setup(UI.huntMode);
   if(UI.huntMode==='blood')return BT.setup();
-  const sel=UI.huntSel,elig=S.dogs.filter(d=>isAdult(d));
+  const sel=UI.huntSel,elig=S.dogs.filter(d=>isAdult(d)&&!d.retired);
   const maxBay=3+VEH.box(),maxCatch=(landLevel(S.land,'gear')>=2?3:2)+VEH.box();
   const card=(d,role)=>{const on=sel[role].includes(d.id),other=sel[role==='bay'?'catch':'bay'].includes(d.id);const ok=d.energy>=35&&d.health>=40;
     return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
@@ -3174,7 +3176,7 @@ function hwHogStep(S2,h,dt){if(h.rabbit)return RB.step(S2,h,dt);if(h.coon)return
   // hearing: barking dogs carry a long way, silent trailers get close; the player too, if close
   const[g,gd]=hwNearestDog(S2,h,null);let heard=0;
   for(const d of S2.dogs){if(d.st==='leash')continue;const dd=Math.hypot(d.x-h.x,d.y-h.y),r=(barking(d)?(50+h.aware*90)*(.35+d.at.voice)*HWX.hear:14+h.aware*10);if(dd<r)heard+=(1-dd/r)*(barking(d)?1:.3)}
-  const pd=Math.hypot(S2.player.x-h.x,S2.player.y-h.y),hr=S2.player.mounted?40:30;if(pd<hr)heard+=(1-pd/hr)*.8;
+  const pd=Math.hypot(S2.player.x-h.x,S2.player.y-h.y),hr=S2.player.mounted?40:30;if(pd<hr)heard+=(1-pd/hr)*.8;heard+=REAL.nose(S2,h,pd);
   h.alert=clamp(h.alert+heard*h.aware*dt*.6-dt*.01,0,3);
   const sz=h.w/180,away=g?Math.atan2(h.y-g.y,h.x-g.x):h.hd;
   const flee=(spd)=>{let best=away,bs=-1e9;for(let k=0;k<8;k++){const an=away+(k-3.5)*.4,X=h.x+Math.cos(an)*8,Y=h.y+Math.sin(an)*8,tt=hwT(X,Y);
@@ -3218,7 +3220,7 @@ function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tir
   const hog=g.hog;
   if(g.st==='cast'||g.st==='recast'||g.st==='join'){
     // winding a hog close by takes them straight to it
-    const q=hwQuarry(S2);for(const h of S2.hogs){if(!h.full||(q&&h!==q)||h.st==='caught'||h.st==='gone')continue;const d=Math.hypot(h.x-g.x,h.y-g.y),rr=(4+g.at.air*10)*(.5+.5*g.at.nose);if(d<rr&&hwT(h.x,h.y)!==T_WATER&&R()<dt*1.5*(1-d/rr)){g.st='hot';g.hog=h;hwStrike(S2,g,.9,true);return}}}
+    const q=hwQuarry(S2);for(const h of S2.hogs){if(!h.full||(q&&h!==q)||h.st==='caught'||h.st==='gone')continue;const d=Math.hypot(h.x-g.x,h.y-g.y),rr=(4+g.at.air*10)*(.5+.5*g.at.nose)*REAL.wf(S2,h,g);if(d<rr&&hwT(h.x,h.y)!==T_WATER&&R()<dt*1.5*(1-d/rr)){g.st='hot';g.hog=h;hwStrike(S2,g,.9,true);return}}}
   if(g.st==='cast'){drain(1);g.next-=dt;
     if(g.goTrack&&Math.hypot(g.ctx-g.x,g.cty-g.y)<3){const{k,i}=g.goTrack,tr=S2.tracks[k];g.goTrack=null;g.st='track';g.k=k;g.i=i;g.hog=tr.h>=0?S2.hogs[tr.h]:null;g.s0=scentOf(tr.pts[i],S2.t);
       g.dir=R()<.6+g.at.int*.3+(g.at.nose-1)*.2?1:-1;hwEvent(S2,'on'+g.id,`${g.name} is on the scent.`,20);return}
@@ -3317,7 +3319,7 @@ function hwStep(S2,dt){S2.t+=dt;const P=S2.player;WE.step(S2,dt);CMD.heat(S2,dt)
   if(h&&S2.phase==='chase'&&h.st==='stand'&&S2.dogs.some(g=>g.st==='bay'&&g.hog===h)){S2.phase='bay';S2.dogs.forEach(g=>{if(g.st==='bay'&&g.hog===h){DB.earn(g,'pressure',6);DB.earn(g,'baysp',3)}});hwEvent(S2,'rebay','Bay started again.',45);hwBanner(S2,'BAY STARTED')}
   // the catch: a tug of war between the dogs holding on and the hog fighting to get free
   if(h&&h.st==='fight'){const holders=S2.dogs.filter(g=>g.role==='catch'&&g.st==='hold');
-    const pow=holders.reduce((s,g)=>s+g.at.catch*(.45+g.sta*.55)*(1+BFX(g,'power')*clamp((h.w-150)/150,0,1.5)+BFX(g,'fearless')*(h.aggr||0)+BFX(g,'finisher')*(S2.ctl<30?1:.3)+(holders.length>1?BFX(g,'team'):0)),0)+S2.dogs.filter(g=>g.st==='bay'&&g.hog===h).length*.15,res=(h.w/170)*(.55+h.aggr*.5)*(.4+h.stam*.6);
+    const pow=holders.reduce((s,g)=>s+g.at.catch*(.45+g.sta*.55)*(1+BFX(g,'power')*clamp((h.w-150)/150,0,1.5)+BFX(g,'fearless')*(h.aggr||0)+BFX(g,'finisher')*(S2.ctl<30?1:.3)+(holders.length>1?BFX(g,'team'):0)),0)+S2.dogs.filter(g=>g.st==='bay'&&g.hog===h).length*.15,res=(h.w/170)*(.55+h.aggr*.5)*(.4+h.stam*.6)*(h.shield?1.2:1);
     S2.ctl+=dt*(pow-res*.9)*12+(R()-.5)*dt*8;h.stam=Math.max(0,h.stam-dt*.02);
     if(S2.ctl>=100){S2.phase='won';S2.wonAt=S2.t;hwBanner(S2,'HOG CONTROLLED');hwEvent(S2,'ctl','HOG CONTROLLED.',1);h.st='caught';sfx.win()}
     else if(S2.ctl<=-30){S2.ctl=0;h.st='run';h.stam=Math.min(1,h.stam+.2);holders.forEach(g=>{g.st='shaken';g.next=6+R()*6;g.sta=Math.max(0,g.sta-.1)});S2.phase='chase';hwEvent(S2,'shook','The hog shook the catch dogs off!',45);hwBanner(S2,'HOG BROKE FREE')}}
@@ -3460,7 +3462,7 @@ function huntPlayLive(){const h=UI.hunt,S2=h.sim;
   <div class="seg" style="margin:4px 0">${[['me','Follow me'],['dogs','Follow dogs'],['hog','Follow hog'],['walk',h.coon?'Walk to the tree':S2.player.mounted?'Ride to the hog':'Walk to the hog']].map(([k,l])=>`<button data-act="hfollow" data-k="${k}">${l}</button>`).join('')}</div>
   <div class="seg" style="margin:4px 0">${[1,4,10].map(k=>`<button data-act="hspeed" data-k="${k}">${k}× time</button>`).join('')}${h.rabbit||h.coon||h.blood?'':'<button data-act="hstick" id="hStickBtn">Stay on one hog</button>'}<button data-act="hscent" id="hScentBtn">Scent trails</button>${S2.player.horse?'<button data-act="hmount" id="hMountBtn">Dismount</button>':''}</div>
   ${h.blood?BT.buttons(S2):CMD.row(h,S2)}
-  <div id="hMeters" style="margin:6px 0"></div><div id="hTrk" style="margin:6px 0"></div>
+  <div id="hMeters" style="margin:6px 0"></div><div id="hTrk" style="margin:6px 0"></div><div id="hWind" class="small" style="margin:4px 0"></div>
   ${h.rabbit||h.coon||h.blood?'':'<button class="btn big" id="hRelease" data-act="hrelease" disabled>RELEASE CATCH DOGS</button>'}
   <h3>Dogs</h3><div class="panel" id="hDogs"></div>
   <h3>Tracking updates</h3><div class="panel log" id="hLog"></div>
@@ -4634,8 +4636,19 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.6.0';
-const PATCH_NOTES=[{v:'1.6.0',title:'Dog badges',items:[
+const GAME_VERSION='1.7.0';
+const PATCH_NOTES=[{v:'1.7.0',title:'Real woods',items:[
+  ['Wind','Every hunt has a wind that shifts as the day goes on. Dogs wind hogs from much farther off downwind, and hardly at all upwind. Hogs smell you too: walk in to a bay from upwind and the hog catches your wind and breaks. The wind and scenting show on the hunt screen.'],
+  ['Scent burns off','Scent is best in the cool, damp early morning and burns off as the sun climbs, except in winter, fog or behind a cold front. Get the dogs out early.'],
+  ['Hunting pressure','Hunt the same ground over and over and the hogs get educated: they lie up by day, get warier and run instead of standing. Rest a spot for a few days, move to other ground, or hunt it at night. The hunt screen shows the pressure on each area.'],
+  ['What hogs are eating','Hogs follow the food: grubs and greens in spring, corn and milo fields in summer, acorns in fall and wet ground in winter. Each year\'s acorn crop can be a bumper crop (fat hogs in the timber) or a failure (hogs roaming the fields).'],
+  ['Dog condition and age','Dogs get into hunting shape by hunting and road work, and go soft sitting in the kennel. Condition changes endurance. Long, rough hunts can leave sore feet. Dogs slow down after 8; retire an old dog to the porch and it can still sire or whelp. Very old dogs pass away and are remembered on the trophy wall.'],
+  ['Mentoring','A young dog hunting beside a seasoned one listens better and builds its badges 50% faster.'],
+  ['Hazards','Rattlesnakes and cottonmouths bite dogs in warm weather, gators lurk in the swamp, barbed wire cuts, and county roads are dangerous. Snake-avoidance training and the rattlesnake vaccine protect your dogs.'],
+  ['Hog behavior','Sows with pigs fight hard for them, big boars carry a thick shield that makes them harder to catch, and now and then you run into a cutter: a known dog-killer with a landowner\'s bounty on it. Live buyers pay extra for shielded boars and piglets.'],
+  ['Paperwork','Keep a hunting license (or buy a lifetime one) and keep your dogs\' rabies shots current. The game warden checks about one hunt in ten. Live hogs need a disease test before a buying station will take them. Find it all under More → Vet & paperwork.'],
+  ['Hog trapping','Set box traps and corral traps, keep them baited and check them every day. Sell trapped hogs live or to the processor, or keep the best in your Hog Pin. Find it under More → Hog traps.']]},
+  {v:'1.6.0',title:'Dog badges',items:[
   ['Every dog earns its own badges','Dogs now earn badges from what they actually do on hunts: 24 badges in six groups (Tracking, Baying, Catch, Athletic, Intelligence and Teamwork). Each one climbs from Bronze to Silver, Gold and Hall of Fame. Two dogs of the same breed can end up with completely different careers.'],
   ['Earned, not handed out','A fresh strike builds Scent Hound, running out an old trail builds Trail Master, picking a lost track back up builds Lost Trail Recovery, starting a bay builds Bay Specialist, and holding a big boar builds Powerhouse. Finishing a hunt by itself earns nothing. Harder hunts count for more, and a badge climbs at most one tier per hunt.'],
   ['Small, real edges','Each tier gives a small bonus on the hunt, like a better nose, a stronger grip or more speed on a running hog. Badges add to a dog\'s genetics and training and never replace them, so a poor dog with a Hall of Fame badge is still a poor dog.'],
@@ -5276,7 +5289,7 @@ const TROPHY={
 SCREENS.trophies=()=>TROPHY.screen();
 
 // ---------- other screens ----------
-SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['fair','🎡','County fair','Every season: dog show, barrel racing, cutting, hog weigh-off'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['trophies','🏆','Trophy wall','Record hogs, ribbons, badges and records'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['cams','📷','Trail cameras','Scout hogs with cameras and bait'],['replay','🎬','Hunt replays','Watch your last hunts back and share clips'],['baytrial','🐗','Bay pen trials','Judged bay trials: grit, control, voice'],['career','📖','Career','Old Man Tate\'s story and the Parish Circuit'],['club','🤝','Hunting clubs','Club chat, lend dogs, club vs club'],['coop','🐾','Co-op hunt','Hunt live with a friend'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
+SCREENS.more=()=>`<h2>More</h2><div class="grid">${[['account','👤',signedIn()?'Account':'Sign in',signedIn()?'Signed in as '+esc(S.online.user):'Save your ranch and play on any device'],['train','🏋️','Training center','Build speed, strength and nose'],['ranch','🏗️','Ranch upgrades','Kennels, training, barns, land, gear'],['stable','🐎','Stable & livestock','Horses, racing, cattle'],['garage','🛻','Trucks & trailers','Reach more hunting grounds, haul more dogs and your horse'],['hogpin','🐗','Hog Pin','Kept hogs: feed, grow, breed and build bloodlines'],['events','🏆','Shows & trials','Compete for prize money'],['fair','🎡','County fair','Every season: dog show, barrel racing, cutting, hog weigh-off'],['inventory','🎒','Inventory','Feed, vitamins, gear'],['world','🌦️','World & weather','Season, forecast, hog activity, missing and injured dogs'],['online','🌐','Online ranches','Visit, trade, breed and compete with other players'],['land','🏡','Land & property','Build, fence, upgrade and buy bigger land'],['ledger','📜','Breeder\'s ledger',ledgerUnlocked()?'Full bloodline records and pairing odds':'Mostly blank pages… for now'],['profile','🤠','Player profile','Level, stats, achievements'],['trophies','🏆','Trophy wall','Record hogs, ribbons, badges and records'],['leaders','📊','Leaderboard','Top ranches in the county'],['tourney','🏆','Weekly tournament','Heaviest Hog, Most Hogs, Top Breeder: win cash and badges'],['cams','📷','Trail cameras','Scout hogs with cameras and bait'],['traps','🪤','Hog traps','Trap hogs, check traps daily, sell them live'],['papers','💉','Vet & paperwork','License, rabies shots, snake protection, the warden'],['replay','🎬','Hunt replays','Watch your last hunts back and share clips'],['baytrial','🐗','Bay pen trials','Judged bay trials: grit, control, voice'],['career','📖','Career','Old Man Tate\'s story and the Parish Circuit'],['club','🤝','Hunting clubs','Club chat, lend dogs, club vs club'],['coop','🐾','Co-op hunt','Hunt live with a friend'],['notes','📜','Patch notes',`What's new in v${GAME_VERSION}`]].concat(UI.admin?[['admin','🛠️','Admin','Owner tools for your own ranch']]:[]).map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ICON['m_'+t]?ico('m_'+t):ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('')}</div><p class="small muted" style="text-align:center;margin-top:14px">Hogs & Dogs v${GAME_VERSION} · <a href="#" data-act="tab" data-t="notes">patch notes</a></p>`;
 SCREENS.ranch=()=>`<h2>Ranch upgrades</h2><p class="sub">Your ranch is your property: these upgrades, the buildings and the land are one place. The same list is under Land & property → Upgrades.</p>
  <div class="row" style="margin-bottom:8px"><button class="btn sm ghost" data-act="tab" data-t="land">Land & property</button><button class="btn sm ghost" data-act="landBuild">Build mode</button></div>${landUpgrades()}`;
 SCREENS.inventory=()=>`<h2>Inventory</h2><p class="sub">Feed storage holds ${feedCap()}.</p>
@@ -6741,7 +6754,201 @@ ACH.push(['bdgGold','First Gold badge','Earn your first Gold badge',()=>!!(S.bdg
   ['bdgElite','Elite hunter','One dog with Gold badges in Tracking, Baying and Catch',()=>!!(S.bdgRec&&S.bdgRec.elite)],
   ['bdgLegend','Legendary dog','One dog with two or more Hall of Fame badges',()=>!!(S.bdgRec&&S.bdgRec.legend)]);
 const BADGE_ACTIONS={badge:d=>DB.detail(d.id,d.b),badgeBack:d=>{dogProfile(d.id);const el=document.getElementById('bdgSec');if(el)el.scrollIntoView({block:'start'})}};
-Object.assign(A,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- REAL WOODS ----------
+// The things that decide a real hog hunt: which way the wind blows, how hard the hogs have been hunted, what they are
+// eating, how fit and how old the dogs are, the snakes, gators, wire and roads out there, sows with pigs, shielded boars
+// and cutters, and the paperwork (license, rabies tags, the game warden, disease tests for live hogs). Plus hog trapping.
+// In this game one day is one month: dogs age a month a day and a year is 12 days, so every clock here runs on that.
+const WIND_BY_WX={clear:[3,10],rain:[6,14],storm:[14,26],fog:[0,3],heat:[2,8],cold:[10,18]};
+const COMPASS=['N','NE','E','SE','S','SW','W','NW'],WIND_ARROW=['↓','↙','←','↖','↑','↗','→','↘'];
+const REAL_LICENSE=45,REAL_LIFETIME=600,REAL_RABIES=20,REAL_RABIES_DAYS=36,REAL_SNAKEVAX=45,REAL_SNAKEVAX_DAYS=12,REAL_SNAKEPROOF=250,REAL_TEST=35;
+const TRAP_KINDS={box:{n:'Box trap',price:350,d:'Catches one or two hogs at a time. Trap-shy hogs still walk in.'},corral:{n:'Corral trap',price:1400,d:'A big pen with a drop gate: can catch a whole sounder, but educated hogs avoid it.'}};
+const TRAP_MAX=4,TRAP_BAIT=20,TRAP_BAIT_DAYS=3;
+const REAL={
+  // ---- wind: comes from a compass bearing (0 = from the north), shifts through the hunt ----
+  dayWind(){const W=WE.ensure();if(!W.wind||W.wind.day!==S.day){const r=WIND_BY_WX[W.wx]||[3,10];const from=W.wx==='cold'?(ri(290,380)%360):W.wx==='heat'?ri(150,240):ri(0,359);W.wind={day:S.day,from,mph:ri(r[0],r[1])}}return W.wind},
+  compass:deg=>COMPASS[Math.round(((deg%360)+360)%360/45)%8],
+  arrow:deg=>WIND_ARROW[Math.round(((deg%360)+360)%360/45)%8],
+  setWind(S2,from,mph){const th=from*Math.PI/180;S2.wind={from:((from%360)+360)%360,mph,s:clamp(mph/20,0,1.2),tx:-Math.sin(th),ty:Math.cos(th)}},
+  // + when b is downwind of a (scent from a drifts toward b)
+  align(S2,ax,ay,bx,by){const w=S2.wind;if(!w)return 0;const dx=bx-ax,dy=by-ay,d=Math.hypot(dx,dy)||1;return(dx*w.tx+dy*w.ty)/d},
+  // how far a dog winds a hog: much farther downwind of it, hardly at all upwind
+  wf(S2,h,g){const w=S2&&S2.wind;if(!w||!h||!g)return 1;return clamp(1+1.1*w.s*REAL.align(S2,h.x,h.y,g.x,g.y),.35,2)},
+  // a hog downwind of the hunter smells him
+  nose(S2,h,pd){const w=S2.wind;if(!w||w.s<.08)return 0;const r=80*(.4+w.s);if(pd>r)return 0;const a=REAL.align(S2,S2.player.x,S2.player.y,h.x,h.y);return a>.55?(1-pd/r)*.9*a:0},
+  init(S2){if(S2.real)return S2.real;const R0=S2.real={said:{}};const w=REAL.dayWind();REAL.setWind(S2,w.from,w.mph);S2.tau0=HWX.tau;return R0},
+  // ---- hog education: hunted ground makes hogs wary; they lie up by day and run instead of standing ----
+  edu(k){const W=WE.ensure();return(W.edu&&W.edu[k])||0},
+  eduWord:e=>e>.6?'Heavy':e>.35?'Moderate':e>.12?'Light':'None',
+  // ---- food: what the hogs are eating this time of year, and this year's acorn crop ----
+  mast(){const W=WE.ensure(),y=Math.floor((S.day-1)/12);if(!W.mast||W.mast.y!==y)W.mast={y,q:pick(['bumper','fair','fair','poor'])};return W.mast.q},
+  food(){const se=weSeason(),W=WE.ensure(),m=REAL.mast();
+    if(W.drought)return'Dry spell: hogs are tied to water, wallowing in the creek and swamp and rooting the wet edges.';
+    return[`Spring: hogs are rooting for grubs and new greens in the bottoms, and sows are farrowing.`,
+      `Summer: hogs are raiding corn and milo fields near the creek at night and lying up in wallows by day.`,
+      m==='bumper'?`Fall, and a bumper acorn crop: hogs are fat and staying in the hardwood and pine timber.`:m==='poor'?`Fall, but the acorn crop failed: hogs are roaming far and tearing up fields and pastures.`:`Fall: acorns are dropping and hogs are working the oak flats in the timber.`,
+      `Winter: slim pickings. Hogs are rooting wet ground for roots and grubs and holing up in thick cover.`][se]},
+  // ---- dogs: condition, soreness, life stage, paperwork ----
+  cond:d=>d.cond??55,
+  condWord:c=>c>=85?'Hard as nails':c>=65?'Fit':c>=45?'Fair':c>=30?'Soft':'Out of shape',
+  stage:d=>d.age<12?'Pup':d.age<36?'Young dog':d.age<96?'In its prime':d.age<120?'Veteran':'Old dog',
+  ensureDog(d){if(d.rabies===undefined)d.rabies=d.age>=4?S.day:null},
+  rabiesOk(d){REAL.ensureDog(d);if(d.age<4)return true;return d.rabies!==null&&S.day-d.rabies<REAL_RABIES_DAYS},
+  snakeVax:d=>!!(d.snakeVax&&S.day-d.snakeVax<REAL_SNAKEVAX_DAYS),
+  licensed(){if(!S.license)S.license={until:S.day+12};return S.license.life||S.license.until>S.day},
+  veteranOf(g,S2){return S2.dogs.find(o=>o!==g&&o.role===g.role&&o.d&&!o.d.guest&&o.d.age>=36&&((o.d.hunt&&o.d.hunt.n>=20)||(typeof DB!=='undefined'&&DB.earned(o.d).some(id=>o.d.bdg.t[id]>=2))))},
+  // ---- during the hunt ----
+  lazy(S2){const R0=REAL.init(S2);if(R0.edu!==undefined)return;const h=UI.hunt,area=h&&h.area?h.area.id:'creek',hogHunt=!S2.mode&&!S2.practice;
+    R0.area=area;R0.edu=hogHunt?REAL.edu(area)*(S2.night?.5:1):0;const se=weSeason();
+    if(hogHunt)for(const g of S2.hogs){if(g.rabbit||g.coon||g.deer)continue;
+      if(R0.edu){g.aware=clamp((g.aware||.5)+R0.edu*.35,0,1);g.edu=R0.edu;if(!S2.night&&g.st==='wander'&&R()<R0.edu)g.st='bed'}
+      if(g.sex==='F'&&g.w>=90&&(se<=1||R()<.2)&&R()<.4){g.pigs=ri(3,8);g.aggr=clamp((g.aggr||.5)+.25,0,1)}
+      if(g.sex==='M'&&g.w>=180)g.shield=true;
+      if(g.sex==='M'&&g.w>=150&&R()<.04){g.cutter=true;g.aggr=Math.max(g.aggr||.5,.9)}}
+    for(const g of S2.dogs){const v=g.role&&g.d&&g.d.age<30?REAL.veteranOf(g,S2):null;if(v){g.mentor=v.name;g.at.obd=Math.min(1.1,g.at.obd*1.1)}}},
+  step(S2,dt){if(!S2||S2.over)return;REAL.lazy(S2);const w=S2.wind,R0=S2.real,P=S2.player;
+    // the wind drifts, and now and then swings
+    w.from+=(R()-.5)*dt*.02;if(R()<dt/2400){const sw=(R()<.5?-1:1)*ri(20,50);REAL.setWind(S2,w.from+sw,clamp(w.mph+ri(-3,4),0,30));hwEvent(S2,'windshift'+Math.round(S2.t),`The wind swung around. It's out of the ${REAL.compass(S2.wind.from)} now, ${S2.wind.mph} mph.`,1)}
+    else REAL.setWind(S2,w.from,w.mph);
+    // scent burns off as the day heats up (not at night, not in winter or fog)
+    if(!S2.night&&S2.mode!=='coon'&&S2.tau0){const hr=6.5+S2.t/3600,se=HWX.se;let f=hr<9?1.1:hr<13?1.1-(hr-9)*.075:.8;if(se===3||HWX.kind==='fog'||HWX.kind==='cold')f=Math.max(f,.97);HWX.tau=S2.tau0*f;
+      if(f<.9&&!R0.said.burn){R0.said.burn=1;hwEvent(S2,'burn','The sun is up high now and the scent is burning off.',1)}}
+    S2.realAcc=(S2.realAcc||0)+dt;if(S2.realAcc<1)return;const T=S2.realAcc;S2.realAcc=0;
+    // a bayed hog that winds the hunter walking in upwind breaks
+    const tg=S2.target;if(tg&&tg.rev&&tg.st==='stand'&&S2.phase==='bay'&&w.s>.1){const pd=Math.hypot(P.x-tg.x,P.y-tg.y),a=REAL.align(S2,P.x,P.y,tg.x,tg.y);
+      if(pd<45*(.5+w.s)&&a>.6){S2.hold-=T*6*a*w.s;if(!R0.said.upwind){R0.said.upwind=1;hwEvent(S2,'upwind','The hog is catching your wind! Circle around and come in from downwind.',1)}}}
+    if(S2.mode==='blood'||S2.practice)return;const se=HWX.se,warm=se<=1||(se===2&&HWX.kind!=='cold');
+    for(const g of S2.dogs){if(g.st==='leash'||g.m.dead)continue;const t=hwT(g.x,g.y),moving=g.st==='hot'||g.st==='track'||g.st==='run'||g.st==='cast'||g.st==='recast'||g.st==='join';
+      // snakes: rattlers in brush, rock and timber; cottonmouths by water
+      if(warm&&moving&&(t===T_BRUSH||t===T_ROCK||t===T_GRASS||t===T_MARSH||t===T_TREE||t===T_MUD)&&R()<T*8e-6*(g.d&&g.d.snakeProof?.3:1)*(se===1?1.3:1)){
+        const cm=t===T_MARSH||t===T_MUD,kind=cm?'cottonmouth':'rattlesnake',vax=g.d&&REAL.snakeVax(g.d),dmg=Math.round(ri(18,30)*(vax?(cm?.75:.5):1));
+        WE.hurt(S2,g,`bitten by a ${kind}${vax?' (vaccinated)':''}`,dmg);g.sta*=.4;hwEvent(S2,'snake'+g.id,`🐍 ${g.name} was bitten by a ${kind}! Get the dog to the vet after the hunt.`,1);sfx.bad&&sfx.bad()}
+      // gators in the swamp in warm weather
+      if(warm&&t===T_WATER&&(REAL.inSwamp(g)||(UI.hunt&&UI.hunt.area&&UI.hunt.area.trip==='florida'))&&R()<T/25000){
+        if(R()<.1){g.m.dead='taken by an alligator';g.st='leash';g.sta=0;hwEvent(S2,'gator'+g.id,`🐊 An alligator took ${g.name} in the swamp.`,1);hwBanner(S2,'GATOR!')}
+        else{WE.hurt(S2,g,'grabbed by an alligator',ri(22,34));g.sta*=.3;hwEvent(S2,'gator'+g.id,`🐊 A gator grabbed ${g.name} in the water! The dog tore loose, badly hurt.`,1);hwBanner(S2,'GATOR!')}}
+      // barbed wire at speed
+      if((g.st==='hot'||g.st==='run')&&R()<T/40000)WE.hurt(S2,g,'cut on a barbed-wire fence',ri(6,14));
+      // county roads
+      if(t===T_ROAD&&moving&&R()<T/1200){if(R()<.3){WE.hurt(S2,g,'clipped by a truck on the road',ri(18,30));hwEvent(S2,'road'+g.id,`🚚 ${g.name} was clipped by a truck crossing the road!`,1)}else hwEvent(S2,'nearmiss'+g.id,`🚚 A truck nearly hit ${g.name} on the county road.`,120)}}},
+  inSwamp(g){try{return weNearestArea(g.x,g.y)==='swamp'}catch(e){return false}},
+  hud(S2){const el=document.getElementById('hWind');if(!el||!S2||!S2.wind)return;const w=S2.wind,tg=S2.target,P=S2.player;let warn='';
+    if(tg&&tg.rev&&!tg.rabbit&&!tg.coon&&!tg.deer&&w.s>.1){const a=REAL.align(S2,P.x,P.y,tg.x,tg.y);warn=a>.6?' <b style="color:var(--bad)">You are upwind of the hog: it can smell you.</b>':a<-.5?' <span style="color:var(--good)">You are downwind of the hog.</span>':''}
+    const f=HWX.tau/(S2.tau0||HWX.tau),sc=S2.night?'':f>=1.05?' · Scent: good (cool and damp)':f>=.93?' · Scent: fair':' · Scent: poor (burning off)';
+    const html=`💨 Wind ${REAL.arrow(w.from)} from the ${REAL.compass(w.from)}, ${Math.round(w.mph)} mph${sc}${warn}`;if(el.dataset.h!==html){el.dataset.h=html;el.innerHTML=html}},
+  // ---- after the hunt ----
+  end(h){const S2=h&&h.sim;if(!S2||S2.realDone)return;S2.realDone=1;const L=h.result?h.result.lines:[];const win=S2.win,tg=S2.target;
+    for(const g of S2.dogs){const d=S.dogs.find(x=>x.id===g.id);if(!d)continue;
+      if(g.m&&g.m.dead){S.dogs=S.dogs.filter(x=>x!==d);for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);REAL.memorial(d,g.m.dead);L.push(`🕊️ ${d.name} was ${g.m.dead}. ${d.name} is remembered on the trophy wall.`);continue}
+      if(S2.practice)continue;d.cond=clamp(REAL.cond(d)+clamp(S2.t/600,3,10),0,100);d.worked=S.day;
+      if(yd(g.dist||0)>15000&&(WE.ensure().drought||(h.area&&(h.area.id==='pine'||h.area.trip==='texas'||h.area.trip==='west')))&&R()<.35){d.sore=S.day+1;L.push(`${d.name} has sore feet from the rough, dry going. Take it easy tomorrow.`)}
+      if(g.mentor&&!d.guest){d.hunt.xp=(d.hunt.xp||0)+4;L.push(`${d.name} learned from running beside ${g.mentor}.`)}}
+    if(win&&tg&&tg.cutter&&!S2.mode){earn(300);L.push('The landowner paid a $300 bounty on that cutter. It had killed dogs before.')}
+    if(!S2.practice)REAL.warden(h,S2,L)},
+  warden(h,S2,L){if(R()>(S2.night?.15:.1))return;const bad=[],dogs=S2.dogs.map(g=>S.dogs.find(x=>x.id===g.id)).filter(Boolean);let fine=0;
+    if(!REAL.licensed()){fine+=500;bad.push('no hunting license')}for(const d of dogs)if(!REAL.rabiesOk(d)){fine+=100;bad.push(`${d.name} has no current rabies tag`)}
+    if(fine){S.money-=fine;L.push(`🚔 The game warden stopped you at the truck: ${bad.join(', ')}. Fined ${fmt(fine)}.`);addLog(`Game warden fine: ${fmt(fine)} (${bad.join(', ')}).`);(S.wardenLog=S.wardenLog||[]).unshift({day:S.day,fine,why:bad.join(', ')})}
+    else{L.push('🚔 The game warden checked your license and the dogs’ rabies tags. All in order.');(S.wardenLog=S.wardenLog||[]).unshift({day:S.day,fine:0,why:'all in order'})}
+    if(S.wardenLog.length>10)S.wardenLog.length=10},
+  memorial(d,why){(S.memorial=S.memorial||[]).unshift({name:d.name,breed:breedName(d),age:d.age,why,day:S.day,hunts:d.hunt?d.hunt.n:0,catches:d.hunt?d.hunt.catches:0,bdg:bdgUI('top',d,4)});if(S.memorial.length>40)S.memorial.length=40;addLog(`${d.name} (${breedName(d)}) ${why}.`)},
+  // ---- one day (a month) passes ----
+  daily(msgs){const W=WE.ensure();W.edu=W.edu||{};for(const k in W.edu)W.edu[k]=W.edu[k]*.8;REAL.mast();
+    for(const d of[...S.dogs]){REAL.ensureDog(d);
+      if(isAdult(d)&&!d.retired&&S.day-(d.worked||S.day)>=2)d.cond=Math.max(20,REAL.cond(d)-6);
+      if(d.sore&&d.sore>=S.day)d.energy=Math.min(d.energy,60);
+      if(d.age>=4&&!REAL.rabiesOk(d)&&!d.rabiesWarn){d.rabiesWarn=1;msgs.push(`${d.name} is due for a rabies shot (More → Vet & paperwork).`)}
+      // old age
+      if(d.age>=132&&!S.preg.some(p=>p.dam===d.id)&&R()<.01+(d.age-132)/12*.02){S.dogs=S.dogs.filter(x=>x!==d);for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);if(UI.sire===d.id)UI.sire='';if(UI.dam===d.id)UI.dam='';
+        REAL.memorial(d,`passed away of old age at ${Math.floor(d.age/12)} years`);msgs.push(`🕊️ ${d.name} passed away peacefully at ${Math.floor(d.age/12)} years old. ${d.name} is remembered on the trophy wall.`)}
+      else if(d.age===96&&!d.retired)msgs.push(`${d.name} is 8 now and starting to slow down. You can retire an old dog to the porch; it can still sire or whelp.`)}
+    if(!REAL.licensed()&&!S.licWarn){S.licWarn=1;msgs.push('Your hunting license has expired. Renew it under More → Vet & paperwork before the warden checks.')}
+    REAL.trapDaily(msgs)},
+  // ---- trapping ----
+  traps(){return S.traps||(S.traps=[])},
+  trapDaily(msgs){const T=REAL.traps(),W=WE.ensure();
+    // hogs left in a trap overnight go to the processor cheap: traps have to be checked every day
+    const old=(S.trapped||[]).filter(x=>x.day<S.day);if(old.length){const v=old.reduce((s,o)=>s+Math.round(o.w*.8),0);earn(v);msgs.push(`${old.length} trapped hog${old.length>1?'s':''} sat in the trap too long and went to the processor cheap for ${fmt(v)}. Check traps every day.`);S.trapped=(S.trapped||[]).filter(x=>x.day>=S.day)}
+    for(const t of T){if(!(t.bait>0))continue;t.bait--;const p=W.pop[t.area]?W.pop[t.area].n:1,e=REAL.edu(t.area),se=weSeason(),food=se===3?1.3:se===2&&REAL.mast()==='bumper'?.6:1;
+      const ch=clamp(.2*p*food*(1-e*(t.kind==='corral'?.8:.3)),0,.6);if(R()>ch)continue;const n=t.kind==='corral'?ri(2,7):ri(1,2),got=[];
+      for(let i=0;i<n;i++){const sp=WE.hogSpec(t.area,i>=2&&R()<.5),H=HOGS[sp.key];got.push({...sp,name:H.name,sex:R()<.5?'M':'F',seed:ri(1,2e9),area:t.area,day:S.day,trap:t.id})}
+      (S.trapped=S.trapped||[]).push(...got);W.edu=W.edu||{};W.edu[t.area]=Math.min(1,(W.edu[t.area]||0)+.05);t.caught=(t.caught||0)+got.length;
+      msgs.push(`🪤 Your ${TRAP_KINDS[t.kind].n.toLowerCase()} in the ${areaName(t.area)} caught ${got.length} hog${got.length>1?'s':''}! Check it today (More → Hog traps).`)}},
+  trapLive:o=>Math.round(o.w*1.6)-REAL_TEST,trapProc:o=>Math.round(o.w*1.2),
+  // ---- screens ----
+  panel(){const W=WE.ensure(),w=REAL.dayWind(),k=UI.huntSel&&UI.huntSel.area,e=k?REAL.edu(k):0;
+    return`<div class="panel small" style="margin-bottom:8px"><div>💨 <b>Wind today:</b> from the ${REAL.compass(w.from)} ${REAL.arrow(w.from)}, ${w.mph} mph. ${w.mph<3?'Dead calm: scent pools and the dogs have to walk right up on it.':'Turn out downwind of the cover so the dogs wind the hogs, and walk in to a bay from downwind.'}</div>
+    <div style="margin-top:4px">🌰 <b>What they’re eating:</b> ${esc(REAL.food())}</div>
+    ${k?`<div style="margin-top:4px">🎯 <b>Hunting pressure in the ${esc(areaName(k))}:</b> ${REAL.eduWord(e)}${e>.35?'. The hogs here are educated: they lie up by day and run instead of standing. Rest this ground a few days, hunt somewhere else, or hunt it at night.':e>.12?'. The hogs are getting wary.':'.'}</div>`:''}
+    <div style="margin-top:4px">📋 <b>License:</b> ${REAL.licensed()?(S.license.life?'Lifetime':`good through day ${S.license.until}`):'<b style="color:var(--bad)">expired</b> <button class="btn sm" data-act="rlLicense">Renew '+fmt(REAL_LICENSE)+'</button>'}${S.dogs.some(d=>isAdult(d)&&!REAL.rabiesOk(d))?` · <span style="color:var(--bad)">Some dogs need rabies shots</span> <button class="btn sm ghost" data-act="rlVaxAll">Vaccinate all</button>`:''}</div></div>`},
+  profile(d){REAL.ensureDog(d);const c=REAL.cond(d);
+    return`<div class="panel" style="margin-top:8px"><div class="spread small"><b>Condition: ${REAL.condWord(c)}</b><span class="num">${Math.round(c)}/100</span></div><div class="meter" style="height:6px"><i style="width:${c}%;background:var(--good)"></i></div>
+    <div class="small muted" style="margin-top:2px">Regular hunting and road work keep a dog in shape; a dog that sits in the kennel goes soft. Condition changes endurance on the hunt.</div>
+    <div class="small" style="margin-top:6px">${REAL.stage(d)}${d.age>=96?' · slowing down':''}${d.retired?' · <b>Retired</b>':''}${d.sore&&d.sore>=S.day?' · <span style="color:var(--bad)">Sore feet</span>':''}</div>
+    <div class="small" style="margin-top:4px">💉 Rabies: ${d.age<4?'too young yet':REAL.rabiesOk(d)?`current (given day ${d.rabies})`:'<b style="color:var(--bad)">due</b>'} · 🐍 ${d.snakeProof?'Snake-proofed':'Not snake-proofed'}${REAL.snakeVax(d)?' · Rattlesnake vaccine current':''}</div>
+    <div class="row" style="margin-top:6px">${d.age>=4&&!REAL.rabiesOk(d)?`<button class="btn sm" data-act="rlVax" data-id="${d.id}">Rabies shot (${fmt(REAL_RABIES)})</button>`:''}${!REAL.snakeVax(d)&&isAdult(d)?`<button class="btn sm ghost" data-act="rlSnakeVax" data-id="${d.id}">Rattlesnake vaccine (${fmt(REAL_SNAKEVAX)})</button>`:''}${!d.snakeProof&&isAdult(d)?`<button class="btn sm ghost" data-act="rlSnakeProof" data-id="${d.id}">Snake-avoidance training (${fmt(REAL_SNAKEPROOF)})</button>`:''}${isAdult(d)&&d.age>=72?`<button class="btn sm ghost" data-act="rlRetire" data-id="${d.id}">${d.retired?'Bring back to hunting':'Retire to the porch'}</button>`:''}</div></div>`},
+  papers(){const due=S.dogs.filter(d=>d.age>=4&&!REAL.rabiesOk(d));
+    return`<h2>Vet & paperwork</h2><p class="sub">Stay legal and keep the dogs protected. The game warden checks about one hunt in ten (more at night): no license is a ${fmt(500)} fine, and each dog without a current rabies tag is ${fmt(100)}.</p>
+    <div class="panel"><b>Hunting license</b><div class="small">${REAL.licensed()?(S.license.life?'Lifetime license.':`Good through day ${S.license.until}.`):'<b style="color:var(--bad)">Expired.</b>'}</div>
+    <div class="row" style="margin-top:6px"><button class="btn sm" data-act="rlLicense" ${S.license&&S.license.life?'disabled':''}>Buy a year (${fmt(REAL_LICENSE)})</button><button class="btn sm alt" data-act="rlLifetime" ${S.license&&S.license.life?'disabled':''}>Lifetime license (${fmt(REAL_LIFETIME)})</button></div></div>
+    <div class="panel" style="margin-top:8px"><b>Rabies shots</b> <span class="small muted">good for 3 years (36 days); pups get their first at 4 months</span>
+    ${due.length?`<div class="small" style="margin-top:4px">${due.map(d=>esc(d.name)).join(', ')} ${due.length>1?'are':'is'} due.</div><button class="btn sm" style="margin-top:6px" data-act="rlVaxAll">Vaccinate all due (${fmt(REAL_RABIES*due.length)})</button>`:'<div class="small">Every dog is current.</div>'}</div>
+    <div class="panel" style="margin-top:8px"><b>Snakes</b><div class="small">Rattlesnakes in brush, rock and timber and cottonmouths by the water bite dogs in spring, summer and early fall. <b>Snake-avoidance training</b> (${fmt(REAL_SNAKEPROOF)}, once) cuts bites by 70%. The <b>rattlesnake vaccine</b> (${fmt(REAL_SNAKEVAX)}, lasts a year) halves the damage from a rattler and helps a little against a cottonmouth. Set them up on each dog’s profile.</div></div>
+    ${(S.wardenLog||[]).length?`<h3>Warden checks</h3>${S.wardenLog.map(x=>`<div class="small spread" style="border-top:1px solid var(--line);padding:3px 0"><span>Day ${x.day}</span><span>${x.fine?`<b style="color:var(--bad)">${fmt(x.fine)}</b> ${esc(x.why)}`:'All in order'}</span></div>`).join('')}`:''}`},
+  trapScreen(){const T=REAL.traps(),got=S.trapped||[],room=HOGG.room?HOGG.room():0;
+    return`<h2>Hog traps</h2><p class="sub">Trapping is the other half of hog control. Set a trap on hog ground, keep it baited with soured corn, and check it every day: hogs left in a trap overnight go to the processor cheap. Live hogs need a disease test (${fmt(REAL_TEST)} each) before a buying station will take them. Trapping educates hogs a little too: a corral trap catches a whole sounder, but wary hogs learn to avoid it.</p>
+    ${got.length?`<div class="panel" style="border:2px solid var(--blaze)"><b>In your traps: ${got.length} hog${got.length>1?'s':''}</b>${got.map(o=>`<div class="small spread"><span>${o.w} lb ${esc(o.name.toLowerCase())} (${o.sex==='M'?'boar':'sow'}), ${esc(areaName(o.area))}</span><span class="num">live ${fmt(REAL.trapLive(o))} · processor ${fmt(REAL.trapProc(o))}</span></div>`).join('')}
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="rlTrapSell" data-k="live">Sell all live (tested): ${fmt(got.reduce((s,o)=>s+REAL.trapLive(o),0))}</button><button class="btn sm alt" data-act="rlTrapSell" data-k="proc">All to the processor: ${fmt(got.reduce((s,o)=>s+REAL.trapProc(o),0))}</button>${room>0?`<button class="btn sm ghost" data-act="rlTrapKeep">Keep the best in the Hog Pin</button>`:''}</div></div>`:''}
+    <h3>Your traps <span class="small muted">${T.length}/${TRAP_MAX}</span></h3>${T.length?T.map(t=>`<div class="panel spread" style="margin-bottom:6px"><div><b>${TRAP_KINDS[t.kind].n}</b> in the ${esc(areaName(t.area))}<div class="small muted">${t.bait>0?`Baited: ${t.bait} day${t.bait>1?'s':''} left`:'<b style="color:var(--bad)">No bait</b>'} · ${t.caught||0} caught · pressure there: ${REAL.eduWord(REAL.edu(t.area))}</div></div><div class="row"><button class="btn sm" data-act="rlBait" data-id="${t.id}">Bait ${TRAP_BAIT_DAYS} days (${fmt(TRAP_BAIT)})</button><button class="btn sm ghost" data-act="rlTrapMove" data-id="${t.id}">Move</button></div></div>`).join(''):'<p class="small muted">No traps set.</p>'}
+    ${T.length<TRAP_MAX?`<h3>Buy a trap</h3><label class="small">Set it in <select data-f="trapArea">${Object.keys(HW_AREAS).map(k=>`<option value="${k}" ${UI.trapArea===k?'selected':''}>${esc(areaName(k))}</option>`).join('')}</select></label><div class="grid" style="margin-top:6px">${Object.entries(TRAP_KINDS).map(([k,v])=>`<div class="panel"><b>${v.n}</b><div class="small muted">${v.d}</div><button class="btn sm" style="margin-top:6px" data-act="rlTrapBuy" data-k="${k}" ${S.money>=v.price?'':'disabled'}>Buy ${fmt(v.price)}</button></div>`).join('')}</div>`:''}`},
+  memorialHTML(){const M=S.memorial||[];if(!M.length)return'';return`<h3>In memory</h3>${M.map(m=>`<div class="panel small" style="margin-bottom:6px"><b>🕊️ ${esc(m.name)}</b> <span class="muted">${esc(m.breed)}, ${Math.floor(m.age/12)} yrs ${m.age%12} mo</span><div class="muted">${esc(m.why)} (day ${m.day}) · ${m.hunts} hunts, ${m.catches} catches</div>${m.bdg&&m.bdg.length?bdgUI('snapRow',m):''}</div>`).join('')}`}
+};
+const REAL_ACTIONS={
+  rlLicense:()=>{if(S.money<REAL_LICENSE)return toast('Not enough cash.');S.money-=REAL_LICENSE;if(!S.license)S.license={until:S.day};S.license.until=Math.max(S.license.until,S.day)+12;S.licWarn=0;toast('Hunting license good for another year.');save();render()},
+  rlLifetime:()=>{if(S.money<REAL_LIFETIME)return toast('Not enough cash.');S.money-=REAL_LIFETIME;S.license={until:S.day+9999,life:true};toast('Lifetime hunting license.');save();render()},
+  rlVax:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||S.money<REAL_RABIES)return;S.money-=REAL_RABIES;x.rabies=S.day;x.rabiesWarn=0;toast(`${x.name} got a rabies shot.`);save();dogProfile(x.id)},
+  rlVaxAll:()=>{const due=S.dogs.filter(x=>x.age>=4&&!REAL.rabiesOk(x));const c=due.length*REAL_RABIES;if(!due.length||S.money<c)return toast(due.length?'Not enough cash.':'Everyone is current.');S.money-=c;due.forEach(x=>{x.rabies=S.day;x.rabiesWarn=0});toast(`Vaccinated ${due.length} dog${due.length>1?'s':''} for ${fmt(c)}.`);save();render()},
+  rlSnakeVax:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||S.money<REAL_SNAKEVAX)return toast('Not enough cash.');S.money-=REAL_SNAKEVAX;x.snakeVax=S.day;toast(`${x.name} got the rattlesnake vaccine.`);save();dogProfile(x.id)},
+  rlSnakeProof:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||S.money<REAL_SNAKEPROOF)return toast('Not enough cash.');S.money-=REAL_SNAKEPROOF;x.snakeProof=true;toast(`${x.name} went through snake-avoidance training.`);save();dogProfile(x.id)},
+  rlRetire:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x)return;x.retired=!x.retired;if(x.retired)for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==x.id);toast(x.retired?`${x.name} is retired to the porch. It can still be bred.`:`${x.name} is back on the hunting string.`);save();dogProfile(x.id)},
+  rlTrapBuy:d=>{const K=TRAP_KINDS[d.k],T=REAL.traps();if(!K||T.length>=TRAP_MAX||S.money<K.price)return;S.money-=K.price;T.push({id:'TR'+(S.nextId++),kind:d.k,area:UI.trapArea||'creek',bait:0,caught:0,day:S.day});toast(`${K.n} set. Bait it to start catching.`);save();render()},
+  rlBait:d=>{const t=REAL.traps().find(x=>x.id===d.id);if(!t||S.money<TRAP_BAIT)return toast('Not enough cash.');S.money-=TRAP_BAIT;t.bait=(t.bait||0)+TRAP_BAIT_DAYS;save();render()},
+  rlTrapMove:d=>{const t=REAL.traps().find(x=>x.id===d.id);if(!t)return;const ks=Object.keys(HW_AREAS);t.area=ks[(ks.indexOf(t.area)+1)%ks.length];toast(`Moved the trap to the ${areaName(t.area)}.`);save();render()},
+  rlTrapSell:d=>{const got=S.trapped||[];if(!got.length)return;const v=got.reduce((s,o)=>s+(d.k==='live'?REAL.trapLive(o):REAL.trapProc(o)),0);earn(v);S.st.trapped=(S.st.trapped||0)+got.length;addLog(`Sold ${got.length} trapped hogs ${d.k==='live'?'live (tested)':'to the processor'} for ${fmt(v)}.`);toast(`Sold ${got.length} hog${got.length>1?'s':''} for ${fmt(v)}.`);S.trapped=[];save();render()},
+  rlTrapKeep:()=>{const got=S.trapped||[];if(!got.length||HOGG.room()<=0)return;const o=got.sort((a,b)=>b.w-a.w)[0];const h=HOGG.fromWild({...o,id:'TH-'+String(S.nextId++).padStart(5,'0'),pay:0,mult:1,tie:1});S.hogs.push(h);S.trapped=got.filter(x=>x!==o);toast(`${h.name} is in your Hog Pin.`);save();render()}
+};
+SCREENS.papers=()=>REAL.papers();SCREENS.traps=()=>REAL.trapScreen();
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.f==='trapArea'){UI.trapArea=el.value}});
+if(S&&!S.license)S.license={until:S.day+12};
+// new dogs arrive with their shots (pups get theirs at 4 months) and in ordinary shape; older saves are filled in lazily
+{const mk=makeDog;makeDog=function(o){const d=mk(o);d.rabies=d.age>=4?S.day:null;d.worked=S.day;return d}}
+{const mp=makePuppy;makePuppy=function(a,b){const d=mp(a,b);d.rabies=null;d.worked=S.day;return d}}
+// wiring into the existing systems
+{const o=WE.step;WE.step=function(S2,dt){o.call(WE,S2,dt);try{REAL.step(S2,dt)}catch(e){console.warn('real',e)}}}
+{const o=WE.startNotes;WE.startNotes=function(S2){o.call(WE,S2);try{const R0=REAL.init(S2),w=S2.wind;if(S2.mode!=='blood')hwEvent(S2,'wind0',`💨 Wind out of the ${REAL.compass(w.from)}, ${Math.round(w.mph)} mph.${w.mph<3?' Dead calm.':''}`,1);if(!S2.mode&&!S2.practice)hwEvent(S2,'food0','🌰 '+REAL.food(),1)}catch(e){console.warn('real',e)}}}
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{REAL.daily(msgs)}catch(e){console.warn('real',e)}}}
+{const o=WE.afterHunt;WE.afterHunt=function(h,S2,win,lines){if(S2)for(const g of S2.dogs)if(g.m&&g.m.dead){g.x=S2.player.x;g.y=S2.player.y}const r=o.call(WE,h,S2,win,lines);try{if(S2&&!S2.mode&&!S2.practice&&h.area){const W=WE.ensure();W.edu=W.edu||{};W.edu[h.area.id]=Math.min(1,(W.edu[h.area.id]||0)+.12+(!win&&S2.target&&S2.target.rev?.1:0))}}catch(e){}return r}}
+{const o=WE.huntMods;WE.huntMods=function(areaId){const X=o.call(WE,areaId);try{const se=weSeason(),m=REAL.mast();if(se===2){X.hogW*=m==='bumper'?1.06:m==='poor'?.95:1;if(areaId==='pine'||areaId==='thicket')X.dens*=m==='bumper'?1.15:m==='poor'?.85:1;if(areaId==='creek'&&m==='poor')X.dens*=1.15}if(se===1&&areaId==='creek')X.dens*=1.1}catch(e){}return X}}
+{const o=WE.signText;if(o)WE.signText=function(k){const t=o.call(WE,k);const e=REAL.edu(k);return e>.35?t+' Hogs here are educated.':e>.12?t+' Hogs are getting wary.':t}}
+{const o=WE.huntPanel;WE.huntPanel=function(){return o.call(WE)+REAL.panel()}}
+{const o=hwJump;hwJump=function(S2,h){if(h.edu&&h.st==='stand'&&R()<h.edu*.5)h.st='run';return o(S2,h)}}
+{const o=hwReveal;hwReveal=function(S2,h,why){const r=o(S2,h,why);try{if(S2.target===h&&h.rev&&!h.realSaid&&!h.rabbit&&!h.coon&&!h.deer){h.realSaid=1;
+  if(h.cutter){hwEvent(S2,'cutter','This is a CUTTER: a known dog-killer. Get the catch dogs in fast and watch the bay dogs.',1);hwBanner(S2,'CUTTER!')}
+  if(h.pigs)hwEvent(S2,'pigs',`A sow with ${h.pigs} pigs! She’ll fight hard for them.`,1);if(h.shield)hwEvent(S2,'shield','Big boar with a thick shield over his shoulders: hard to catch, and the tusks are long.',1)}}catch(e){}return r}}
+{const o=HOGAI.charge;HOGAI.charge=function(S2,g,h,dt){if(h&&h.pigs&&h.sex==='F')return o.call(HOGAI,S2,g,{...h,sex:'M',w:Math.max(h.w,130),name:'sow with pigs'},dt);return o.call(HOGAI,S2,g,h,h&&h.cutter?dt*3:dt)}}
+{const ha=huntAttrs;huntAttrs=function(d,lh){const a=ha(d,lh);try{a.end*=.85+.3*REAL.cond(d)/100;if(d.sore&&d.sore>=S.day)a.spd*=.9}catch(e){}return a}}
+{const hh=huntHud;huntHud=function(f){hh(f);try{const h=UI.hunt;if(h&&h.sim)REAL.hud(h.sim)}catch(e){}}}
+{const f5=finishHunt;finishHunt=function(win,lines){const r=f5(win,lines);try{REAL.end(UI.hunt)}catch(e){console.warn('real',e)}return r}}
+{const de=DB.end;DB.end=function(h){try{const S2=h&&h.sim;if(S2)for(const g of S2.dogs)if(g.mentor&&g.bx)for(const k in g.bx)g.bx[k]*=1.5}catch(e){}return de.call(DB,h)}}
+{const o=PR.offer;PR.offer=function(h,S2,pay){o.call(PR,h,S2,pay);const t=S2&&S2.target,P=S.pendingHog;if(P&&t){if(t.shield)P.shield=true;if(t.cutter)P.cutter=true;if(t.pigs)P.pigs=t.pigs}}}
+{const o=HOG_SALE.live;HOG_SALE.live=function(x){return Math.round(o.call(HOG_SALE,x)*(x.shield?1.1:1))+(x.pigs||0)*25-REAL_TEST}}
+// live hogs are tested before the buying station takes them; a positive hog can only go to slaughter
+REAL.positive=o=>((o.seed||0)%100)>=96;
+{const o=PR.resolve;PR.resolve=function(k,quiet){const P=S.pendingHog;if(k==='live'&&P&&REAL.positive(P)){const v=Math.round(HOG_SALE.proc(P)*.7)-REAL_TEST;earn(v);const m=`The ${P.w} lb ${P.name.toLowerCase()} tested positive for brucellosis. The live buyer can’t take it; it went to slaughter for ${fmt(v)} after the test fee.`;S.pendingHog=null;UI.pendingHogView=null;addLog(m);if(!quiet)toast(m);save();render();return}return o.call(PR,k,quiet)}}
+{const o=RB.canHunt;RB.canHunt=d=>!d.retired&&o(d)}{const o=CN.canHunt;CN.canHunt=d=>!d.retired&&o(d)}{const o=BT.ok;BT.ok=d=>!d.retired&&o(d)}
+{const o=A.train;A.train=function(d){const dog=S.dogs.find(x=>x.id===UI.trainDog),n0=dog&&dog.trained;const r=o(d);try{if(dog&&dog.trained>n0&&(d.k==='sta'||d.k==='spd')){dog.cond=Math.min(100,REAL.cond(dog)+(d.k==='sta'?5:3));dog.worked=S.day;save()}}catch(e){}return r}}
+{const o=dogCard;dogCard=function(d,act,extra){const html=o(d,act,extra);try{const t=[];if(d.retired)t.push('<span class="tag">Retired</span>');else if(d.sore&&d.sore>=S.day)t.push('<span class="tag warn">Sore feet</span>');if(d.age>=4&&!REAL.rabiesOk(d))t.push('<span class="tag warn">Shots due</span>');return t.length?html.replace('<div class="badges">','<div class="badges">'+t.join('')):html}catch(e){return html}}}
+{const o=SCREENS.trophies;if(o)SCREENS.trophies=function(){return o()+REAL.memorialHTML()}}
+Object.assign(A,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
