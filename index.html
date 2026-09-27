@@ -292,6 +292,38 @@ const TEMPS=['Steady','Bold','Gritty','Eager','Calm','Hot-headed','Stubborn','Sh
 const TEMP_FX={Steady:'Balanced in the woods',Bold:'+5% catch success',Gritty:'+5 catch power',Eager:'+20% training gains',Calm:'Holds bay longer',
  'Hot-headed':'+8% catch, more injuries',Stubborn:'-20% training gains',Sharp:'Better tracking clues',Loyal:'Never quits a bay'};
 const NAMES=['Blue','Rowdy','Jolene','Tank','Dixie','Buck','Sadie','Boone','Remi','Gunner','Belle','Duke','Scout','Ruby','Cash','Hank','Maggie','Tucker','Roux','Birdie','Jett','Moose','Pearl','Ranger','Copper','Sawyer','Willa','Brute','Nola','Bo','Lefty','Crockett','Tater','Gravy','June','Stella','Bandit','Hondo','Ike','Opal','Rosco','Shiloh','Zeke','Clem','Tildy','Rooster','Mae','Waylon','Juke','Pistol','Hazel','Otis','Sugar','Trapper','Dot','Ace','Nugget','Grits','Levi','Wren'];
+// ---------- DOG NAMES: millions of combinations, and no two dogs share one ----------
+// A name is a call name, maybe with a second name ("Sadie Mae", "Rowdy Boone"), maybe with a handle ("Ol' Blue",
+// "Big Red"), and rarely a numeral. That is several million different names. Every name the ranch ever gives out is
+// remembered, so a new dog never repeats one, and a rename to a name another dog has is refused.
+const DN_CALL_M='Blue Rowdy Tank Buck Boone Remi Gunner Duke Scout Cash Hank Tucker Roux Jett Moose Ranger Rebel Bandit Bo Bear Beau Bentley Billy Blaze Boomer Bosco Brute Bubba Buster Butch Cajun Chief Chip Clyde Colt Cooper Copper Crockett Dakota Deacon Diesel Dozer Drake Dutch Earl Elvis Floyd Ford Gator Goose Gus Hammer Harley Hawk Hondo Hoss Hunter Ike Jack Jake Jasper Jax Jesse Jethro Judge Kodiak Lefty Levi Lincoln Mack Major Marshal Maverick Merle Moe Murphy Nash Ned Oakley Otis Ozzy Pistol Porter Radar Rambo Rascal Red Rex Rip Rocco Rocky Roscoe Rufus Rusty Sarge Shiloh Smokey Spike Stetson Sully Tex Thor Titan Trapper Trigger Tuff Turbo Tyson Vern Waylon Wiley Winchester Wolf Wyatt Yeller Zeke Amos Archie Arlo Atlas Axel Banjo Barney Bishop Boots Bowie Brody Brutus Buckshot Bullet Bunker Caddo Calhoun Chance Chester Clem Cletus Cody Coyote Cyrus Dallas Dawson Denver Dooley Dudley Duster Elmer Emmett Enzo Fargo Finn Fletcher Frank Gabe Garth Grady Grizz Hatch Haywood Hector Homer Huck Hugo Jubal Kane Keno Kit Knox Lawson Leroy Lucky Luther Mojo Monroe Mudd Nitro Odell Orville Pappy Pecos Percy Pike Quincy Ranger Reno Rooster Rowan Ruger Sampson Samson Sawyer Shep Sherman Sid Silas Slim Stoney Sonny Tater Thatcher Toby Tripp Truman Tully Walker Ward Wendell Whiskey Willie Yancy Zane Ajax Ace Bama Biscuit Boudreaux Bourbon Brisket Cannon Cayenne Chigger Cricket Delta Drifter Dynamite Flint Gravy Grits Gumbo Hurricane Jambo Jericho Joker Kingpin Lightning Mudbug Outlaw Patch Pepper Pirate Rattler Rawhide Renegade Ripley Rooster Rowdy Sarge Shotgun Sledge Stormy Striker Thunder Timber Tornado Trooper Tumbleweed Voodoo Warden Wrangler Yukon';
+const DN_CALL_F='Jolene Dixie Sadie Belle Ruby Maggie Birdie Pearl Annie Bella Bonnie Callie Candy Cassie Clementine Coco Daisy Delilah Dolly Ella Emmy Ember Etta Faith Georgia Ginger Goldie Gracie Hattie Hazel Honey Ivy Izzy Josie Juno Karma Kit Lacey Lady Layla Lexi Lilly Lola Loretta Lottie Lucy Lulu Mabel Maddie Magnolia Mamie Maple Millie Minnie Missy Molly Nala Nellie Nova Opal Penny Piper Polly Poppy Presley Queenie Reba Rosie Roxy Ruthie Sally Sassy Scarlett Shelby Sissy Sophie Stella Sugar Susie Tallulah Tessa Tilly Trixie Tula Violet Willa Winnie Xena Zoey Abby Allie Amber Angel Babe Blossom Blue Bo Bree Brandy Bristol Carolina Cheyenne Cinnamon Clover Cora Dakota Darla Dottie Duchess Echo Effie Eula Fancy Fern Flossie Freckles Gypsy Harper Hester Iris Jada Jazzy Jewel Kiki Kona Lark Lela Libby Liza Louisa Lucky Luna Mae Marla Mercy Misty Nettie Nina Olive Oma Paisley Patsy Pixie Precious Raven Remy Ricki Riley Rio Roux Sable Sage Sienna Skye Sparrow Sunny Tansy Tinker Tootsie Trudy Twila Una Vada Velma Wren Zelda Bayou Biscuit Bourbon Caddo Cajun Chigger Cricket Delta Dixie Gravy Grits Gumbo Honeysuckle Hushpuppy Jambalaya Muscadine Pecan Praline Sassafras Tupelo Whiskey';
+const DN_SECOND_M='Boone Jack Ray Lee Dale Bo Joe Wayne Earl Jim Bob Dean Cole Jay Roy Wade Clay Carl Buck Blue Cash Duke Hank Jesse Luke Otis Ross Sam Tate Ty Will Beau Gene Lane Neal Reid Rhett Shane Sid Troy Zeke Dallas Denton Macon Tulsa Laredo Shreveport Natchez Houma Tupelo Pecos Brazos Sabine Bogue Choctaw Cherokee Caddo Creek Hollow Ridge River';
+const DN_SECOND_F='Mae Lou Belle Jo Jean Anne June Lynn Rae Sue Ray Kay Faye Dee Grace Rose Beth Jane Pearl Ruth Nell Ivy Leigh Blue Fern Dawn Hope Joy Skye Wren Georgia Carolina Savannah Magnolia Tupelo Natchez Macon Dixie Delta Bayou Sabine Belle Creek Hollow River';
+const DN_HANDLE_M=["Ol'",'Big','Lil','Mister','Sgt.',"Cap'n",'Doc','Uncle','Sir','Bad','Crazy','Wild','Slim','Tuff','Ragin'];
+const DN_HANDLE_F=["Ol'",'Big','Lil','Miss','Aunt','Lady','Sweet','Crazy','Wild','Sister','Granny','Ragin','Pretty','Little','Queen'];
+const DN_NUM=['II','III','IV','V','Jr.'];
+const DOGNAME={
+  L:null,
+  lists(){if(DOGNAME.L)return DOGNAME.L;const sp=s=>[...new Set(s.split(' '))];return DOGNAME.L={cm:sp(DN_CALL_M),cf:sp(DN_CALL_F),sm:sp(DN_SECOND_M),sf:sp(DN_SECOND_F)}},
+  // how many different names the generator can make
+  space(){const L=DOGNAME.lists(),one=(c,s,h)=>c*(1+s)*(1+h);return(one(L.cm.length,L.sm.length,DN_HANDLE_M.length)+one(L.cf.length,L.sf.length,DN_HANDLE_F.length))*(1+DN_NUM.length)},
+  key:n=>String(n||'').trim().toLowerCase().replace(/\s+/g,' '),
+  // every name in use or ever handed out on this ranch
+  taken(){const t=new Set();const add=d=>{if(d&&d.name)t.add(DOGNAME.key(d.name))};
+    try{(S.dogs||[]).forEach(add);(S.market||[]).forEach(add);(S.featured||[]).forEach(add);Object.values(S.lineups||{}).flat().forEach(add);(S.world&&S.world.lost||[]).forEach(L=>add(L.dog));(S.memorial||[]).forEach(add);(UI.previewPups||[]).forEach(add)}catch(e){}
+    for(const n of(S&&S.nameLog)||[])t.add(n);return t},
+  remember(n){if(!S)return;const k=DOGNAME.key(n),L=S.nameLog||(S.nameLog=[]);L.push(k);if(L.length>20000)L.splice(0,L.length-20000)},
+  make(sex){const L=DOGNAME.lists(),f=sex==='F',call=f?L.cf:L.cm,sec=f?L.sf:L.sm,hand=f?DN_HANDLE_F:DN_HANDLE_M,taken=DOGNAME.taken();
+    for(let i=0;i<60;i++){const r=R(),c=pick(call);let n=r<.35?c:r<.75?`${c} ${pick(sec)}`:r<.9?`${pick(hand)} ${c}`:`${pick(hand)} ${c} ${pick(sec)}`;
+      if(i>30)n+=' '+pick(DN_NUM);if(n.length<=24&&!taken.has(DOGNAME.key(n))){DOGNAME.remember(n);return n}}
+    let k=2;const base=pick(call);while(taken.has(DOGNAME.key(`${base} ${k}`)))k++;const n=`${base} ${k}`;DOGNAME.remember(n);return n},
+  // make a name unique by adding a numeral (for dogs that arrive with a name already in use)
+  unique(n,skip){const t=DOGNAME.taken();if(skip)t.delete(DOGNAME.key(skip.name));if(!t.has(DOGNAME.key(n)))return n;const R2N=['II','III','IV','V','VI','VII','VIII','IX','X'];
+    for(const s of R2N){const c=`${n} ${s}`;if(!t.has(DOGNAME.key(c)))return c}let k=11;while(t.has(DOGNAME.key(`${n} ${k}`)))k++;return`${n} ${k}`},
+  // older saves: dogs in the kennel that share a name get a numeral, oldest keeps the plain name
+  fixDupes(){if(!S||!S.dogs)return 0;const seen=new Set();let n=0;for(const d of S.dogs){let k=DOGNAME.key(d.name);if(seen.has(k)){const R2N=['II','III','IV','V','VI','VII','VIII','IX','X'];let nm=d.name,i=0;while(seen.has(DOGNAME.key(nm)))nm=`${d.name} ${R2N[i++]||i}`;d.name=nm;k=DOGNAME.key(nm);n++}seen.add(k)}return n}
+};
 
 // Genetics loci: allele order = dominance order
 const LOCI={
@@ -451,9 +483,10 @@ function makeDog(o){
   const b=BREEDS[o.breed],pot={};
   STATS.forEach(([k],i)=>{const rg=b.range&&b.range[i],v=rg?clamp(b.pot[i]+gauss()*(rg[1]-rg[0])/4,rg[0],rg[1]):b.pot[i]+gauss()*7;pot[k]=clamp(Math.round(v+(o.boost||0)),20,99)});
   const age=o.age??ri(8,40);
-  const d={id:newId(),name:o.name||pick(NAMES),breed:o.breed,cross:null,sex:o.sex||pick(['M','F']),age,genes:genesFor(b,o.rare),pot,stats:{},
+  const d={id:newId(),name:o.name||'',breed:o.breed,cross:null,sex:o.sex||pick(['M','F']),age,genes:genesFor(b,o.rare),pot,stats:{},
     kg:r1(b.kg[0]+R()*(b.kg[1]-b.kg[0])),ears:b.ears,muz:b.muz,temp:pick(TEMPS),health:100,hcap:100,energy:100,
     hunt:{n:0,bays:0,catches:0,xp:0},trained:0,parents:null,gen:0,base:b.price,mut:!!o.mut,cool:0,lastShow:0,lastTrial:0,whiteMod:Math.round((r1((R()-.5)*.3*10)/10+(b.whiteBias||0))*100)/100,patMod:Math.round(R()*100)/100,coatInt:Math.round((.3+R()*.4)*100)/100,eyes:'Auto',eyes2:'Auto',merleMod:Math.round((.2+R()*.6)*100)/100,tickMod:Math.round((.3+R()*.4)*100)/100,speckMod:R()<(b.speckRate??(o.breed==='Treeing Walker'?.6:.2))?Math.round(R()*70)/100:0,featherMod:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherMod+gauss()*.06,0,1)*100)/100:Math.round((.1+R()*.5)*100)/100,featherDen:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherDen+gauss()*.06,0,1)*100)/100:Math.round((.2+R()*.6)*100)/100,texture:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.texture+gauss()*.08,0,1)*100)/100:Math.round(R()*35)/100,seed:ri(1,99999)};
+  if(!d.name)d.name=DOGNAME.make(d.sex);
   const gf=growFactor(age);STATS.forEach(([k])=>d.stats[k]=Math.min(pot[k],Math.round(pot[k]*gf*(.9+R()*.15))));
   d.morph=pureMorph(o.breed);d.kg=d.morph.t.weight;d.bl=foundationBl(d);
   if(b.health){d.vigor=ri(b.health[0],b.health[1]);d.bl.hardy=clamp(Math.round((d.vigor-70)/6),1,5)}
@@ -492,10 +525,11 @@ function makePuppy(sire,dam){
   for(const L in LOCI){const r=inheritLocus(L,sire,dam);genes[L]=r.pair;if(r.mut)mut=true}
   const pot={};STATS.forEach(([k])=>pot[k]=clamp(Math.round((sire.pot[k]+dam.pot[k])/2+gauss()*6+(same?0:1.5)),15,99));
   if(R()<.03){const k=pick(STATS)[0];pot[k]=clamp(pot[k]+10,0,99);mut=true}
-  const d={id:newId(),name:pick(NAMES),breed:same?sire.breed:'Cross',cross:same?null:crossName(sire,dam),sex:pick(['M','F']),age:0,genes,pot,stats:{},
+  const d={id:newId(),name:'',breed:same?sire.breed:'Cross',cross:same?null:crossName(sire,dam),sex:pick(['M','F']),age:0,genes,pot,stats:{},
     kg:r1(clamp((sire.kg+dam.kg)/2+gauss()*2.5,9,62)),ears:pick([sire.ears,dam.ears]),muz:r1((sire.muz+dam.muz)/2),
     temp:R()<.7?pick([sire.temp,dam.temp]):pick(TEMPS),health:100,hcap:100,energy:100,hunt:{n:0,bays:0,catches:0,xp:0},trained:0,
     parents:[snap(sire),snap(dam)],gen:Math.max(sire.gen,dam.gen)+1,base:Math.round((sire.base+dam.base)/2),mut,cool:0,lastShow:0,lastTrial:0};
+  d.name=DOGNAME.make(d.sex);
   d.coatInt=clamp(((sire.coatInt??.5)+(dam.coatInt??.5))/2+gauss()*.06,0,1);{const ep=R()<.5?pick([[sire.eyes||'Auto',sire.eyes2||sire.eyes||'Auto'],[dam.eyes||'Auto',dam.eyes2||dam.eyes||'Auto']]):['Auto','Auto'];d.eyes=ep[0];d.eyes2=ep[1]}d.merleMod=Math.round(clamp(((sire.merleMod??.5)+(dam.merleMod??.5))/2+gauss()*.08,0,1)*100)/100;d.tickMod=Math.round(clamp(((sire.tickMod??.5)+(dam.tickMod??.5))/2+gauss()*.08,0,1)*100)/100;d.speckMod=(sire.speckMod||dam.speckMod)?Math.round(clamp(((sire.speckMod||0)+(dam.speckMod||0))/2+gauss()*.08,0,1)*100)/100:0;{const inh=(k,def,sdv)=>Math.round(clamp(((sire[k]??def)+(dam[k]??def))/2+gauss()*sdv,0,1)*100)/100;d.featherMod=inh('featherMod',.3,.12);d.featherDen=inh('featherDen',.5,.12);d.texture=inh('texture',.1,.1)}d.seed=ri(1,99999);
   d.whiteMod=clamp(((sire.whiteMod||0)+(dam.whiteMod||0))/2+gauss()*.05,-.2,.2);d.patMod=clamp(((sire.patMod??.5)+(dam.patMod??.5))/2+gauss()*.1,0,1);
   finishPuppy(d,sire,dam);
@@ -4657,8 +4691,11 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.9.0';
-const PATCH_NOTES=[{v:'1.9.0',title:'Real woods II',items:[
+const GAME_VERSION='1.9.1';
+const PATCH_NOTES=[{v:'1.9.1',title:'Millions of dog names',items:[
+  ['Every dog gets its own name','New dogs and pups draw from millions of names: call names like Tater or Magnolia, two-part names like Sadie Mae and Rowdy Boone, and handles like Ol\' Blue or Big Red. No dog on your ranch ever gets a name another dog has had, and you can\'t rename a dog to a name another of your dogs is using. Dogs that already shared a name got a numeral (Blue, Blue II).'],
+  ['Balance','Dogs only lose their nerve from serious cuts, and it comes back a little every day. Other crews show up less often, give you more time, and sometimes pull out. Rough dogs break the bay less often.']]},
+  {v:'1.9.0',title:'Real woods II',items:[
   ['Diseases','Pseudorabies (the "mad itch") comes from wild hogs; catch dogs can pick it up and it is almost always fatal. Heartworm and tick fever hit dogs without parasite prevention, and leptospirosis lives in creek and swamp water. Prevention is on by default ($6 per dog a month); the lepto vaccine is on the vet screen.'],
   ['Inherited health','Double merles are often born blind or deaf, heavy white carries deafness, big dogs can have bad hips and deep-chested breeds can bloat. Close breeding raises the risk; inbreeding shows on the profile. Health screening (hips, hearing, eyes) makes clear dogs and their pups worth more.'],
   ['Broken bones','Hard hits can break a leg. The vet X-rays and sets it; left alone it heals crooked and the dog is a step slower for life.'],
@@ -5456,7 +5493,7 @@ const A={
  dnaTest:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!dog||dog.dna||S.money<DNA_TEST)return;S.money-=DNA_TEST;dog.dna=true;const u=unknownCarried(dog);
   u.forEach(a=>research(a,1,`DNA test on ${dog.name}`));addLog(`DNA-tested ${dog.name}: ${u.length?u.length+' unknown trait'+(u.length>1?'s':'')+' found':'no unknown traits'}.`);
   toast(u.length?`${dog.name} carries ${u.length} unknown trait${u.length>1?'s':''}. Research advanced.`:`${dog.name} carries no unknown traits.`);save();render();dogProfile(dog.id)},
- rename:d=>{const dog=S.dogs.find(x=>x.id===d.id);const n=prompt('New name',dog.name);if(n&&n.trim()){dog.name=n.trim().slice(0,24);save();render();dogProfile(dog.id)}},
+ rename:d=>{const dog=S.dogs.find(x=>x.id===d.id);const n=prompt('New name',dog.name);if(n&&n.trim()){const nm=n.trim().slice(0,24);if(S.dogs.some(x=>x!==dog&&DOGNAME.key(x.name)===DOGNAME.key(nm)))return toast(`Another of your dogs is already named ${nm}. Every dog needs its own name.`);dog.name=nm;DOGNAME.remember(nm);save();render();dogProfile(dog.id)}},
  useLin:d=>{const dog=S.dogs.find(x=>x.id===d.id);if(!S.inv.liniment)return;S.inv.liniment--;dog.health=Math.min(dog.inj?WE_CAP[dog.inj.sev]:dog.hcap,dog.health+35);save();render();dogProfile(dog.id);toast(`${dog.name} feels better.`)},
  setPair:d=>{const dog=S.dogs.find(x=>x.id===d.id);UI[dog.sex==='M'?'sire':'dam']=dog.id;UI.tab='breed';closeSheet();render()},
  goTrain:d=>{UI.trainDog=d.id;UI.tab='train';closeSheet();render()},
@@ -7031,18 +7068,18 @@ const R2={
     if(!S2.mode&&h&&h.area){for(const g of S2.dogs){if(g.st==='leash'||!(g.st==='cast'||g.st==='hot'||g.st==='track'))continue;
         if(hwT(g.x,g.y)===T_GRASS&&!X.said['stock'+g.id]&&R()<T/9000*(1.2-g.at.obd)){X.said['stock'+g.id]=1;X.stock=(X.stock||0)+1;hwEvent(S2,'stock'+g.id,`${g.name} is running the landowner’s cattle! Call it off.`,1)}}}
     // another crew comes in on your bay
-    const tg=S2.target;if(!S2.mode&&tg&&S2.phase==='bay'&&X.rival===undefined){X.rival=R()<.08?S2.t+ri(60,180):0}
+    const tg=S2.target;if(!S2.mode&&tg&&S2.phase==='bay'&&X.rival===undefined){X.rival=R()<.05?S2.t+ri(90,240):0}
     if(X.rival&&!X.rivalIn&&S2.t>=X.rival&&S2.phase==='bay'&&!S2.released){X.rivalIn=S2.t;hwEvent(S2,'rival','Another crew’s dogs are coming in on your bay! Get your catch dogs in before they do.',1);hwBanner(S2,'OTHER DOGS!');
       for(const g of S2.dogs)if(g.st==='bay'&&R()<.25)WE.hurt(S2,g,'bitten in a fight with the other crew’s dogs',ri(8,18))}
-    if(X.rivalIn&&!S2.released&&S2.phase==='bay'&&S2.t-X.rivalIn>90&&!S2.over){hwEvent(S2,'rivalwon','The other crew’s catch dogs got there first and took your hog.',1);return hwEnd(S2,false,['Another crew’s dogs took the hog off your bay. Release faster next time.'])}},
+    if(X.rivalIn&&!X.rivalDone&&!S2.released&&S2.phase==='bay'&&S2.t-X.rivalIn>150&&!S2.over){X.rivalDone=1;if(R()<.5){hwEvent(S2,'rivalgone','The other crew called their dogs off and pulled out.',1);return}hwEvent(S2,'rivalwon','The other crew’s catch dogs got there first and took your hog.',1);return hwEnd(S2,false,['Another crew’s dogs took the hog off your bay. Release faster next time.'])}},
   // a rough dog grabs instead of baying
-  bayStart(S2,g,h){if(!g.d||!(g.d.traits||[]).includes('rough')||R()>.4)return;hwEvent(S2,'rough'+g.id,`${g.name} is a rough dog: it grabbed the hog instead of baying!`,1);if(R()<.5)WE.hurt(S2,g,'cut grabbing the hog alone',ri(10,20));h.st='run';h.stam=Math.min(1,h.stam+.2)},
+  bayStart(S2,g,h){if(!g.d||!(g.d.traits||[]).includes('rough')||R()>.25)return;hwEvent(S2,'rough'+g.id,`${g.name} is a rough dog: it grabbed the hog instead of baying!`,1);if(R()<.5)WE.hurt(S2,g,'cut grabbing the hog alone',ri(10,20));h.st='run';h.stam=Math.min(1,h.stam+.2)},
   // ---- after the hunt ----
   end(h){const S2=h&&h.sim;if(!S2||S2.r2Done)return;S2.r2Done=1;const L=h.result?h.result.lines:[],X=S2.r2||{},win=S2.win,tg=S2.target,area=h.area&&h.area.id;
     for(const g of S2.dogs){const d=S.dogs.find(x=>x.id===g.id);if(!d)continue;R2.traits(d);
       if(S2.practice){d.conf=Math.min(100,(d.conf??70)+10);if(d.wasShy&&d.conf>=60)R2.cameBack(d,L);continue}
-      const hurt=g.m&&g.m.hurt;if(hurt&&hurt.dmg>=18){const was=R2.shy(d);d.conf=Math.max(0,(d.conf??70)-ri(15,25)*((d.traits||[]).includes('tough')?.5:1));if(!was&&R2.shy(d)){d.wasShy=1;L.push(`${d.name} got hurt bad and has lost its nerve: it’s hog-shy now. Rebuild it on easy hogs in hog training or the bay pen.`)}}
-      else if(win&&((g.m&&g.m.bayT>60)||(g.m&&g.m.catchT>0))){d.conf=Math.min(100,(d.conf??70)+4);if(d.wasShy&&d.conf>=60)R2.cameBack(d,L)}
+      const hurt=g.m&&g.m.hurt;if(hurt&&hurt.dmg>=22){const was=R2.shy(d);d.conf=Math.max(0,(d.conf??70)-ri(10,18)*((d.traits||[]).includes('tough')?.5:1));if(!was&&R2.shy(d)){d.wasShy=1;L.push(`${d.name} got hurt bad and has lost its nerve: it’s hog-shy now. Rebuild it on easy hogs in hog training or the bay pen.`)}}
+      else if((g.m&&g.m.bayT>60)||(g.m&&g.m.catchT>0)){d.conf=Math.min(100,(d.conf??70)+(win?6:3));if(d.wasShy&&d.conf>=60)R2.cameBack(d,L)}
       // pseudorabies: catch dogs on a hog can pick it up
       if(!S2.mode&&win&&g.role==='catch'&&g.m&&g.m.catchT>0&&!d.prv&&R()<.01){d.prv={day:S.day+ri(1,2),src:'catching a hog'}}
       // ticks and lepto on dogs without prevention
@@ -7074,7 +7111,7 @@ const R2={
   // ---- one day (a month) ----
   daily(msgs){const se=weSeason(),warm=se<=2,W=WE.ensure();
     if(R2.prevOn()){const c=S.dogs.length*R2_PREV;S.money-=c;S.prevSpent=(S.prevSpent||0)+c}
-    for(const d of[...S.dogs]){R2.traits(d);
+    for(const d of[...S.dogs]){R2.traits(d);if((d.conf??70)<70)d.conf=Math.min(70,(d.conf??70)+3);
       if(d.prv&&d.prv.day<=S.day){if(!d.prv.sick){d.prv.sick=1;msgs.push(`☠️ ${d.name} has pseudorabies (the "mad itch") from ${d.prv.src}. There is no cure.`)}else if(R()<.97){R2.lose(d,'died of pseudorabies',msgs);continue}else{delete d.prv;msgs.push(`${d.name} somehow pulled through pseudorabies.`)}}
       if(!R2.prevOn()&&warm&&!d.hw&&R()<.03)d.hw={day:S.day};
       if(d.hw){d.hcap=Math.max(40,d.hcap-2);d.health=Math.min(d.health,d.hcap);d.energy=Math.min(d.energy,70);if(S.day-d.hw.day===2)msgs.push(`${d.name} is coughing and tires fast: heartworm. Treat it (${fmt(R2_HW_TREAT)}) under the dog’s profile.`)}
@@ -7152,6 +7189,8 @@ const R2_ACTIONS={
 {const o=SCREENS.train;SCREENS.train=function(){return o()+R2.pupPanel()}}
 {const o=SCREENS.trophies;SCREENS.trophies=function(){const T=S.tusks||[];return o()+(T.length?`<h3>Best tusks</h3>${T.map(t=>`<div class="panel small spread" style="margin-bottom:4px"><span>🦷 ${R2.inch(t.tusk)} · ${t.w} lb ${esc(String(t.name||'boar').toLowerCase())}, about ${t.age} yrs</span><span class="muted">${esc(t.area)} · day ${t.day} · score ${t.score}</span></div>`).join('')}`:'')}}
 // existing dogs get their traits the first time they hunt, see a new day or open their profile
+{const sv0=save;save=function(){try{DOGNAME.fixDupes()}catch(e){}return sv0.apply(this,arguments)}}
+try{DOGNAME.fixDupes()}catch(e){}
 Object.assign(A,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
