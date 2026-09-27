@@ -3136,6 +3136,7 @@ function huntWorldStart(a,bay,ctch,lh,own,opts){WE.huntMods(a.id);lh={...lh,hogW
   S2.hogs.forEach((h,i)=>{h.id=i;if(Math.hypot(h.x-ent.x,h.y-ent.y)<900){h.k=S2.tracks.length;S2.tracks.push({h:i,pts:[]});hwHistory(S2,h,h.k,h.rest??(h.st==='bed'?600+R()*3000:R()*120));h.full=true}});
   // old tracks from hogs that have moved on
   for(let i=0;i<3+ri(0,3);i++){const k=S2.tracks.length;S2.tracks.push({h:-1,pts:[]});const an=R()*6.283,d=80+R()*500,fake={x:clamp(ent.x+Math.cos(an)*d,10,HW.N-10),y:clamp(ent.y+Math.sin(an)*d,10,HW.N-10)};hwHistory(S2,fake,k,7200+R()*21600)}
+  CMD.deer(S2,ent);
   }
   const mk=(d,role,i)=>{const at=huntAttrs(d,lh);return{id:d.id,name:d.name,role,d,at,x:ent.x+(R()-.5)*3,y:ent.y+(R()-.5)*3,hd:R()*6.283,st:role==='bay'?'cast':'leash',sta:1,k:-1,i:0,dir:1,s0:0,
     ctx:0,cty:0,next:0,path:[],pd:0,dist:0,m:{strike:0,first:false,bayT:0,catchT:0,track:0},off:i*1.2}};
@@ -3198,6 +3199,7 @@ function hwReveal(S2,h,why){const q=hwQuarry(S2);if(q&&h!==q){if(!h.seenOther){h
 
 function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tired=g.sta<.12?.55:1;
   const drain=r=>{g.sta=Math.max(0,g.sta-dt*r*HWX.drainNow/(7000*g.at.end))};
+  if(g.st==='recall')return CMD.recall(S2,g,dt,drain);if(g.st==='down')return CMD.down(S2,g,dt);
   if(g.role==='catch'){
     if(g.st==='leash'){const a=Math.atan2(P.y-g.y,P.x-g.x),d=Math.hypot(P.x-g.x,P.y-g.y);if(d>2.5+g.off)hwMove(g,P.x-g.x,P.y-g.y,P.mounted?1.9:1.2,dt,'dog');return}
     const h=S2.target;if(!h)return;const d=Math.hypot(h.x-g.x,h.y-g.y);
@@ -3224,7 +3226,7 @@ function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tir
     if(hwSniff(S2,g,dt,1.5))return;if(g.r>45){g.st='cast';g.next=0;hwEvent(S2,'lost2','The dogs gave up on that track and are casting again.',60)}return}
   if(g.st==='join'){const L=S2.dogs.find(x=>x.id===g.lead);if(!L||L.st==='cast'||L.st==='recast'){g.st='cast';g.next=0;return}
     hwMove(g,L.x-g.x,L.y-g.y,1.9*g.at.spd*tired,dt,'dog',(R()-.5)*.3);drain(1.8);
-    if(Math.hypot(L.x-g.x,L.y-g.y)<6){g.st=L.st==='bay'?'hot':L.st;g.k=L.k;g.i=L.i;g.dir=L.dir;g.hog=L.hog;if(L.st==='treed'){g.tx=L.tx;g.ty=L.ty;g.tc=L.tc;g.ang=R()*6.283;g.m.trees=(g.m.trees||0)+1}}return}
+    if(Math.hypot(L.x-g.x,L.y-g.y)<6){g.st=L.st==='bay'?'hot':L.st;g.k=L.k;g.i=L.i;g.dir=L.dir;g.hog=L.hog;g.trash=!!L.trash;if(L.st==='treed'){g.tx=L.tx;g.ty=L.ty;g.tc=L.tc;g.ang=R()*6.283;g.m.trees=(g.m.trees||0)+1}}return}
   if(g.st==='track'){drain(1.4);const tr=S2.tracks[g.k],p=tr.pts[g.i];if(!p){hwLose(S2,g);return}
     const jit=Math.sin(S2.t*.7+g.off*3)*1.2;hwMove(g,p.x-g.x+jit,p.y-g.y-jit,1.3*g.at.spd*tired,dt,'dog',(R()-.5)*.4);
     if(Math.hypot(p.x-g.x,p.y-g.y)<1.6){const s=scentOf(p,S2.t);g.m.track+=1.5;
@@ -3263,7 +3265,9 @@ function hwPutOnScent(S2,k,i){const p=S2.tracks[k].pts[i],sent=[],ign=[],busy=[]
   if(!sent.length&&!ign.length)hwEvent(S2,'busy',`${busy.join(' and ')} ${busy.length>1?'are':'is'} already on a hog.`,1);huntHud()}
 function hwSniff(S2,g,dt,bonus){g.sn=(g.sn||0)-dt;if(g.sn>0)return false;g.sn=.5;
   const q=hwQuarry(S2),b=hsBest(S2,g.x,g.y,(1.5+g.at.air*5)*(.6+.4*g.at.nose),S2.t,undefined,q?q.k:undefined);if(!b)return false;const rate=1.8*g.at.nose*g.at.nose*bonus*b.s;if(R()>1-Math.exp(-rate*.5))return false;
-  g.st='track';g.goTrack=null;g.k=b.k;g.i=b.i;g.s0=b.s;const tr=S2.tracks[b.k];g.hog=tr.h>=0?S2.hogs[tr.h]:null;
+  if(S2.tracks[b.k].deer&&R()<CMD.broke(g))return false;
+  g.st='track';g.goTrack=null;g.k=b.k;g.i=b.i;g.s0=b.s;const tr=S2.tracks[b.k];g.hog=tr.h>=0?S2.hogs[tr.h]:null;g.trash=!!tr.deer;
+  if(g.trash){g.dir=1;hwEvent(S2,'trash'+g.id,`${g.name} is running trash: a deer track! Call it off.`,60);return true}
   // which way is fresher? smarter, keener dogs usually get it right
   g.dir=R()<.6+g.at.int*.3+(g.at.nose-1)*.2?1:-1;hwStrike(S2,g,b.s,false);return true}
 // stay on one hog: once the pack strikes a live hog, that's the hog they run until they lose it for good
@@ -3278,7 +3282,7 @@ function hwStrike(S2,g,s,hot){g.m.strike++;WE.struck(S2,g);const first=!S2.struc
   if(hot||(rab&&s>.3))hwEvent(S2,'fresh',rab?'Fresh rabbit scent.':'Fresh track!',30);
   // the pack honours the strike dog if they can hear it
   for(const o of S2.dogs)if(o!==g&&o.role==='bay'&&(o.st==='cast'||o.st==='recast')&&Math.hypot(o.x-g.x,o.y-g.y)<(250*(.4+g.at.voice)*HWX.hear)){o.st='join';o.lead=g.id}}
-function hwLose(S2,g,msg){g.st='recast';g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;hwEvent(S2,'lost',msg||`${g.name} lost the scent.`,45)}
+function hwLose(S2,g,msg){g.st='recast';g.trash=false;g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;hwEvent(S2,'lost',msg||`${g.name} lost the scent.`,45)}
 function hwBayStart(S2,g,h){S2.baying=true;S2.phase='bay';S2.hold=100;S2.bayAt=S2.t;hwReveal(S2,h,`${g.name} located the hog.`);hwEvent(S2,'bay',`BAY STARTED: ${g.name} has the ${h.name.toLowerCase()} bayed.`,1);
   hwBanner(S2,'BAY STARTED');setTimeout(()=>{if(UI.hunt&&UI.hunt.sim===S2&&S2.phase==='bay')hwBanner(S2,'CATCH DOGS READY')},1500);sfx.bark();
   huntDogs(S2,'bay').forEach(o=>{if(o!==g&&o.st!=='bay'&&Math.hypot(o.x-h.x,o.y-h.y)<700){o.st='hot';o.hog=h}})}
@@ -3287,7 +3291,7 @@ function huntRelease(){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim;if(S2
   S2.relDist=Math.hypot(S2.player.x-S2.target.x,S2.player.y-S2.target.y);huntDogs(S2,'catch').forEach(g=>g.st='run');
   hwEvent(S2,'release',`Catch dogs released, ${yd(S2.relDist)} yd from the hog.`,1);sfx.bark();huntHud(true)}
 
-function hwStep(S2,dt){S2.t+=dt;const P=S2.player;WE.step(S2,dt);if(S2.practice)PR.step(S2,dt);if(S2.mode==='coon')CN.world(S2,dt);
+function hwStep(S2,dt){S2.t+=dt;const P=S2.player;WE.step(S2,dt);CMD.heat(S2,dt);if(S2.practice)PR.step(S2,dt);if(S2.mode==='coon')CN.world(S2,dt);
   if(S2.quarry){const q=S2.quarry;if(S2.dogs.some(g=>g.role==='bay'&&g.hog===q&&(g.st==='track'||g.st==='hot'||g.st==='bay'||g.st==='recast'||g.st==='join')))S2.qSeen=S2.t;
     else if(S2.t-S2.qSeen>600&&!q.rev){S2.quarry=null;hwEvent(S2,'unlock','The dogs lost that hog for good and are hunting for another.',1)}}
   const h=S2.target;
@@ -3421,10 +3425,11 @@ function hvMove(e){if(!HV.ptr.has(e.pointerId))return;HV.ptr.set(e.pointerId,{x:
   const g=HV.drag;if(!g)return;const dx=e.offsetX-g.x,dy=e.offsetY-g.y;if(!g.moved&&Math.hypot(dx,dy)<6)return;g.moved=true;HV.follow='free';HV.cam.x-=dx/HV.cam.z;HV.cam.y-=dy/HV.cam.z;g.x=e.offsetX;g.y=e.offsetY}
 function hvUp(e){const g=HV.drag;HV.ptr.delete(e.pointerId);if(HV.ptr.size<2)HV.pinch=null;
   if(g&&!g.moved&&e.type==='pointerup'){const v=hvView(HV.cv),S2=UI.hunt.sim,P=S2.player,wx=v.x0+e.offsetX/HV.cam.z,wy=v.y0+e.offsetY/HV.cam.z;
+    if(HV.castMode){HV.castMode=false;CMD.cast(S2,wx,wy);const cb=document.getElementById('cmdCast');if(cb){cb.classList.add('ghost');cb.textContent='📣 Cast here'}HV.drag=null;return}
     if(HV.scent!==false){const reach=Math.max(2.5,16/HV.cam.z);let best=null,bd=reach;for(const k in S2.known){const[lo,hi]=S2.known[k],pts=S2.tracks[k].pts;for(let i=lo;i<=hi;i++){const d=Math.hypot(pts[i].x-wx,pts[i].y-wy);if(d<bd){bd=d;best=[+k,i]}}}
       if(best){hwPutOnScent(S2,best[0],best[1]);HV.drag=null;return}}
     P.tx=clamp(v.x0+e.offsetX/HV.cam.z,2,HW.N-3);P.ty=clamp(v.y0+e.offsetY/HV.cam.z,2,HW.N-3);if(HV.follow==='walk')HV.follow='me';huntHud(true)}HV.drag=null}
-const DOG_ST={go:'Heading to the scent',cast:'Casting',recast:'Circling for scent',join:'Honoring the strike',track:'Tracking',hot:'Chasing',bay:'Baying',leash:'On leash with you',run:'Running in',hold:'Catching',shaken:'Shaken off',treed:'Barking treed'};
+const DOG_ST={go:'Heading to the scent',cast:'Casting',recast:'Circling for scent',join:'Honoring the strike',track:'Tracking',hot:'Chasing',bay:'Baying',leash:'On leash with you',run:'Running in',hold:'Catching',shaken:'Shaken off',treed:'Barking treed',recall:'Coming in',down:'DOWN from the heat'};
 function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=>document.getElementById(id);if(!$('hTime'))return;const P=S2.player,H0=S2.target;
   const fm=s=>`${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
   $('hTime').textContent=fm(S2.t);$('hLeft').textContent=S2.night?`${WE.clock(S2.t,CN_NIGHT)} · ${Math.max(0,Math.round((S2.limit-S2.t)/60))} min left tonight`:`${WE.clock(S2.t)} · ${Math.max(0,Math.round((S2.limit-S2.t)/60))} min of daylight`;
@@ -3433,7 +3438,7 @@ function huntHud(full){const h=UI.hunt;if(!h||!h.sim)return;const S2=h.sim,$=id=
   const rel=$('hRelease');if(rel){const ok=!!(H0&&H0.rev)&&!S2.released;rel.disabled=!ok;rel.textContent=S2.released?'Catch dogs released':'RELEASE CATCH DOGS';rel.classList.toggle('ready',ok&&S2.phase==='bay')}
   if(!TIE.wanted(S2))$('hMeters').innerHTML=S2.phase==='bay'||S2.phase==='chase'?`<div class="small">Bay holding</div><div class="meter"><i style="width:${Math.max(0,S2.hold)}%;background:var(--good)"></i></div>`:
     S2.phase==='catch'||S2.phase==='won'?`<div class="small">Hog under control</div><div class="meter"><i style="width:${clamp(S2.ctl,0,100)}%;background:var(--blaze)"></i></div>`:'';
-  $('hDogs').innerHTML=HR.hud(S2)+S2.dogs.map(g=>`<div class="spread small"><span><i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${DOG_ST[g.goTrack?'go':g.st]||g.st}</span><span class="muted">${g.st==='leash'?'':yd(Math.hypot(g.x-P.x,g.y-P.y))+' yd · '}${Math.round(g.sta*100)}%</span></div>`).join('')+
+  $('hDogs').innerHTML=HR.hud(S2)+S2.dogs.map(g=>`<div class="spread small"><span><i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${g.trash&&g.st==='track'?'Running trash (deer)':DOG_ST[g.goTrack?'go':g.st]||g.st}${(g.heat||0)>1?' 🥵':''}</span><span class="muted">${g.st==='leash'?'':yd(Math.hypot(g.x-P.x,g.y-P.y))+' yd · '}${Math.round(g.sta*100)}%</span></div>`).join('')+
     (S2.mode==='coon'?CN.hud(S2):H0&&H0.rev?(H0.rabbit?`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${H0.st==='caught'?esc(H0.species):'Rabbit'}</b> ${H0.st==='caught'?H0.w+' lb':'running'}</span><span class="muted">~${Math.round(yd(Math.hypot(RB.markPos(S2,H0).x-P.x,RB.markPos(S2,H0).y-P.y))/10)*10} yd</span></div>`:`<div class="spread small"><span><i class="hdot" style="background:${HCOL.hog}"></i><b>${esc(H0.name)}</b> ~${H0.w} lb</span><span class="muted">${yd(Math.hypot(H0.x-P.x,H0.y-P.y))} yd</span></div>`):'')+(S2.mode==='rabbit'&&S2.rb.found.size?`<div class="small muted">Rabbits found so far: ${S2.rb.found.size}</div>`:'');
   $('hLog').innerHTML=S2.events.slice(0,14).map(e=>`<div>${esc(e.txt)}</div>`).join('')||'<div class="muted">The dogs are casting for scent.</div>';
   if(full){document.querySelectorAll('[data-act="hfollow"]').forEach(b=>b.classList.toggle('on',b.dataset.k===HV.follow));document.querySelectorAll('[data-act="hspeed"]').forEach(b=>b.classList.toggle('on',+b.dataset.k===S2.speed));const kb=$('hStickBtn');if(kb){kb.classList.toggle('on',S2.stick);kb.textContent=S2.stick?'Stay on one hog: on':'Stay on one hog: off'}const mb=$('hMountBtn');if(mb&&P.horse)mb.textContent=P.horse.utv?(P.mounted?'Park the UTV, go on foot':'Get back in the UTV'):P.mounted?`Tie ${P.horse.name}, go on foot`:`Get back on ${P.horse.name}`;const sb=$('hScentBtn');if(sb){sb.classList.toggle('on',HV.scent!==false);sb.textContent=HV.scent!==false?'Scent trails: on':'Scent trails: off'}}}
@@ -3446,6 +3451,7 @@ function huntPlayLive(){const h=UI.hunt,S2=h.sim;
   <p class="small muted" style="margin:4px 0">Tap the map to ${S2.player.mounted?'ride':'walk'} there, or tap a scent trail to put the bay dogs on it. Drag to look around, pinch or scroll to zoom.</p>
   <div class="seg" style="margin:4px 0">${[['me','Follow me'],['dogs','Follow dogs'],['hog','Follow hog'],['walk',h.coon?'Walk to the tree':S2.player.mounted?'Ride to the hog':'Walk to the hog']].map(([k,l])=>`<button data-act="hfollow" data-k="${k}">${l}</button>`).join('')}</div>
   <div class="seg" style="margin:4px 0">${[1,4,10].map(k=>`<button data-act="hspeed" data-k="${k}">${k}× time</button>`).join('')}${h.rabbit||h.coon?'':'<button data-act="hstick" id="hStickBtn">Stay on one hog</button>'}<button data-act="hscent" id="hScentBtn">Scent trails</button>${S2.player.horse?'<button data-act="hmount" id="hMountBtn">Dismount</button>':''}</div>
+  ${CMD.row(h,S2)}
   <div id="hMeters" style="margin:6px 0"></div><div id="hTrk" style="margin:6px 0"></div>
   ${h.rabbit||h.coon?'':'<button class="btn big" id="hRelease" data-act="hrelease" disabled>RELEASE CATCH DOGS</button>'}
   <h3>Dogs</h3><div class="panel" id="hDogs"></div>
@@ -6128,7 +6134,7 @@ const TRK={
     const rows=[],pts=[];for(const g of S2.dogs){const b=barking(g);if(dt>0)g.bpm=(g.bpm||0)*.97+(b?(g.st==='bay'||g.st==='treed'?95:60):0)*.03;
       const dx=g.x-P.x,dy=g.y-P.y,dist=yd(Math.hypot(dx,dy)),on=TRK.signal(S2,g,T,dist),ang=Math.atan2(dy,dx)*180/Math.PI;
       if(T.alert&&(g.st==='bay'||g.st==='treed')&&!g.trkAlert){g.trkAlert=1;try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}hwBanner(S2,g.st==='bay'?'BAY STARTED':'TREED')}if(g.st!=='bay'&&g.st!=='treed')g.trkAlert=0;
-      const st=on?(T.status?(TRK_ST[g.st]||g.st):'Signal'):'No signal',hot=on&&(g.st==='bay'||g.st==='treed');
+      const st=on?(T.status?(g.trash&&g.st==='track'?'Running trash':TRK_ST[g.st]||g.st):'Signal'):'No signal',hot=on&&(g.st==='bay'||g.st==='treed');
       rows.push(`<div class="spread" style="margin:3px 0;${hot?'color:#ff5a3c;font-weight:700':''}"><span><span style="display:inline-block;width:18px;transform:rotate(${on?ang:0}deg);opacity:${on?1:.3}">➤</span> <i class="hdot" style="background:${HCOL[g.role]}"></i><b>${esc(g.name)}</b> ${esc(st)}</span><span class="num muted">${on?dist.toLocaleString()+' yd':'—'}${on&&T.barks&&g.st!=='leash'?` · ${Math.round(g.bpm)} b/m`:''}</span></div>`);
       if(on&&g.st!=='leash')pts.push([dx,dy,HCOL[g.role],hot])}
     const R0=Math.max(80,...pts.map(p=>Math.hypot(p[0],p[1])))*1.15,sz=132;
@@ -6195,7 +6201,42 @@ const NIGHT={
 };
 const NIGHT_ACTIONS={ngBuy:d=>NIGHT.buy(d.k)};
 {const dm2=WE.drawMarks;WE.drawMarks=function(S2,dot,edge){dm2.call(WE,S2,dot,edge);try{NIGHT.marks(S2,dot)}catch(e){}}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- HANDLING THE DOGS ----------
+// Whistle the pack to a spot, call dogs off a deer track (trash), call them back to you, and keep them from cooking
+// in the heat. How well a dog listens comes from its obedience and training; "trash-broke" dogs ignore deer.
+const CMD={
+  listens:g=>R()<clamp(.3+g.at.obd*.6+(g.at.exp-1)*.5,.1,.97),
+  broke:g=>clamp(.3+g.at.obd*.4+g.at.int*.2+(g.spec&&g.spec.includes('straight')?.2:0),.15,.95),
+  // a few long, fresh deer tracks cross every hog-hunting ground
+  deer(S2,ent){for(let i=0;i<2+ri(0,1);i++){const k=S2.tracks.length;S2.tracks.push({h:-1,pts:[],deer:true});const an=R()*6.283,d=60+R()*300;let x=clamp(ent.x+Math.cos(an)*d,20,HW.N-20),y=clamp(ent.y+Math.sin(an)*d,20,HW.N-20),hd=R()*6.283;
+    const n=200+ri(0,200),T0=-(300+R()*2400)-n*3;for(let j=0;j<n;j++){hd+=(R()-.5)*.35;x=clamp(x+Math.cos(hd)*1.5,5,HW.N-6);y=clamp(y+Math.sin(hd)*1.5,5,HW.N-6);hsLay(S2,k,x,y,T0+j*3)}
+    for(const p of S2.tracks[k].pts)p.f*=1.25}},
+  bay:S2=>S2.dogs.filter(g=>g.role==='bay'),
+  cast(S2,x,y){const sent=[],ign=[];for(const g of CMD.bay(S2)){if(!['cast','recast','track','join'].includes(g.st))continue;if(g.st==='track'&&!g.trash)continue;
+      if(CMD.listens(g)){g.st='cast';g.trash=false;g.ctx=x;g.cty=y;g.next=9999;g.goTrack=null;sent.push(g.name)}else ign.push(g.name)}
+    S2.mark={x,y,t:S2.t};if(sent.length)hwEvent(S2,'castw',`You whistled ${sent.join(' and ')} out to hunt that way.`,1);if(ign.length)hwEvent(S2,'castign',`${ign.join(' and ')} didn't listen.`,1);if(!sent.length&&!ign.length)hwEvent(S2,'castnone','The dogs are busy on a hog.',1);huntHud(true)},
+  callOff(){const S2=UI.hunt&&UI.hunt.sim;if(!S2)return;const t=CMD.bay(S2).filter(g=>g.trash&&g.st==='track');if(!t.length)return hwEvent(S2,'offnone','No dog is running trash.',1),huntHud(true);
+    for(const g of t){if(CMD.listens(g)){g.st='recast';g.trash=false;g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;g.hog=null;hwEvent(S2,'off'+g.id,`${g.name} came off the deer track.`,1)}else hwEvent(S2,'offign'+g.id,`${g.name} ignored you and kept running the deer.`,1)}huntHud(true)},
+  recallAll(){const S2=UI.hunt&&UI.hunt.sim;if(!S2)return;const come=[],ign=[];for(const g of CMD.bay(S2)){if(['bay','down','leash','recall','treed'].includes(g.st))continue;if(CMD.listens(g)){g.st='recall';g.trash=false;come.push(g.name)}else ign.push(g.name)}
+    if(come.length)hwEvent(S2,'recall',`${come.join(' and ')} ${come.length>1?'are':'is'} coming in.`,1);if(ign.length)hwEvent(S2,'recallign',`${ign.join(' and ')} kept hunting.`,1);huntHud(true)},
+  recall(S2,g,dt,drain){const P=S2.player,d=Math.hypot(P.x-g.x,P.y-g.y);drain(1);hwMove(g,P.x-g.x,P.y-g.y,1.7*g.at.spd,dt,'dog');if(d<3){g.st='cast';g.ctx=P.x;g.cty=P.y;g.next=0;hwEvent(S2,'back'+g.id,`${g.name} came in to you.`,20)}},
+  // heat: summer and hot days load dogs up; water, creeks and rest cool them
+  heat(S2,dt){const amb=(HWX.kind==='heat'?1.4:0)+(weSeason()===1?1:HWX.kind==='heat'?0:-.5)+(S2.night?-.6:0);
+    for(const g of S2.dogs){if(g.st==='leash')continue;if(g.spd0===undefined)g.spd0=g.at.spd;const t=hwT(g.x,g.y),wet=t===T_WATER||t===T_MARSH||t===T_FORD||t===T_MUD,mov=SPR.moving(g.st)||g.st==='bay';
+      let h=g.heat||0;if(amb>0&&mov)h+=dt*amb*(.7+((g.d&&g.d.kg)||25)/80)/(g.at.end*300);if(wet)h-=dt*.025;else if(!mov)h-=dt*.004;else if(amb<=0)h-=dt*.002;g.heat=h=clamp(h,0,2);
+      g.at.spd=g.spd0*(h>1?.75:1);
+      if(h>1&&!g.hotWarn){g.hotWarn=1;hwEvent(S2,'hot'+g.id,`${g.name} is overheating. Get it to water or give it water.`,1)}if(h<.7)g.hotWarn=0;
+      if(h>1.6&&g.st!=='down'&&g.role==='bay'&&!['bay','hold'].includes(g.st)){g.st='down';g.downAt=S2.t;g.hog=null;g.trash=false;hwEvent(S2,'down'+g.id,`${g.name} collapsed from the heat! Get water to it.`,1);hwBanner(S2,'DOG DOWN')}}},
+  down(S2,g,dt){const P=S2.player;if(Math.hypot(P.x-g.x,P.y-g.y)<4&&(S2.water??3)>0)return CMD.water(S2);
+    if(!g.m.hurt&&S2.t-g.downAt>150){g.m.hurt={what:'heat stroke',dmg:ri(20,35)};hwEvent(S2,'stroke'+g.id,`${g.name} is in bad shape from the heat.`,1)}g.heat=Math.max(0,(g.heat||0)-dt*.003);if(g.heat<.6){g.st='recast';g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283}},
+  water(S2){S2=S2||(UI.hunt&&UI.hunt.sim);if(!S2)return;if(S2.water===undefined)S2.water=3;if(S2.water<=0)return hwEvent(S2,'nowater','You are out of water.',30);const P=S2.player,near=S2.dogs.filter(g=>Math.hypot(g.x-P.x,g.y-P.y)<6&&((g.heat||0)>.3||g.st==='down'));
+    if(!near.length)return hwEvent(S2,'nowaterdog','No hot dog close enough to water.',20),huntHud(true);S2.water--;for(const g of near){g.heat=.15;if(g.st==='down'){g.st='recast';g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283}}
+    hwEvent(S2,'water'+S2.t,`You watered ${near.map(g=>g.name).join(' and ')}. ${S2.water} jug${S2.water===1?'':'s'} left.`,1);huntHud(true)},
+  row(h,S2){if(h.practice)return'';return`<div class="row" style="margin:4px 0;gap:6px;flex-wrap:wrap"><button class="btn sm ghost" data-act="cmdCast" id="cmdCast">📣 Cast here</button><button class="btn sm ghost" data-act="cmdOff">🚫 Call off trash</button><button class="btn sm ghost" data-act="cmdRecall">🔙 Call them in</button><button class="btn sm ghost" data-act="cmdWater" id="cmdWater">💧 Water (${S2.water??3})</button></div>`}
+};
+const CMD_ACTIONS={cmdCast:()=>{HV.castMode=!HV.castMode;const b=document.getElementById('cmdCast');if(b){b.classList.toggle('ghost',!HV.castMode);b.textContent=HV.castMode?'📣 Tap the map…':'📣 Cast here'}},
+  cmdOff:()=>CMD.callOff(),cmdRecall:()=>CMD.recallAll(),cmdWater:()=>{CMD.water();const b=document.getElementById('cmdWater'),S2=UI.hunt&&UI.hunt.sim;if(b&&S2)b.textContent=`💧 Water (${S2.water??3})`}};
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
