@@ -4525,8 +4525,16 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.2.0';
-const PATCH_NOTES=[{v:'1.2.0',title:'Coon hunting, the county fair and playing with friends',items:[
+const GAME_VERSION='1.3.0';
+const PATCH_NOTES=[{v:'1.3.0',title:'Clubs, co-op hunts, road trips and your career',items:[
+  ['Co-op hunts','Hunt live with a friend. Host a hunt from the Hunt screen and send your friend the six-letter code. They join from Hunt → Join a friend\'s hunt and send one of their dogs to run in your pack. They watch the hunt live on the same map, can release the catch dogs and call out to you, and get a quarter of the pay if you catch.'],
+  ['Hunting clubs','Hunting groups are now clubs, under More → Hunting clubs. Chat with your club, lend each other dogs, and race the other clubs on a weekly board: total pounds of hog your members catch. The top three clubs win $3,000 / $1,500 / $750 for every member.'],
+  ['Career mode','Old Man Tate\'s story: six chapters, each with three goals and a reward, from your first hog to Champion of the Parish. Alongside it runs the Parish Hog Dog Circuit, a 12-day year where you race five rival kennels for points. The top three are paid and the winner is crowned. Rivals get tougher every year. Find it on the Ranch screen or under More → Career.'],
+  ['Road trips: Texas and Florida','Two new hunting grounds, each a whole new 13,000-acre map. South Texas brush country is dry mesquite and prickly pear with heavy Russian boars. The Florida palmetto swamp is wet, thick and full of hogs. Trips need a pickup and a higher ranch level, and cost fuel and a lease. Pick them on the Hunt screen under Road trips.'],
+  ['Sell horses and hogs online','The online market now takes horses and Hog Pin hogs as well as dogs. Sell one to another player, or stand a stallion or boar at stud, from its profile. Foals and piglets by another ranch\'s stud carry that stud\'s real genes.'],
+  ['Notifications even when the game is closed','Turn on notifications under More and your phone tells you when your streak is about to end, new daily goals are ready, a dog sells or earns a stud fee, a trade offer comes in, your club chats, your co-op partner shows up, or the tournament is about to end. On iPhone, add the game to your home screen first.'],
+  ['Behind the scenes','The game now records a few key moments, like a first hunt or a first litter, so we can see what new players enjoy and where they get stuck. It never collects anything personal.']]},
+  {v:'1.2.0',title:'Coon hunting, the county fair and playing with friends',items:[
   ['Night coon hunting','A new Coon hunt option on the Hunt screen. Turn your hounds loose after dark, follow the bark, and when they tree a coon walk to the tree and shine it to count it. Old coons slip out of trees and leave the dogs barking at nothing, so get there quick. Treeing Walkers and Plotts shine, and every dog now has a coon score and coon skill.'],
   ['Goals and a daily streak','New players get a short list of starter goals that walk through the game, each with a reward. Everyone gets three new daily goals every day and a play streak that pays more the longer you keep it going. It is all on the Ranch screen.'],
   ['Weekly tournament','Every week: Heaviest Hog, Most Hogs and Top Breeder (best litter). The top three win cash and a badge, paid out automatically the next time you open the game. Find it under More → Weekly tournament.'],
@@ -5402,7 +5410,6 @@ try{HOGG.migrate()}catch(e){console.error('hogs',e)}
 try{GOALS.login()}catch(e){console.error('goals',e)}
 try{SHARE.arrive()}catch(e){}
 try{APP.boot()}catch(e){console.error('app',e)}
-try{TRACK.boot();PUSH.boot()}catch(e){console.error('track/push',e)}
 setTimeout(()=>{SHARE.collect();TOURN.claim();CLUB.claim()},3000);
 try{if(S.pendingHog)PR.flush()}catch(e){console.error('pending hog',e)}
 // ---------- ANALYTICS ----------
@@ -5420,7 +5427,7 @@ const TRACK={q:[],busy:false,
     try{const a=await A2();while(TRACK.q.length){const[n,p]=TRACK.q[0];await sbRpc('hd_track',{...a,p_name:n,p_props:p});TRACK.q.shift()}}catch(e){}TRACK.busy=false},
   check(){if(!S||!S.st)return;for(const[n,f]of TRACK_MILES){try{if(f())TRACK.once(n,{day:S.day,level:S.level})}catch(e){}}},
   boot(){if(inClaude)return;TRACK.ev('session_start',{v:GAME_VERSION,day:S.day,level:S.level,app:APP.standalone()?1:0,ret:S.tracked?1:0});
-    const sv=save;save=function(){sv();clearTimeout(TRACK.t);TRACK.t=setTimeout(TRACK.check,1500)}},
+    const sv=save;save=function(){sv();if(!TRACK.t)TRACK.t=setTimeout(()=>{TRACK.t=0;TRACK.check()},1500)}},
   // the owner's view: players who started in the last 30 days, how far they got, and who came back
   async adminPanel(){const el=document.getElementById('admFunnel');if(!el)return;
     try{const f=await sbRpc('hd_funnel',{...(await A2()),p_days:30}),s=f.steps||{},n=f.players||0,pc=x=>n?Math.round(x/n*100)+'%':'—';
@@ -5491,7 +5498,7 @@ const CLUB={
     const L=UI.clubL,mine=CLUB.mine(),c=mine.find(x=>x.id===UI.clubId),rank=id=>L.b.find(x=>x.group_id===id);
     const standings=`<div class="panel" style="margin-bottom:10px"><div class="spread"><b>🏆 Club standings this week</b><span class="small">ends in ${TOURN.endsIn()}</span></div>
       <div class="small muted">Every pound of hog your members catch counts. Top three clubs win ${CLUB_PRIZE.map(fmt).join(' / ')} for every member (clubs of two or more).</div>
-      ${L.b.length?`<table class="small" style="margin-top:6px">${L.b.slice(0,10).map(x=>`<tr style="${mine.some(y=>y.id===x.group_id)?'font-weight:700;color:var(--blaze)':''}"><td>${x.place<=3?['🥇','🥈','🥉'][x.place-1]:'#'+x.place}</td><td>${esc(x.name)}<div class="muted">${x.members} members · ${x.hogs} hogs</div></td><td class="num">${(+x.pounds).toLocaleString()} lb</td></tr>`).join('')}</table>`:'<div class="small muted" style="margin-top:6px">No catches yet this week.</div>'}</div>`;
+      ${L.b.length?`<table class="small" style="margin-top:6px">${L.b.slice(0,10).map(x=>`<tr style="${mine.some(y=>y.id===x.group_id)?'font-weight:700;color:var(--blaze)':''}"><td>${x.place<=3?['🥇','🥈','🥉'][x.place-1]:'#'+x.place}</td><td>${esc(x.name)}<div class="muted">${x.members} member${x.members==1?'':'s'} · ${x.hogs} hog${x.hogs==1?'':'s'}</div></td><td class="num">${(+x.pounds).toLocaleString()} lb</td></tr>`).join('')}</table>`:'<div class="small muted" style="margin-top:6px">No catches yet this week.</div>'}</div>`;
     let body='';
     if(c){const mem=L.m.filter(y=>y.group_id===c.id),lead=c.owner===L.me,rk=rank(c.id);
       body=`<div class="panel" style="margin-bottom:10px"><div class="spread"><div><b style="font-size:1.1em">${esc(c.name)}</b><div class="small muted">${esc(c.motto||'')}</div></div>${rk?`<span class="tag">#${rk.place} · ${(+rk.pounds).toLocaleString()} lb</span>`:''}</div>
@@ -5735,6 +5742,7 @@ const BADGE_WHEN=b=>b.event==='circuit'?b.week:'week of '+b.week;
 {const hh=huntHud;huntHud=function(f){hh(f);try{COOP.hostTick()}catch(e){}}}
 {const fh=finishHunt;finishHunt=function(win,lines){const r=fh(win,lines);try{COOP.hostDone()}catch(e){console.warn('coop',e)}return r}}
 const TRIP_ACTIONS={htrip:d=>{UI.huntTrip=d.id;UI.huntSel.area=TRIPS[d.id].base;render()}};
+try{TRACK.boot();PUSH.boot()}catch(e){console.error('track/push',e)}
 Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
