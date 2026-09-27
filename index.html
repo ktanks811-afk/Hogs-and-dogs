@@ -4200,7 +4200,7 @@ const CN={
      <table class="small">${got.map(c=>`<tr><td>${nm(c)} <span class="tag r" style="--rc:var(${RAR[c.rar][1]})">${RAR[c.rar][0]}</span><div class="muted">${c.ground?'bayed':'treed'} by ${esc(c.dogs.join(', '))}</div></td><td class="num">${fmt(c.v||0)}</td></tr>`).join('')}
       ${Q.id==='coon'?`<tr><td>Hunt points</td><td class="num">${sm.pts||0}</td></tr>`:''}<tr><td>Empty trees</td><td class="num">${sm.empty||0}</td></tr><tr><td>Hunt time</td><td class="num">${fm(sm.time||0)}</td></tr>
       <tr><td>Reward</td><td class="num"><b>${sm.reward?fmt(sm.reward):'—'}</b></td></tr><tr><td>Player XP</td><td class="num">+${sm.pxp||0}</td></tr></table>
-     <h3>Dogs</h3><table class="small">${(sm.dogs||[]).map(p=>`<tr><td><i class="hdot" style="background:${HCOL.bay}"></i><b>${esc(p.name)}</b> <span class="muted">${Q.id==='coon'?'coon':Q.id==='squirrel'?'squirrel':'big game'} skill ${p.skill}%</span><div class="muted">${esc(p.note)}</div></td><td class="num">+${p.xp} XP</td></tr>`).join('')}</table>
+     <h3>${(sm.qid||'coon')==='squirrel'?'Dogs':'Hounds'}</h3><table class="small">${(sm.dogs||[]).map(p=>`<tr><td><i class="hdot" style="background:${HCOL.bay}"></i><b>${esc(p.name)}</b> <span class="muted">${Q.id==='coon'?'coon':Q.id==='squirrel'?'squirrel':'big game'} skill ${p.skill}%</span><div class="muted">${esc(p.note)}</div></td><td class="num">+${p.xp} XP</td></tr>`).join('')}</table>
      <div style="margin-top:8px">${r.lines.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
      <div style="margin-top:12px" class="row"><button class="btn" data-act="hagain">Hunt again</button><button class="btn ghost" data-act="tab" data-t="home">Return to ranch</button></div></div>
     <h3>Hunt log</h3><div class="panel log">${h.log.slice(0,40).map(l=>`<div>${esc(l)}</div>`).join('')}</div>`},
@@ -4631,8 +4631,20 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.4.0';
-const PATCH_NOTES=[{v:'1.4.0',title:'Season 1: Wild Trails Hunting Pass',items:[
+const GAME_VERSION='1.5.0';
+const PATCH_NOTES=[{v:'1.5.0',title:'Real dogs on the map, night hunts and new quarry',items:[
+  ['Dogs and hogs on the map','The dots are gone. Your dogs now run across the hunting map as little pictures of themselves, in their own coats, with their names above them. Hogs show as themselves too. Zoom out far and they go back to dots so the map stays easy to read.'],
+  ['Trail cameras','Buy trail cameras (up to six) under More → Trail cameras, hang them around your hunting grounds and bait them. Each morning they send photos of what came through. Tap a photo to start a hunt right there, near the hog in the picture.'],
+  ['Tracking collar handheld','Buy a GPS handheld from the Hunt screen. It shows where every dog is, how far off, and whether it is running, trailing or baying. Upgrade it for more range and faster updates.'],
+  ['Tie the hog and choose where it goes','After a catch, walk in and tie the hog in a quick timing game. Miss three times and it breaks loose. Then sell it live to a buyer (big boars pay more, and a clean tie adds more) or send it to the processor.'],
+  ['Night hog hunts','Pick Night on the Hunt screen. Hogs move more after dark and pay 15% more, but you can only see as far as your light reaches. Buy a headlamp, or a thermal scope that shows hogs as heat on the map.'],
+  ['Handle your dogs','New commands while you hunt: cast a dog to a spot on the map, call a dog off, or recall the whole pack. Dogs can get hot on long runs and lie down. You carry three jugs of water to cool them off. Young dogs may run deer trash; break them of it.'],
+  ['Bay pen trials','Enter your dog in a 60-second bay pen trial under More. Judges score grit, control, voice and pressure. Top three win $800, $400 and $200, and there is a daily online bay event.'],
+  ['Smarter hogs','Sounders scatter when the dogs jump them, hogs head for water to lose the pack, and big boars cut bay dogs. Stitch a cut dog yourself with a $60 trauma kit or take it to the vet, because untreated cuts can get infected.'],
+  ['Dog specialties','Dogs now earn specialties from what they do on hunts: strike dog, locate dog, bay dog, catch dog, tree dog, rabbit dog and straight dog. Each has two ranks and makes the dog better at that job. See them on the dog\'s profile.'],
+  ['New quarry','Squirrel hunts in the daytime with your tree dogs. Blood-trail wounded deer for callers, with one call a day that pays more for long trails and big bucks. And a new road trip out west to Colorado to run lions and bears with your hounds.'],
+  ['Hunt replays','Every hunt is saved. Watch it back as a time-lapse on the map, scrub through it, and share a short video clip of the hunt with your friends. Your last four hunts are kept.']]},
+  {v:'1.4.0',title:'Season 1: Wild Trails Hunting Pass',items:[
   ['The Hunting Pass','Season 1: Wild Trails is here. Tap the new Season button on the bottom bar. There are 100 levels with a reward on every level of the free track and a Premium track on top. Rewards unlock by themselves as you level. The season runs until December 1.'],
   ['Season XP from everything you do','Hunts pay the most: hog hunts 250 (plus 150 for a catch and 100 on a road trip), rabbit hunts 150 and coon hunts 200 and up. Training, litters, foals, piglets, horse races, dog shows, landowner jobs, fair ribbons, ranch goals and even a day on the ranch all count. Quitting a hunt in the first two minutes earns nothing.'],
   ['Challenges and missions','Three daily challenges and five weekly challenges pay big Season XP and Season Tokens. Eight season missions, like Master of the Hunt, Bloodline Builder, Wild Trails and Heavyweight, pay a badge, title or decoration you can only get this season.'],
@@ -6360,9 +6372,10 @@ const HOGAI={
   waterPull(h,tt){return tt===T_WATER?1.3*HOGAI.swimmer(h):tt===T_MARSH?.4*HOGAI.swimmer(h):0},
   wet(S2,h,t){if(t===T_WATER&&h.st==='run'&&!h.swamIt){h.swamIt=1;hwEvent(S2,'swim'+h.id,h.rev?'The hog hit the water and is swimming for it!':'The dogs came to water. The scent went cold at the bank.',1)}},
   // at the bay: a big, mean boar may charge and cut a bay dog
-  charge(S2,g,h,dt){if(!h||h.rabbit||h.coon)return;const risk=dt*.004*h.aggr*(h.w/150)*(h.giant?1.5:1);if(R()>risk)return;
+  // only boars of some size, and a dog gets cut at most once per hunt, so bays still hold
+  charge(S2,g,h,dt){if(!h||h.rabbit||h.coon||h.sex!=='M'||h.w<120||g.m.cutOnce)return;const risk=dt*.0008*h.aggr*(h.w/150)*(h.giant?1.5:1);if(R()>risk)return;g.m.cutOnce=1;
     const vest=S.inv.vest>0&&R()<.4,dmg=vest?ri(3,7):ri(8,24);g.m.hurt=g.m.hurt&&g.m.hurt.dmg>dmg?g.m.hurt:{what:`tusk cut from the ${h.name.toLowerCase()}`,dmg};
-    hwEvent(S2,'cut'+g.id,`The boar charged and cut ${g.name}!${vest?' The vest took most of it.':''}`,20);g.sta=Math.max(0,g.sta-.08)},
+    hwEvent(S2,'cut'+g.id,`The boar charged and cut ${g.name}!${vest?' The vest took most of it.':''}`,20)},
   // treating cuts back home
   isCut:d=>!!(d.inj&&/cut|tusk|slash/i.test(d.inj.what)),
   stitch(id){const d=S.dogs.find(x=>x.id===id);if(!d||!HOGAI.isCut(d)||d.inj.stitched)return;if(!(S.inv.kit>0)){if(S.money<ITEMS.kit.price)return toast(`A trauma kit costs ${fmt(ITEMS.kit.price)}.`);S.money-=ITEMS.kit.price}else S.inv.kit--;
