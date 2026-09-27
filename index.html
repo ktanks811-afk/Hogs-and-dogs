@@ -2128,7 +2128,7 @@ SCREENS.hunt=()=>{
   const card=(d,role)=>{const on=sel[role].includes(d.id),other=sel[role==='bay'?'catch':'bay'].includes(d.id);const ok=d.energy>=35&&d.health>=40;
     return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
   const byBay=[...elig].sort((a,b)=>bayScore(b)-bayScore(a)),byCatch=[...elig].sort((a,b)=>catchScore(b)-catchScore(a));
-  return `<h2>Hog hunt</h2>${RB.modeSeg()}<p class="sub">Turn your dogs out on ${HW_ACRES.toLocaleString()} acres of hunting grounds. Bay dogs cast, strike a track and run it down; you follow on the map. When the hog is bayed, you decide when to release the catch dogs.</p>${WE.huntPanel()}${JB.panel()}${S.land&&(S.land.trainHogs||[]).length?`<button class="btn sm alt" style="margin-bottom:8px" data-act="tab" data-t="practice">Train on your kept hog${S.land.trainHogs.length>1?'s':''}</button>`:''}
+  return `<h2>${UI.huntMode==='night'?'Night hog hunt':'Hog hunt'}</h2>${RB.modeSeg()}${UI.huntMode==='night'?NIGHT.panel():''}<p class="sub">Turn your dogs out on ${HW_ACRES.toLocaleString()} acres of hunting grounds. Bay dogs cast, strike a track and run it down; you follow on the map. When the hog is bayed, you decide when to release the catch dogs.</p>${WE.huntPanel()}${JB.panel()}${S.land&&(S.land.trainHogs||[]).length?`<button class="btn sm alt" style="margin-bottom:8px" data-act="tab" data-t="practice">Train on your kept hog${S.land.trainHogs.length>1?'s':''}</button>`:''}
   ${(()=>{const c=UI.camHunt&&TCAM.ensure().list.find(x=>x.id===UI.camHunt);const b=c&&TCAM.best(c);return c?`<div class="panel spread" style="margin-bottom:8px;border-color:#8e44ad"><span>📷 Starting at your <b>${esc(c.name)}</b> camera${b?`: ~${b.w} lb ${b.key==='giant'?'GIANT BOAR':HOGS[b.key].name.toLowerCase()} seen`:''}</span><button class="btn sm ghost" data-act="camCancel">Cancel</button></div>`:''})()}
   <h3>Where to hunt</h3><div class="grid wide">${AREAS.map(a=>{const acc=S.land&&accessArea(S.land)===a.id,lock=!VEH.open(a),lease=VEH.lease(a);return `<button class="panel ${lock?'lock':''}" style="text-align:left;${sel.area===a.id?'border:2px solid var(--blaze)':''}" data-act="harea" data-id="${a.id}" ${lock?'disabled':''}>
    <b>${a.name}</b>${lock?` <span class="tag">${LAND_TIERS[a.land].name}</span>`:''}${acc?' <span class="tag ok">Your trail</span>':''}${!lock&&lease?` <span class="tag">Lease ${fmt(lease)}</span>`:''}${JB.areaTag(a.id)}<div class="small muted">${a.desc}</div><div class="small">${a.hogs.map(([h])=>HOGS[h].name).join(', ')}</div><div class="small muted">${WE.signText(a.id)}</div></button>`}).join('')}</div>
@@ -2144,6 +2144,7 @@ SCREENS.hunt=()=>{
   <p class="small muted">Each dog spends 35 energy. Vests on hand: ${S.inv.vest}. GPS collar: ${S.inv.collar?'yes':'no'}.</p></div>`;
 };
 function huntStart(opts={}){PR.flush();
+  if(UI.huntMode==='night'&&!opts.search)opts={...opts,night:true};
   {const cam=!opts.search&&!UI.huntTrip&&UI.camHunt&&TCAM.ensure().list.find(c=>c.id===UI.camHunt&&c.area===UI.huntSel.area);if(cam)opts={...opts,cam}}
   const sel=UI.huntSel,a=UI.huntTrip&&TRIPS[UI.huntTrip]&&!opts.search?TRIP.area(UI.huntTrip):AREAS.find(x=>x.id===sel.area);
   if(a.trip){const w=TRIP.why(a.trip);if(w)return toast(w);if(S.money<TRIPS[a.trip].fee)return toast(`The trip costs ${fmt(TRIPS[a.trip].fee)} in fuel and lease.`)}
@@ -2155,7 +2156,7 @@ function huntStart(opts={}){PR.flush();
   [...bay,...ctch].forEach(d=>d.energy-=35);
   const lh=landHunt(a.id),own=!!(S.land&&accessArea(S.land)===a.id);
   UI.hunt={area:a,phase:'sim',bay:bay.map(d=>d.id),catch:ctch.map(d=>d.id),guestId:gst?gst.id:null,guestDog:gst,hog:null,hogKey:null,found:false,log:[],result:null,search:opts.search||null};
-  TRIP.world(a.trip||null);const S2=UI.hunt.sim=huntWorldStart(a,bay,ctch,lh,own,opts);if(a.trip)TRIP.start(S2,a);if(opts.cam){TCAM.seed(S2,opts.cam);UI.camHunt=null}
+  TRIP.world(a.trip||null);const S2=UI.hunt.sim=huntWorldStart(a,bay,ctch,lh,own,opts);if(a.trip)TRIP.start(S2,a);if(opts.cam){TCAM.seed(S2,opts.cam);UI.camHunt=null}if(opts.night)NIGHT.start(S2);
   {const pick=UI.huntHorse??S.huntHorse;if(pick==='UTV'){if(VEH.has('utv'))HR.startUTV(S2)}else if(VEH.horseOK(a.id))HR.start(S2,pick);else if(pick)hwEvent(S2,'notrailer','No horse trailer: your horse stayed home. You can ride on your own trail, or buy a trailer.',1)}
   hwEvent(S2,'start',`${bay.map(d=>d.name).join(' and ')} strike off from ${S2.entry.label}.`,1);if(lh.note)hwEvent(S2,'land',lh.note,1);WE.startNotes(S2);if(opts.search)UI.searchFor=null;
   S.st.hunts++;save();sfx.bark();render();window.scrollTo(0,0);
@@ -2202,7 +2203,7 @@ function finishHunt(win,lines){
     const rt=S2&&S2.bayAt!==undefined&&S2.relAt!==undefined?S2.relAt-S2.bayAt:999,rd=S2&&S2.relDist!==undefined?S2.relDist:999;
     bonus=Math.min(.25,(rd<60?.1:rd<150?.05:0)+(rt<180?.1:rt<420?.05:0)+(S2&&S2.t<1800?.05:0));
     pay=Math.round(h.hog.w*4*h.hog.mult*(1+(h.area.land-1)*.08+bonus));
-    PR.offer(h,S2,pay);h.lastPay=pay;h.catchCard={name:h.hog.name,w:h.hog.w,pay,day:S.day,areaName:h.area.name,dogs:'Caught by '+(S2?S2.dogs.filter(g=>g.role==='catch').map(g=>g.name).join(' & '):'the dogs'),sp:S.pendingHog.sp,end:S.pendingHog.end,aggr:S.pendingHog.aggr,pend:{...S.pendingHog}};S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}
+    if(S2&&S2.nightHog)pay=Math.round(pay*1.15);PR.offer(h,S2,pay);h.lastPay=pay;h.catchCard={name:h.hog.name,w:h.hog.w,pay,day:S.day,areaName:h.area.name,dogs:'Caught by '+(S2?S2.dogs.filter(g=>g.role==='catch').map(g=>g.name).join(' & '):'the dogs'),sp:S.pendingHog.sp,end:S.pendingHog.end,aggr:S.pendingHog.aggr,pend:{...S.pendingHog}};S.st.hogs++;if(h.hog.w>S.st.best){S.st.best=h.hog.w}
     const catchers=(S2?S2.dogs.filter(g=>g.role==='catch'&&g.m.catchT>0).map(g=>g.name):cd.map(d=>d.name)).join(' & ');
     if(!S.st.bestHog||h.hog.w>S.st.bestHog.w){if(S.st.bestHog)lines.push(`New personal best! Your old record was ${S.st.bestHog.w} lb.`);S.st.bestHog={w:h.hog.w,name:h.hog.name,key:h.hogKey,area:h.area.id,dogs:catchers,day:S.day}}
     TROPHY.note(h,S2);
@@ -3673,7 +3674,7 @@ const WE={
     return`<div class="panel small" style="margin-bottom:8px"><div class="spread"><b>${WE.dateLabel()}</b><span>${WE.wxLabel()}</span></div><div class="muted">${esc(WEATHER[W.wx].fx)}${W.flood?' Fords are flooded.':W.wet>.6?' Trails are muddy.':''}${W.drought?' Drought: scent burns off.':''}</div></div>
      ${W.lost.length?`<div class="panel" style="margin-bottom:8px;border:2px solid var(--blaze)"><b>Missing dogs</b>${W.lost.map(L=>`<div class="spread" style="gap:8px;margin-top:6px"><div class="small"><b>${esc(L.dog.name)}</b>, last heard in the ${areaName(L.area)} (day ${L.day}). ${S.inv.collar?'The GPS collar shows where the dog is.':'Bay dogs can pick up the trail.'}</div><button class="btn sm ${UI.searchFor===L.dog.id?'':'ghost'}" data-act="wsearch" data-id="${L.dog.id}">${UI.searchFor===L.dog.id?'Searching':'Search'}</button></div>`).join('')}</div>`:''}`},
   drawFog(ctx,S2,sx,sy,v,z){const X=HWX;
-    if(S2.night){const px=sx(S2.player.x),py=sy(S2.player.y),r=Math.max(26,10*z),gr=ctx.createRadialGradient(px,py,r*.4,px,py,r*1.6);gr.addColorStop(0,'rgba(4,8,20,0)');gr.addColorStop(1,'rgba(4,8,20,.78)');ctx.fillStyle=gr;ctx.fillRect(0,0,v.W,v.H);return}
+    if(S2.night){const px=sx(S2.player.x),py=sy(S2.player.y),r=Math.max(26,24*z*HWX.vis),gr=ctx.createRadialGradient(px,py,r*.4,px,py,r*1.6);gr.addColorStop(0,'rgba(4,8,20,0)');gr.addColorStop(1,'rgba(4,8,20,.78)');ctx.fillStyle=gr;ctx.fillRect(0,0,v.W,v.H);return}
     if(X.kind==='rain'||X.kind==='storm'){ctx.strokeStyle='rgba(190,205,225,.35)';ctx.lineWidth=1;ctx.beginPath();const t=performance.now()/40;for(let i=0;i<(X.kind==='storm'?140:80);i++){const x=(i*97+t*7)%v.W,y=(i*53+t*23)%v.H;ctx.moveTo(x,y);ctx.lineTo(x-3,y+10)}ctx.stroke()}
     if(X.vis<.97){const px=sx(S2.player.x),py=sy(S2.player.y),r=Math.max(20,70*X.vis*z),gr=ctx.createRadialGradient(px,py,r*.5,px,py,r*2);
       gr.addColorStop(0,'rgba(215,220,224,0)');gr.addColorStop(1,`rgba(215,220,224,${.85-X.vis*.5})`);ctx.fillStyle=gr;ctx.fillRect(0,0,v.W,v.H)}},
@@ -3966,7 +3967,7 @@ const RB={
     gainXP(pxp);h.summary={time:S2.t,reward:pay,pxp,dogs:perf,found:S2.rb.found.size,rabbit:r?{species:r.species,w:r.w,rar:r.rar,coat:r.coat,sex:r.sex,age:r.age,how:S2.rbHow}:null};
     h.result={win,found:!!r,lines};h.log=S2.events.map(e=>e.txt);h.log.unshift(win?'HUNT COMPLETE: rabbit taken.':'Hunt over.');HWX={...HWX,vis:1,vis0:1,pref:null};checkAch();save()},
   // ---------- screens ----------
-  modeSeg(){const m=UI.huntMode||'hog';return`<div class="seg" style="margin:4px 0 10px"><button class="${m==='hog'?'on':''}" data-act="hmode" data-k="hog">Hog hunt</button><button class="${m==='rabbit'?'on':''}" data-act="hmode" data-k="rabbit">Rabbit hunt</button><button class="${m==='coon'?'on':''}" data-act="hmode" data-k="coon">Coon hunt 🌙</button></div>`},
+  modeSeg(){const m=UI.huntMode||'hog';return`<div class="seg" style="margin:4px 0 10px;flex-wrap:wrap"><button class="${m==='hog'?'on':''}" data-act="hmode" data-k="hog">Hog hunt</button><button class="${m==='night'?'on':''}" data-act="hmode" data-k="night">Night hogs 🌙</button><button class="${m==='rabbit'?'on':''}" data-act="hmode" data-k="rabbit">Rabbit hunt</button><button class="${m==='coon'?'on':''}" data-act="hmode" data-k="coon">Coon hunt 🌙</button></div>`},
   setup(){UI.rabSel=(UI.rabSel||[]).filter(id=>{const d=S.dogs.find(x=>x.id===id);return d&&RB.canHunt(d)});if(!UI.rabArea)UI.rabArea=(S.land&&accessArea(S.land))||'pine';
     const P=RB.pop(),dogs=S.dogs.filter(d=>d.age>=8).sort((a,b)=>RB.score(b)-RB.score(a));
     const card=d=>{const on=UI.rabSel.includes(d.id),ok=RB.canHunt(d),sk=Math.round(RB.skill(d)*100);
@@ -6173,7 +6174,28 @@ const HOG_SALE={
 };
 const TIE_ACTIONS={tieWalk:()=>TIE.walk(),tieTap:()=>TIE.tap()};
 {const hh3=huntHud;huntHud=function(f){hh3(f);try{const h=UI.hunt;if(h&&h.sim&&TIE.wanted(h.sim))TIE.hud(h.sim)}catch(e){}}}
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- NIGHT HOG HUNTING ----------
+// Hogs feed at night: more of them are up and moving, the big boars come out, and a night catch pays 15% more. But you
+// only see what your light reaches. The moon matters: a new moon is pitch dark and the hogs move boldly; a full moon
+// lights the woods but makes them wary. A headlamp widens your light; a thermal monocular shows the heat of hogs
+// out in the dark before you or the dogs find them.
+const NIGHT_GEAR={lamp:{n:'LED headlamp',price:120,d:'Widens your light.'},thermal:{n:'Thermal monocular',price:2500,d:'Shows the heat of hogs out in the dark within 300 yd.'}};
+const NIGHT={
+  gear:k=>!!(S.ngear&&S.ngear[k]),
+  buy(k){const G=NIGHT_GEAR[k];if(!G||NIGHT.gear(k))return;if(S.money<G.price)return toast(`${G.n}: ${fmt(G.price)}.`);S.money-=G.price;(S.ngear=S.ngear||{})[k]=1;addLog(`Bought a ${G.n.toLowerCase()}.`);sfx.ok();save();render()},
+  panel(){return`<div class="panel" style="margin-bottom:10px;background:linear-gradient(135deg,#0c1220,#1d2438);color:#dfe6f5;border-color:#3a4a6a"><div class="spread"><b>🌙 Night hog hunt</b><span class="small">${MOON.icon()} ${MOON.name()}</span></div>
+    <div class="small" style="opacity:.85;margin:4px 0">Hunt from 8:00 PM. More hogs are up feeding and the big boars come out; a night catch pays 15% more. ${MOON.light()>.6?'The moon is bright tonight: you can see more, but the hogs are wary.':MOON.light()<.25?'Dark of the moon: pitch black, and the hogs move boldly.':'Some moonlight tonight.'}</div>
+    <div class="row" style="gap:6px">${Object.entries(NIGHT_GEAR).map(([k,G])=>NIGHT.gear(k)?`<span class="tag ok">✓ ${esc(G.n)}</span>`:`<button class="btn sm ghost" data-act="ngBuy" data-k="${k}" title="${esc(G.d)}">${esc(G.n)} ${fmt(G.price)}</button>`).join('')}</div></div>`},
+  start(S2){const ml=MOON.light();S2.night=true;S2.nightHog=true;HWX.vis0=HWX.vis=clamp(.34+(NIGHT.gear('lamp')?.12:0)+ml*.2,.25,.75);HWX.dens*=1.35;HWX.tau*=1.2;
+    for(const h of S2.hogs){if(h.st==='bed'&&R()<.75)h.st='wander';h.aware=clamp((h.aware||.5)+ml*.2-.1,0,1)}const T=S2.hogs[0];if(T)T.w=Math.round(T.w*1.08);
+    S2.limit=(150+(S.inv.collar?20:0))*60;hwEvent(S2,'night',`Full dark. ${MOON.name()}. The hogs are up and feeding.`,1)},
+  // the thermal: warm blobs where unseen hogs are, a little off from the real spot
+  marks(S2,dot){if(!S2.nightHog||!NIGHT.gear('thermal'))return;const P=S2.player,t=performance.now()/900;
+    for(const h of S2.hogs){if(h.rev||h.st==='gone'||h.st==='caught')continue;const d=Math.hypot(h.x-P.x,h.y-P.y);if(d>60)continue;const j=Math.sin(t+h.id)*1.5;dot(h.x+j,h.y-j,'rgba(255,120,30,.8)',5,d<25?'heat':'')}}
+};
+const NIGHT_ACTIONS={ngBuy:d=>NIGHT.buy(d.k)};
+{const dm2=WE.drawMarks;WE.drawMarks=function(S2,dot,edge){dm2.call(WE,S2,dot,edge);try{NIGHT.marks(S2,dot)}catch(e){}}}
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
