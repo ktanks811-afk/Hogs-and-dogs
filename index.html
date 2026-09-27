@@ -315,7 +315,10 @@ const BREEDS={
  'Mountain Cur':{short:'Cur',role:'bay',lvl:1,price:600,kg:[14,30],ears:'drop',muz:1,pot:[66,58,75,62,78,60,52],freq:{K:{K:.4,br:.5,y:.1},S:{S:.8,sp:.2,sw:0}}},
  'Treeing Walker':{short:'Walker',role:'bay',lvl:1,price:550,kg:[22,32],ears:'hound',muz:1.2,pot:[78,48,78,58,76,58,40],freq:{S:{S:.05,sp:.55,sw:.4},K:{K:.15,br:.05,y:.8},A:{ay:.15,as:.3,at:.5,a:.05},E:{Em:.03,eg:0,E:.85,e:.12},T:{T:.45,t:.55},M:{M:.01,m:.99},B:{B:.92,b:.08},D:{D:.95,d:.05}}},
  'American Bulldog':{short:'Bulldog',role:'catch',lvl:1,price:800,kg:[27,55],ears:'rose',muz:.55,pot:[55,80,58,58,40,60,82],freq:{E:{Em:.15,eg:0,E:.6,e:.25},A:{ay:.5,as:.1,at:.2,a:.2},K:{K:.3,br:.4,y:.3},S:{S:.1,sp:.4,sw:.5},M:{M:.04,m:.96},T:{T:.08,t:.92},B:{B:.7,b:.3},D:{D:.85,d:.15}}},
- 'American Pit Bull Terrier':{short:'Pit',role:'catch',lvl:1,price:700,kg:[14,30],ears:'rose',muz:.8,pot:[66,72,72,64,45,62,78],body:'apbt_stack_v1',freq:{D:{D:.7,d:.3},B:{B:.7,b:.3},E:{Em:.2,E:.5,e:.3},A:{ay:.5,as:.05,at:.2,a:.25},K:{K:.35,br:.4,y:.25},S:{S:.45,sp:.35,sw:.2},M:{M:.05,m:.95},T:{T:.08,t:.92}}},
+ 'American Pit Bull Terrier':{id:'pit_bull_terrier',short:'Pit',group:'Bull breed / Catch',role:'catch',lvl:1,price:700,kg:[14,30],ears:'rose',muz:.8,pot:[66,72,72,64,45,62,78],body:'pit_bull_terrier_stack_v1',freq:{D:{D:.7,d:.3},B:{B:.7,b:.3},E:{Em:.2,E:.5,e:.3},A:{ay:.5,as:.05,at:.2,a:.25},K:{K:.35,br:.4,y:.25},S:{S:.45,sp:.35,sw:.2},M:{M:.05,m:.95},T:{T:.08,t:.92}}},
+ // the Pit Bull × Mastiff: breeds true as its own line; heavier bone, broader chest, bigger head than the Pit Bull. Same coat genetics.
+ 'Pit Bull Terrier × All Mastiff Mix':{id:'pit_bull_terrier_all_mastiff_mix',short:'Pit×Mastiff',role:'catch',group:'Bandog / Catch / Guard',lvl:3,price:1300,kg:[34,52],ears:'drop',muz:.75,pot:[68,90,82,72,58,70,90],
+  range:[[60,78],[82,98],[74,90],[62,82],[48,68],[60,80],[82,98]],health:[74,92],freq:{D:{D:.7,d:.3},B:{B:.7,b:.3},E:{Em:.2,E:.5,e:.3},A:{ay:.5,as:.05,at:.2,a:.25},K:{K:.35,br:.4,y:.25},S:{S:.45,sp:.35,sw:.2},M:{M:.05,m:.95},T:{T:.08,t:.92}}},
  'Catahoula Leopard Dog':{short:'Catahoula',role:'bay',lvl:2,price:900,kg:[18,40],ears:'drop',muz:1,pot:[64,58,70,72,76,55,50],freq:{M:{M:.5,m:.5},K:{K:.55,br:.12,y:.33},A:{ay:.3,as:.1,at:.45,a:.15},E:{Em:.1,eg:0,E:.7,e:.2},S:{S:.7,sp:.2,sw:.1},B:{B:.75,b:.25},D:{D:.8,d:.2},T:{T:.1,t:.9}}},
  'Plott Hound':{short:'Plott',role:'bay',lvl:2,price:850,kg:[18,27],ears:'hound',muz:1.15,pot:[62,62,74,60,80,55,55],freq:{K:{K:.1,br:.85,y:.05},E:{E:.95,e:.05},S:{S:.9,sp:.1,sw:0}}},
  'Blue Lacy':{short:'Lacy',role:'bay',lvl:3,price:1100,kg:[11,23],ears:'drop',muz:1.05,pot:[72,52,70,70,72,65,48],freq:{D:{D:0,d:1},E:{E:.6,e:.4},K:{K:.8,br:0,y:.2},S:{S:.9,sp:.1,sw:0}}},
@@ -456,6 +459,7 @@ function makeDog(o){
   if(b.health){d.vigor=ri(b.health[0],b.health[1]);d.bl.hardy=clamp(Math.round((d.vigor-70)/6),1,5)}
   // breeds where heavy white is a fault never come from the store piebald (breeding can still bring it in)
   if(b.noPiebald&&d.genes.S[0]==='sp'&&d.genes.S[1]==='sp')d.genes.S=['S','sp'];
+  if(o.breed==='Pit Bull Terrier × All Mastiff Mix')d.category='Bandog';   // the Pit×Mastiff is a bandog line in its own right
   geneHealth(d);return d;
 }
 // A mix assembled from very differently sized breeds (a mastiff torso on hound legs, a hound head on a mastiff frame)
@@ -657,11 +661,14 @@ const BODIES={
   walker_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/walker_stack_v1-m1.aa3ebd6755.webp',m2:'assets/masters/walker_stack_v1-m2.bc873f7da0.webp',m3:'assets/masters/walker_stack_v1-m3.1a1ce51e21.webp'}},
   dogo_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/dogo_stack_v1-m1.4de7090c5f.webp',m2:'assets/masters/dogo_stack_v1-m2.b1462e690a.webp',m3:'assets/masters/dogo_stack_v1-m3.50f1481eb6.webp'}},
   corso_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/corso_stack_v1-m1.eace432fa0.webp',m2:'assets/masters/corso_stack_v1-m2.b96a1fbb57.webp',m3:'assets/masters/corso_stack_v1-m3.40fb763b8c.webp'}},
+  pit_bull_terrier_all_mastiff_mix_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/pit_bull_terrier_all_mastiff_mix_stack_v1-m1.0e290e88a7.webp',m2:'assets/masters/pit_bull_terrier_all_mastiff_mix_stack_v1-m2.db3c625b24.webp',m3:'assets/masters/pit_bull_terrier_all_mastiff_mix_stack_v1-m3.4473959d2f.webp'}},
+  pit_bull_terrier_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/pit_bull_terrier_stack_v1-m1.87a3562c96.webp',m2:'assets/masters/pit_bull_terrier_stack_v1-m2.378e350c57.webp',m3:'assets/masters/pit_bull_terrier_stack_v1-m3.511ba93d9a.webp'}},
   gordon_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/gordon_stack_v1-m1.ad74ef8e48.webp',m2:'assets/masters/gordon_stack_v1-m2.c279b9eb31.webp',m3:'assets/masters/gordon_stack_v1-m3.4eb81361eb.webp'}}
 };
 // Breed templates. Adding a breed = one entry here (+ a body if it needs a new silhouette).
 const TEMPLATES={
-  'American Pit Bull Terrier':{code:'APBT',body:'apbt_stack_v1',freq:{E:{Em:.2,eg:0,E:.5,e:.3},A:{ay:.5,as:.05,at:.2,a:.25},K:{K:.35,br:.4,y:.25},S:{S:.45,sp:.35,sw:.2},M:{M:.05,m:.95},T:{T:.08,t:.92},B:{B:.7,b:.3},D:{D:.7,d:.3}}},
+  'American Pit Bull Terrier':{code:'APBT',body:'pit_bull_terrier_stack_v1',freq:{E:{Em:.2,eg:0,E:.5,e:.3},A:{ay:.5,as:.05,at:.2,a:.25},K:{K:.35,br:.4,y:.25},S:{S:.45,sp:.35,sw:.2},M:{M:.05,m:.95},T:{T:.08,t:.92},B:{B:.7,b:.3},D:{D:.7,d:.3}}},
+    'Pit Bull Terrier × All Mastiff Mix':{code:'PBMX',body:'pit_bull_terrier_all_mastiff_mix_stack_v1',freq:{E:{Em:.2,eg:0,E:.5,e:.3},A:{ay:.5,as:.05,at:.2,a:.25},K:{K:.35,br:.4,y:.25},S:{S:.45,sp:.35,sw:.2},M:{M:.05,m:.95},T:{T:.08,t:.92},B:{B:.7,b:.3},D:{D:.7,d:.3}}},
   'Black Mountain Cur':{code:'BMTC',body:'cur_stack_v1',freq:{E:{Em:.35,eg:.06,E:.44,e:.15},A:{ay:.4,as:.1,at:.35,a:.15},K:{K:.3,br:.55,y:.15},S:{S:.85,sp:.12,sw:.03},M:{M:.03,m:.97},T:{T:.05,t:.95},B:{B:.8,b:.2},D:{D:.9,d:.1}}},
   'American Bulldog':{code:'AMBD',body:'bulldog_stack_v1',freq:{E:{Em:.15,eg:0,E:.6,e:.25},A:{ay:.5,as:.1,at:.2,a:.2},K:{K:.3,br:.4,y:.3},S:{S:.1,sp:.4,sw:.5},M:{M:.04,m:.96},T:{T:.08,t:.92},B:{B:.7,b:.3},D:{D:.85,d:.15}}},
   'Catahoula Leopard Dog':{code:'CATA',body:'catahoula_stack_v1',freq:{M:{M:.5,m:.5},K:{K:.55,br:.12,y:.33},A:{ay:.3,as:.1,at:.45,a:.15},E:{Em:.1,eg:0,E:.7,e:.2},S:{S:.7,sp:.2,sw:.1},B:{B:.75,b:.25},D:{D:.8,d:.2},T:{T:.1,t:.9}}},
@@ -931,15 +938,15 @@ async function render(spec,scale=.5,opt={}){
   const view=opt.view||'final',L=opt.layers||ALL_ON,body=tpl(spec.breed).body;
   const r=resolve(spec),M0=opt.maps||await maps(body,scale),M=L.feather===false?M0:featherize(M0,spec,scale),{w,h,m1,m2,m3}=M,N=w*h,inv=1/scale,sd=(spec.seed|0)||1;
   let wT=spec.white;
-  if(opt.maps&&spec.white>0&&spec.white<.985){const hist=new Uint32Array(256);let cnt=0;for(let i=0;i<N;i++){if(m3[i*4]<128)continue;const rg=Math.round(m2[i*4]/20);if(rg===5||rg===6)continue;hist[m1[i*4+2]]++;cnt++}
+  if(opt.maps&&spec.white>0&&spec.white<.985){const hist=new Uint32Array(256);let cnt=0;for(let i=0;i<N;i++){if(m3[i*4]<128)continue;const rg=Math.round(m2[i*4]/20);if(rg===5||rg===6||rg===9||rg===10)continue;hist[m1[i*4+2]]++;cnt++}
     let acc=0;const tg=spec.white*cnt;for(let b=0;b<256;b++){acc+=hist[b];if(acc>=tg){wT=(b+1)/255;break}}}
   const out=new ImageData(w,h),o=out.data,WH=hexC(COLORS.White),INK=[.07,.06,.055],REG={EYE:5,NOSE:6,PAWS:7,EARS:4,TAIL:8,HEAD:2,MUZZLE:3};
   let pie=null,pieT=0;
   if(spec.pattern==='piebald'&&L.piebald&&spec.white>0&&spec.white<.98){pie=new Float32Array(N);const hist=new Uint32Array(512);let cnt=0;
-    for(let i=0;i<N;i++){if(m3[i*4]<128)continue;const rg=Math.round(m2[i*4]/20);if(rg===5||rg===6)continue;
+    for(let i=0;i<N;i++){if(m3[i*4]<128)continue;const rg=Math.round(m2[i*4]/20);if(rg===5||rg===6||rg===9||rg===10)continue;
       const x=(i%w)*inv,y=((i/w)|0)*inv,v=.35*m1[i*4+2]/255+.65*fbm(x*.0035,y*.0035,sd+7,4);pie[i]=v;hist[Math.min(511,v*512|0)]++;cnt++}
     let acc=0;const tg=spec.white*cnt;for(let b=0;b<512;b++){acc+=hist[b];if(acc>=tg){pieT=(b+1)/512;break}}}
-  const regCol=[0,[.55,.55,.55],[.3,.65,.35],[.8,.35,.35],[.35,.35,.85],[1,1,0],[1,0,1],[0,.8,.8],[1,.6,0]];
+  const regCol=[0,[.55,.55,.55],[.3,.65,.35],[.8,.35,.35],[.35,.35,.85],[1,1,0],[1,0,1],[0,.8,.8],[1,.6,0],[1,.5,.65],[1,1,1]];
   const ciK=(spec.coatIntensity??.5)*2-1;
   for(let i=0;i<N;i++){
     const p=i*4,al=m3[p];if(al===0){o[p+3]=0;continue}
@@ -950,6 +957,7 @@ async function render(spec,scale=.5,opt={}){
     if(view==='regions'){const c=regCol[rg]||[.5,.5,.5];o[p]=clamp(c[0]*.7+sad*.35,0,1)*255;o[p+1]=clamp(c[1]*.7+mk*.3,0,1)*255;o[p+2]=clamp(c[2]*.7+tan*.35,0,1)*255;o[p+3]=al;continue}
     let c0,c1,c2;
     if(rg===REG.EYE&&L.eyes){[c0,c1,c2]=r.eyeC;if(spec.eyes==='Glass'){const t=ss(.45,.55,fbm(x*.35,y*.35,sd+41,3));const br=hexC(EYES.Brown);c0=br[0]+(c0-br[0])*t;c1=br[1]+(c1-br[1])*t;c2=br[2]+(c2-br[2])*t}}else if(rg===REG.NOSE&&L.nose)[c0,c1,c2]=r.noseC;
+    else if(rg===9){c0=.74;c1=.32;c2=.38}else if(rg===10){c0=.93;c1=.9;c2=.82}   // an open mouth: tongue and gums stay pink, teeth ivory, on every coat
     else{
       const[b0,b1,b2]=L.base?r.baseC:[.55,.55,.55],[s0,s1,s2]=L.secondary?r.secC:[b0,b1,b2],pat=spec.pattern,it=spec.intensity;c0=b0;c1=b1;c2=b2;
       if(pat==='saddle'&&L.saddle){const t=ss(.62-it*.45,.7-it*.45,sad);c0=s0+(b0-s0)*t;c1=s1+(b1-s1)*t;c2=s2+(b2-s2)*t}
@@ -1012,7 +1020,9 @@ const RIGS={
   walker_stack_v1:{neck:[[490,180],[310,330]],tail:[[1180,320],[1230,380]],front:[600,320,640],hind:[660,960,1480]},
   gordon_stack_v1:{neck:[[500,230],[290,430]],tail:[[1160,330],[1185,420]],front:[660,300,660],hind:[660,980,1480]},
   dogo_stack_v1:{neck:[[450,150],[290,280]],tail:[[1140,350],[1200,475]],front:[620,300,640],hind:[620,920,1420]},
-  corso_stack_v1:{neck:[[545,120],[420,320]],tail:[[1112,300],[1128,395]],front:[630,290,690],hind:[615,880,1400]}
+  corso_stack_v1:{neck:[[545,120],[420,320]],tail:[[1112,300],[1128,395]],front:[630,290,690],hind:[615,880,1400]},
+  pit_bull_terrier_stack_v1:{neck:[[335,300],[290,650]],tail:[[1130,318],[1180,372]],front:[650,280,830],hind:[640,900,1530]},
+  pit_bull_terrier_all_mastiff_mix_stack_v1:{neck:[[485,30],[330,305]],tail:[[1165,388],[1228,500]],front:[640,330,680],hind:[650,930,1450]}
 };
 const MS=.5,FEATHER=14,RIGC={};
 const aff={
@@ -1039,13 +1049,13 @@ async function rigFor(body){
   const bbox={};for(const k in W)bbox[k]=[1e9,1e9,-1e9,-1e9];
   for(let i=0;i<N;i++){if(m3[i*4]===0)continue;const x=i%w,y=(i/w)|0,rg=Math.round(m2[i*4]/20);
     const dH=(x-nk.P1[0])*nk.nx+(y-nk.P1[1])*nk.ny,dT=(x-tl.P1[0])*tl.nx+(y-tl.P1[1])*tl.ny,tp=((x-tl.P1[0])*tl.dx+(y-tl.P1[1])*tl.dy)/(tl.L*tl.L);
-    const hw=(rg>=2&&rg<=6)?1:ss(-F,F,dH);
+    const hw=(rg>=2&&rg<=6)||rg===9||rg===10?1:ss(-F,F,dH);
     const tw=(rg===8||(tp>-.4&&tp<1.4))?ss(-F,F,dT):0;
     // below the chest line, everything forward of the front-leg window is front paw (toes point forward), so it travels with the legs
     const fw=x<=rig.fr[1]+8?ss(-F,F,y-rig.front[0][1]):0;
     const bw=(x>=rig.hr[0]-8&&x<=rig.hr[1]+8)?ss(-F,F,y-rig.hind[0][1]):0;
     W.head[i]=hw;W.tail[i]=tw;W.front[i]=fw*(1-hw);W.hind[i]=bw*(1-tw);
-    W.torso[i]=(dH>=F&&!(rg>=2&&rg<=6&&dH<F))||tw>=.999||W.front[i]>=.999||W.hind[i]>=.999?0:1;
+    W.torso[i]=(dH>=F&&!(((rg>=2&&rg<=6)||rg===9||rg===10)&&dH<F))||tw>=.999||W.front[i]>=.999||W.hind[i]>=.999?0:1;
     for(const k in W)if(W[k][i]>0){const b=bbox[k];if(x<b[0])b[0]=x;if(y<b[1])b[1]=y;if(x>b[2])b[2]=x;if(y>b[3])b[3]=y}}
   return RIGC[body]={rig,W,bbox,M};
 }
@@ -1090,7 +1100,7 @@ async function morphMaps(mo,scale){
       const sx=Mi[0]*(x+.5)+Mi[2]*(y+.5)+Mi[4],sy=Mi[1]*(x+.5)+Mi[3]*(y+.5)+Mi[5],ix=sx|0,iy=sy|0;if(ix<0||iy<0||ix>=sw||iy>=sh)continue;
       const si=iy*sw+ix,wt=Wt[si];if(wt<=0)continue;const p4=si*4,sa=SM.m3[p4]/255;
       let reg=Math.round(SM.m2[p4]/20),ink=SM.m1[p4+1],mk=SM.m3[p4+1];
-      if(isT&&reg>=2&&reg<=6){reg=1;ink*=.3;mk=0}
+      if(isT&&((reg>=2&&reg<=6)||reg===9||reg===10)){reg=1;ink*=.3;mk=0}
       const o=y*w+x,oa=oA[o],na=oa*(1-wt)+sa*wt;if(na<=0){oA[o]=0;continue}
       const f0=oa*(1-wt)/na,f1=sa*wt/na;
       oS[o]=oS[o]*f0+SM.m1[p4]*f1;oI[o]=oI[o]*f0+ink*f1;oW[o]=oW[o]*f0+SM.m1[p4+2]*f1;oSa[o]=oSa[o]*f0+SM.m2[p4+1]*f1;oTa[o]=oTa[o]*f0+SM.m2[p4+2]*f1;oMk[o]=oMk[o]*f0+mk*f1;
@@ -1174,7 +1184,9 @@ const LINEUPS={
   'White':{S:['sw','sw'],whiteMod:.1},'Black & white':{S:['S','sw'],whiteMod:.15},'Brindle':{K:['br','br']},'Reverse brindle':{K:['br','br'],patMod:.92},
   'Blue brindle':{K:['br','y'],D:['d','d']},'Red brindle':{K:['br','br'],B:['b','b'],coatInt:.7,patMod:.55},'Merle':{M:['M','m'],S:['S','sp']},
   'Piebald':{E:['e','e'],B:['b','b'],S:['sp','sp'],whiteMod:.05},'Ticked':{S:['sp','sw'],T:['T','T']},'Tri-color':{K:['y','y'],A:['at','at'],S:['S','sp'],whiteMod:.05},
-  'Saddle':{K:['y','y'],A:['as','as']},'Masked':{K:['y','y'],E:['Em','E']}},
+  'Saddle':{K:['y','y'],A:['as','as']},'Masked':{K:['y','y'],E:['Em','E']},
+  'Black & tan':{K:['y','y'],A:['at','at'],E:['E','E']},'Sable':{K:['y','y'],A:['ay','ay'],E:['E','E'],coatInt:.55},'Seal':{K:['y','y'],A:['ay','ay'],E:['E','E'],coatInt:.95},
+  'Red & white':{B:['b','b'],E:['e','e'],S:['S','sw'],whiteMod:.15},'Blue & white':{D:['d','d'],S:['S','sw'],whiteMod:.15},'Lilac':{B:['b','b'],D:['d','d'],coatInt:.72},'Isabella':{B:['b','b'],D:['d','d'],coatInt:.4}},
  'American Bulldog':{'White':{S:['sw','sw'],whiteMod:.1},'Black & white':{S:['sp','sw']},'Red & white':{E:['e','e'],B:['b','b'],S:['sp','sw']},'Fawn & white':{E:['e','e'],S:['sp','sw']},
   'Brown & white':{B:['b','b'],coatInt:.45,S:['sp','sw']},'Chocolate':{B:['b','b'],coatInt:.75},'Liver':{B:['b','b'],coatInt:.4},'Blue':{D:['d','d']},'Blue & white':{D:['d','d'],S:['sp','sw']},
   'Brindle':{K:['br','br'],S:['S','sw'],whiteMod:.1},'Reverse brindle':{K:['br','br'],patMod:.92,S:['S','sw'],whiteMod:.1},'Red brindle':{K:['br','br'],B:['b','b'],coatInt:.7,S:['S','sw'],whiteMod:.1},
@@ -1212,6 +1224,8 @@ const LINEUPS={
   'Reverse brindle':{K:['br','br'],patMod:.92,E:['Em','E']},'Blue brindle':{K:['br','br'],D:['d','d']},'Red brindle':{K:['br','br'],B:['b','b'],coatInt:.7},'Merle':{M:['M','m'],S:['S','sp'],whiteMod:-.08},
   'Piebald':{S:['sp','sp']},'Ticked':{S:['sp','sw'],T:['T','T']},'Saddle':{K:['y','y'],A:['as','as']},'Masked':{K:['y','y'],E:['Em','E']},'Grizzle':{K:['y','y'],E:['eg','eg'],A:['at','at'],patMod:.6}}
 };
+// the Pit Bull × Mastiff wears exactly the Pit Bull's coats: same genetics, same colour lines, different body
+LINEUPS['Pit Bull Terrier × All Mastiff Mix']=LINEUPS['American Pit Bull Terrier'];
 function lineup(breed,name,seed){const d={...(TEMPLATES[breed]&&TEMPLATES[breed].lineBase||{}),...LINEUPS[breed][name]},dm=(TEMPLATES[breed]&&TEMPLATES[breed].mods)||{},g={};for(const L in LBASE)g[L]=(d[L]||LBASE[L]).slice();
   let h=7;for(const c of name)h=(h*31+c.charCodeAt(0))%99991;
   return{g,m:{whiteMod:d.whiteMod||0,patMod:d.patMod??.5,coatInt:d.coatInt??.5,eyes:d.eyes||'Auto',eyes2:d.eyes2||d.eyes||'Auto',merleMod:d.merleMod??.5,tickMod:d.tickMod??.5,speckMod:d.speckMod||0,featherMod:d.featherMod??dm.featherMod??.3,featherDen:d.featherDen??dm.featherDen??.5,texture:d.texture??dm.texture??0,seed:seed??h}}}
@@ -1310,7 +1324,8 @@ function whitenDogo(d){if(!d||d.breed!=='Dogo Argentino'||d.cross||!d.genes)retu
 // ---------- PROCEDURAL MIX-BREED GENETICS ----------
 // Every breed has a standardized profile. Add a breed = add one row here (+ a coat template in the engine).
 const BREED_PROFILES={
- 'American Pit Bull Terrier':{height:48,weight:25,bodyLength:.5,headShape:.7,muzzleLength:.4,chestWidth:.65,legLength:.5,earType:.35,tailType:.3,muscleBuild:.8,longCoat:.02},
+ 'American Pit Bull Terrier':{height:48,weight:25,bodyLength:.5,headShape:.7,muzzleLength:.4,chestWidth:.65,legLength:.52,earType:.35,tailType:.3,muscleBuild:.85,longCoat:.02},
+ 'Pit Bull Terrier × All Mastiff Mix':{height:62,weight:44,bodyLength:.55,headShape:.9,muzzleLength:.34,chestWidth:.88,legLength:.54,earType:.55,tailType:.32,muscleBuild:.92,longCoat:0},
  'American Bulldog':{height:60,weight:42,bodyLength:.55,headShape:.9,muzzleLength:.25,chestWidth:.9,legLength:.45,earType:.5,tailType:.3,muscleBuild:.9,longCoat:.02},
  'Dogo Argentino':{height:64,weight:40,bodyLength:.46,headShape:.64,muzzleLength:.38,chestWidth:.68,legLength:.62,earType:.12,tailType:.2,muscleBuild:.7,longCoat:0},
  'Cane Corso':{height:66,weight:48,bodyLength:.55,headShape:.95,muzzleLength:.36,chestWidth:.92,legLength:.56,earType:.55,tailType:.3,muscleBuild:.93,longCoat:0},
@@ -1328,7 +1343,7 @@ const MORPH_TRAITS=['height','weight','bodyLength','headShape','muzzleLength','c
 const MREGIONS=['head','body','chest','legs','ears','tail'];
 const TRAIT_REGION={headShape:'head',muzzleLength:'head',earType:'ears',tailType:'tail',bodyLength:'body',muscleBuild:'body',chestWidth:'chest',legLength:'legs'};
 const PARTIAL_DOMINANT={headShape:.12,muscleBuild:.1,chestWidth:.08};   // heavier/blockier type shows through a little more
-const NATIVE_OF={apbt_stack_v1:'American Pit Bull Terrier',cur_stack_v1:'Black Mountain Cur',bulldog_stack_v1:'American Bulldog',catahoula_stack_v1:'Catahoula Leopard Dog',walker_stack_v1:'Treeing Walker',gordon_stack_v1:'Gordon Setter',dogo_stack_v1:'Dogo Argentino',corso_stack_v1:'Cane Corso'};
+const NATIVE_OF={apbt_stack_v1:'American Pit Bull Terrier',cur_stack_v1:'Black Mountain Cur',bulldog_stack_v1:'American Bulldog',catahoula_stack_v1:'Catahoula Leopard Dog',walker_stack_v1:'Treeing Walker',gordon_stack_v1:'Gordon Setter',dogo_stack_v1:'Dogo Argentino',corso_stack_v1:'Cane Corso',pit_bull_terrier_stack_v1:'American Pit Bull Terrier',pit_bull_terrier_all_mastiff_mix_stack_v1:'Pit Bull Terrier × All Mastiff Mix'};
 const profileOf=b=>BREED_PROFILES[b]||BREED_PROFILES['Black Mountain Cur'];
 const topOf=o=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1])[0]?.[0];
 const normMix=o=>{let s=0;for(const k in o)s+=o[k];const r={};for(const[k,v]of Object.entries(o).sort((a,b)=>b[1]-a[1]))if(v/s>=.005)r[k]=Math.round(v/s*1000)/1000;return r};
@@ -1444,7 +1459,7 @@ function mixSection(d){
   const tw=k=>TRAIT_WORDS[k]?lvl(m.t[k],TRAIT_WORDS[k]):m.t[k];
   const P=d.parents;
   return `<h3>Breed & build</h3>
-  <div class="panel"><div class="spread"><div><b>${pure?'Purebred '+esc(anc[0][0]):esc(d.cross||crossLabel(m.anc))}</b>${isBandog(d)?`<div class="small">Bull × mastiff cross (${esc(bandogSub(m.anc))}) — a heavy, hard-gripping catch dog.</div>`:''}
+  <div class="panel"><div class="spread"><div><b>${pure?(anc[0][0]===PBMX?esc(PBMX)+' (breeds true)':'Purebred '+esc(anc[0][0])):esc(d.cross||crossLabel(m.anc))}</b>${isBandog(d)?`<div class="small">Bull × mastiff ${pure?'line':'cross'} (${esc(bandogSub(m.anc))}) — a heavy, hard-gripping catch dog.</div>`:''}
    <div class="small muted">${pure?'100% '+esc(anc[0][0]):'Primary: '+esc(anc[0][0])+' ('+pct(anc[0][1])+')'+(anc[1]?' · Secondary: '+esc(anc[1][0])+' ('+pct(anc[1][1])+')':'')}</div></div>${rarTag(d)}</div>
    ${bar}<div class="small">${anc.map(([b,v])=>`${pct(v)} ${esc(b)}`).join(' · ')}</div>
    <div class="small" style="margin-top:6px">${tierIdx(blOf(d))>=1?`Bloodline: <b>${esc(blOf(d).line)}</b> — ${tierName(d)}<br>`:''}<i>${esc(blNote(d))}</i></div>
@@ -1471,11 +1486,12 @@ function previewLitter(sire,dam,n=4){const saveId=S.nextId;const pups=[];for(let
 // ---------- BANDOG CATEGORY ----------
 // Bull breed × mastiff breed crosses class as bandogs: heavy, hard-gripping catch dogs.
 const BULL_BREEDS=['American Pit Bull Terrier','American Bulldog'],MASTIFF_BREEDS=['Cane Corso','Dogo Argentino'];
-function bandogShare(anc){let b=0,m=0;for(const[k,v]of Object.entries(anc||{})){if(BULL_BREEDS.includes(k))b+=v;if(MASTIFF_BREEDS.includes(k))m+=v}return{b,m}}
+const PBMX='Pit Bull Terrier × All Mastiff Mix';
+function bandogShare(anc){let b=0,m=0;for(const[k,v]of Object.entries(anc||{})){if(BULL_BREEDS.includes(k))b+=v;if(MASTIFF_BREEDS.includes(k))m+=v;if(k===PBMX){b+=v/2;m+=v/2}}return{b,m}}
 function isBandogAnc(anc){const{b,m}=bandogShare(anc);return b>=.25&&m>=.25&&b+m>=.75}
 const isBandog=d=>d.category==='Bandog';
-function bandogSub(anc){const e=Object.entries(anc).filter(([k])=>BULL_BREEDS.includes(k)||MASTIFF_BREEDS.includes(k));return e.map(([k,v])=>`${Math.round(v*100)}% ${shortOf(k)}`).join(' / ')}
-function classifyCategory(d){if(d.breed==='Cross'&&d.morph&&isBandogAnc(d.morph.anc)){d.category='Bandog';d.cross='Bandog'}else if(d.category==='Bandog'){d.category=null;if(d.morph)d.cross=crossLabel(d.morph.anc)}}
+function bandogSub(anc){const e=Object.entries(anc).filter(([k])=>BULL_BREEDS.includes(k)||MASTIFF_BREEDS.includes(k)||k===PBMX);return e.map(([k,v])=>`${Math.round(v*100)}% ${shortOf(k)}`).join(' / ')}
+function classifyCategory(d){if(d.breed===PBMX){d.category='Bandog';return}if(d.breed==='Cross'&&d.morph&&isBandogAnc(d.morph.anc)){d.category='Bandog';d.cross='Bandog'}else if(d.category==='Bandog'){d.category=null;if(d.morph)d.cross=crossLabel(d.morph.anc)}}
 function makeBandog(){const bull=makeDog({breed:pick(BULL_BREEDS),sex:'M',age:24}),mas=makeDog({breed:pick(MASTIFF_BREEDS),sex:'F',age:24});const p=makePuppy(bull,mas);p.age=ri(12,30);STATS.forEach(([k])=>p.stats[k]=Math.min(p.pot[k],Math.round(p.pot[k]*growFactor(p.age))));return p}
 // ---------- HIDDEN BLOODLINE SYSTEM ----------
 // Same-breed pairings get a probability-based inheritance edge that grows with bloodline quality.
@@ -1988,9 +2004,9 @@ SCREENS.home=()=>{
   <h3>Ranch log</h3><div class="panel log">${S.log.map(l=>`<div><span class="muted num">Day ${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>`;
 };
 SCREENS.kennel=()=>{
-  const f=UI.kf,list=S.dogs.filter(d=>f==='all'||(f==='bay'&&bayScore(d)>=catchScore(d))||(f==='catch'&&catchScore(d)>bayScore(d))||(f==='pups'&&!isAdult(d))||(f==='M'&&d.sex==='M')||(f==='F'&&d.sex==='F')||(f==='pit'&&d.breed==='American Pit Bull Terrier')||(f==='cur'&&/Cur$/.test(d.breed))||(f==='bd'&&d.breed==='American Bulldog')||(f==='cat'&&d.breed==='Catahoula Leopard Dog')||(f==='tw'&&d.breed==='Treeing Walker')||(f==='gs'&&d.breed==='Gordon Setter')||(f==='dogo'&&d.breed==='Dogo Argentino')||(f==='corso'&&d.breed==='Cane Corso')||(f==='bandog'&&isBandog(d)));
+  const f=UI.kf,list=S.dogs.filter(d=>f==='all'||(f==='bay'&&bayScore(d)>=catchScore(d))||(f==='catch'&&catchScore(d)>bayScore(d))||(f==='pups'&&!isAdult(d))||(f==='M'&&d.sex==='M')||(f==='F'&&d.sex==='F')||(f==='pit'&&d.breed==='American Pit Bull Terrier')||(f==='cur'&&/Cur$/.test(d.breed))||(f==='bd'&&d.breed==='American Bulldog')||(f==='cat'&&d.breed==='Catahoula Leopard Dog')||(f==='tw'&&d.breed==='Treeing Walker')||(f==='gs'&&d.breed==='Gordon Setter')||(f==='dogo'&&d.breed==='Dogo Argentino')||(f==='corso'&&d.breed==='Cane Corso')||(f==='pbmx'&&d.breed===PBMX)||(f==='bandog'&&isBandog(d)));
   return `<h2>Kennel</h2><p class="sub">${S.dogs.length} dog${S.dogs.length===1?'':'s'} · ${kennelRuns()} kennel runs on your land. There's no limit on how many dogs you keep. Tap a dog for its full profile.</p>${PUPB.panel()}
-  <div class="seg">${[['all','All'],['bay','Bay dogs'],['catch','Catch dogs'],['pups','Pups'],['pit','Pit Bulls'],['bd','Bulldogs'],['cat','Catahoulas'],['tw','Walkers'],['gs','Setters'],['dogo','Dogos'],['corso','Corsos'],['bandog','Bandogs'],['cur','Curs'],['M','Males'],['F','Females']].map(([k,l])=>`<button class="${f===k?'on':''}" data-act="kf" data-k="${k}">${l}</button>`).join('')}</div>
+  <div class="seg">${[['all','All'],['bay','Bay dogs'],['catch','Catch dogs'],['pups','Pups'],['pit','Pit Bulls'],['bd','Bulldogs'],['cat','Catahoulas'],['tw','Walkers'],['gs','Setters'],['dogo','Dogos'],['corso','Corsos'],['pbmx','Pit×Mastiffs'],['bandog','Bandogs'],['cur','Curs'],['M','Males'],['F','Females']].map(([k,l])=>`<button class="${f===k?'on':''}" data-act="kf" data-k="${k}">${l}</button>`).join('')}</div>
   ${list.length?`<div class="grid">${list.map(d=>dogCard(d)).join('')}</div>`:`<div class="panel">No dogs match. <button class="btn sm" data-act="tab" data-t="market">Visit the market</button></div>`}`;
 };
 // a dog leaves the kennel for good: pay, reputation by build grade, and nothing left pointing at it
@@ -3098,6 +3114,7 @@ const HUNT_STYLE={
  'Gordon Setter':{nose:.95,air:1.4,range:1.5,voice:.2,speed:1.05,end:1.05,grit:.6,catch:.4,trail:.8,agile:1.08},
  'American Bulldog':{nose:.7,air:.25,range:.6,voice:.5,speed:.95,end:.95,grit:1.2,catch:1.25,trail:.8,agile:0.72},
  'American Pit Bull Terrier':{nose:.8,air:.3,range:.7,voice:.4,speed:1.05,end:1.05,grit:1.3,catch:1.15,trail:.85,agile:0.95},
+ 'Pit Bull Terrier × All Mastiff Mix':{nose:.75,air:.28,range:.6,voice:.45,speed:.96,end:1.02,grit:1.3,catch:1.24,trail:.82,agile:0.78},
  'Dogo Argentino':{nose:.95,air:.4,range:.8,voice:.4,speed:1,end:1.2,grit:1.25,catch:1.3,trail:.9,agile:0.82},
  'Cane Corso':{nose:.7,air:.25,range:.5,voice:.5,speed:.92,end:1.08,grit:1.3,catch:1.22,trail:.8,agile:0.65}};
 // mixed dogs hunt like the blend of their ancestry
@@ -4636,8 +4653,14 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='1.7.0';
-const PATCH_NOTES=[{v:'1.7.0',title:'Real woods',items:[
+const GAME_VERSION='1.8.0';
+const PATCH_NOTES=[{v:'1.8.0',title:'New Pit Bull and the Pit × Mastiff',items:[
+  ['A new Pit Bull','The American Pit Bull Terrier has a brand-new master model: a lean, athletic, hard-muscled pit in full stride, with cropped ears and an open mouth. Every Pit Bull you own uses it, in its own genetic colours.'],
+  ['New breed: Pit Bull Terrier × All Mastiff Mix','A heavier line with its own master model: bigger bone, broader chest, thicker neck, a bigger head and a wider muzzle. It breeds true (Pit×Mastiff to Pit×Mastiff gives Pit×Mastiff pups) and counts as a bandog. Find it in the Breeds tab and under a new Pit×Mastiffs filter in the kennel.'],
+  ['Same coats, different bodies','Both breeds share one coat genetics system and one colour list: fawn, red, brindle, black, blue, chocolate, merle, black & tan, sable, seal, white, piebald, red & white, black & white, blue & white, tri-color, lilac, isabella and more, with the usual white markings, masks, ticking and dilution. A blue Pit Bull and a blue Pit×Mastiff carry the same genes on different frames.'],
+  ['Breeding','Pit × Pit gives Pit Bulls, Pit×Mastiff × Pit×Mastiff gives Pit×Mastiffs, and Pit Bull × Pit×Mastiff gives crosses that fall between the two in size and build, assembled from both bodies.'],
+  ['Hunting','Both work as tracking, bay or catch dogs depending on their stats, training and badges. Neither breed is locked to a role.']]},
+  {v:'1.7.0',title:'Real woods',items:[
   ['Wind','Every hunt has a wind that shifts as the day goes on. Dogs wind hogs from much farther off downwind, and hardly at all upwind. Hogs smell you too: walk in to a bay from upwind and the hog catches your wind and breaks. The wind and scenting show on the hunt screen.'],
   ['Scent burns off','Scent is best in the cool, damp early morning and burns off as the sun climbs, except in winter, fog or behind a cold front. Get the dogs out early.'],
   ['Hunting pressure','Hunt the same ground over and over and the hogs get educated: they lie up by day, get warier and run instead of standing. Rest a spot for a few days, move to other ground, or hunt it at night. The hunt screen shows the pressure on each area.'],
