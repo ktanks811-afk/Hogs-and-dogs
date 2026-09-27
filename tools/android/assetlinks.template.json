@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.hogs_and_dogs.twa",
+      "sha256_cert_fingerprints": ["PASTE:YOUR:SHA256:SIGNING:KEY:FINGERPRINT:HERE"]
+    }
+  }
+]

@@ -4691,8 +4691,23 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.0.0';
-const PATCH_NOTES=[{v:'2.0.0',title:'Official dog papers',items:[
+const GAME_VERSION='2.1.0';
+const PATCH_NOTES=[{v:'2.1.0',title:'Ranch & registry',items:[
+  ['Share and print papers','Every dog\'s papers can be saved as a picture, shared or printed: a full certificate with the dog, its IDs, record, pedigree and stamps.'],
+  ['Papers on the market','Dogs for sale online show their papers before you buy. A traded dog keeps its Dog ID, registration number and whole history, with the new owner added.'],
+  ['Stud book','Breed a line five generations deep and register it in the stud book. Registered dogs are worth 10% more and their papers carry the line\'s name.'],
+  ['DNA verified','DNA-test a dog from its papers: every hidden gene is revealed and the papers get a DNA VERIFIED stamp.'],
+  ['Pairing predictor','The breeding screen now shows inbreeding, hip and deafness odds, double-merle risk, the genes pups can carry, and each breeding goal\'s odds.'],
+  ['Breeding goals','Three paid goals at a time, like "brindle female catch-dog pup". Breed a pup that fits and get paid.'],
+  ['Famous blood','Pups from famous parents or grandparents get a head start on their potential and sell for more.'],
+  ['Dog of the Year','Every year the county names a Dog of the Year from hunts, catches, bays, badges and championships. Follow the race under Shows & trials.'],
+  ['Championships','Parish, Regional and State championships in bay and catch divisions, with purses up to $15,000. Dogs need real hunting records to enter.'],
+  ['Hunt journal','Every hunt is written up in a journal (More → Hunt journal) and on each dog\'s papers.'],
+  ['Kennel staff','Hire a dog trainer, a vet tech and a kennel handler (More → Kennel staff). They work every day for a daily wage.'],
+  ['Golden years','Senior care for old dogs (more health and more years) and a planned last hunt that retires a dog with honors.'],
+  ['Special pup orders','Folks ask for particular pups (color, sex, bay or catch prospect) and pay well over the going rate.'],
+  ['Android app','The game is ready to package for Google Play.']]},
+  {v:'2.0.0',title:'Official dog papers',items:[
   ['Every dog has papers','Each dog now has an official record with a permanent Dog ID (HD-DOG-…) and registration number (HDA-…) that never change, even if you rename the dog. Tap "View dog papers" on any dog profile.'],
   ['11 tabs','Overview, Genetics, Pedigree, Hunting, Training, Badges, Health, Breeding, Career, Legacy and Ownership. Everything reads from the dog itself, so the papers are always up to date.'],
   ['Records that fill themselves in','Hunts, largest hog, best hunt, earnings, training sessions, injuries, vet visits, litters, awards, sales and owners are written into the record as they happen.'],
@@ -6944,7 +6959,7 @@ const REAL={
       if(d.sore&&d.sore>=S.day)d.energy=Math.min(d.energy,60);
       if(d.age>=4&&!REAL.rabiesOk(d)&&!d.rabiesWarn){d.rabiesWarn=1;msgs.push(`${d.name} is due for a rabies shot (More → Vet & paperwork).`)}
       // old age
-      if(d.age>=132&&!S.preg.some(p=>p.dam===d.id)&&R()<.01+(d.age-132)/12*.02){S.dogs=S.dogs.filter(x=>x!==d);for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);if(UI.sire===d.id)UI.sire='';if(UI.dam===d.id)UI.dam='';
+      if(d.age>=132&&!S.preg.some(p=>p.dam===d.id)&&R()<(.01+(d.age-132)/12*.02)*(d.senior?.5:1)){S.dogs=S.dogs.filter(x=>x!==d);for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);if(UI.sire===d.id)UI.sire='';if(UI.dam===d.id)UI.dam='';
         REAL.memorial(d,`passed away of old age at ${Math.floor(d.age/12)} years`);msgs.push(`🕊️ ${d.name} passed away peacefully at ${Math.floor(d.age/12)} years old. ${d.name} is remembered on the trophy wall.`)}
       else if(d.age===96&&!d.retired)msgs.push(`${d.name} is 8 now and starting to slow down. You can retire an old dog to the porch; it can still sire or whelp.`)}
     if(!REAL.licensed()&&!S.licWarn){S.licWarn=1;msgs.push('Your hunting license has expired. Renew it under More → Vet & paperwork before the warden checks.')}
@@ -7425,7 +7440,232 @@ if(typeof R2_ACTIONS!=='undefined'){const o=A.r2Treat;A.r2Treat=function(d){cons
 {const o=SCREENS.hunt;SCREENS.hunt=function(){let html=o();try{if(!UI.hunt&&!UI.huntMode){const sel=[...(UI.huntSel.bay||[]),...(UI.huntSel.catch||[])].map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
     if(sel.length){const row=`<div class="small" style="margin:6px 0">Papers for your pick: ${sel.map(d=>`<button class="linkbtn" data-act="papers" data-id="${d.id}">${esc(d.name)}</button>`).join(' · ')}</div>`;const i=html.indexOf('<h3>Hunt with a friend');html=i<0?html+row:html.slice(0,i)+row+html.slice(i)}}}catch(e){}return html}}
 {const o=marketView;marketView=function(id){o(id);try{const el=document.getElementById('sheetInner');if(el&&PAPERS.get(id))el.insertAdjacentHTML('beforeend',`<div style="margin-top:8px">${PAPERS.btn(id)}</div>`)}catch(e){}}}
-Object.assign(A,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- 2.1: RANCH & REGISTRY ----------
+// Built on the dog papers: shareable papers, papers that travel with a dog on the online market, a stud book for lines
+// bred five generations deep, DNA-verified papers, a pairing predictor, breeding goals, famous-blood pups, Dog of the Year,
+// regional championships, a hunt journal, kennel staff, senior care and a last hunt, and special pup orders.
+const R21_STAFF={trainer:{n:'Dog trainer',ic:'🏋️',wage:120,d:'Works two dogs a day on their weakest skill. Sessions go on their papers.'},
+  tech:{n:'Vet tech',ic:'🩺',wage:90,d:'Hurt dogs heal a day faster and get back 4 health a day.'},
+  handler:{n:'Kennel handler',ic:'🦮',wage:70,d:'Road-works the pack every day: condition stays up and energy comes back faster.'}};
+const R21_CHAMP=[{k:'parish',n:'Parish Championship',fee:200,prize:2500,need:10,base:50},{k:'region',n:'Regional Championship',fee:500,prize:6000,need:20,base:60,req:'parish'},{k:'state',n:'State Championship',fee:1000,prize:15000,need:35,base:70,req:'region'}];
+const R21_COATW=['brindle','merle','blue','red','black','white','buckskin','yellow','fawn','tri','tan','chocolate'];
+const R21_TOWN=['Mr. Doucet','Miss Arceneaux','Old Man Fontenot','Pastor Guidry','Deputy Landry','Mrs. Thibodeaux','the Broussard boys','Coach Hebert','Judge Robichaux','Aunt Clotille'];
+const SENIOR_AGE=96,SENIOR_COST=25,STUD_REG=500,STUD_GEN=5;
+const R21={
+  year:(day=S.day)=>Math.floor((WE_MONTH0+day-1)/12)+1,
+  bayPot:d=>(d.pot.trk+d.pot.sta+d.pot.int)/3,catchPot:d=>(d.pot.str+d.pot.grip)/2,
+  roleOf:d=>R21.bayPot(d)>=R21.catchPot(d)?'bay':'catch',
+  gradeRank:g=>['D','C','B','B+','A','A+'].indexOf(g),
+  coatHas:(d,w)=>new RegExp('\\b'+w,'i').test(coatName(d)),
+  // ---------- stud book ----------
+  lines(){const m={};for(const d of PAPERS.all()){const b=blOf(d);if(!b||!b.line)continue;const L=m[b.line]||(m[b.line]={line:b.line,dogs:0,live:0,gen:0,breed:breedName(d)});L.dogs++;if(!d.arch)L.live++;L.gen=Math.max(L.gen,b.gen||1)}
+    return Object.values(m).sort((a,b)=>b.gen-a.gen||b.dogs-a.dogs)},
+  studOf(d){const b=blOf(d);return b&&S.stud&&S.stud[b.line]||null},
+  register(line){const L=R21.lines().find(x=>x.line===line);if(!L||L.gen<STUD_GEN||(S.stud&&S.stud[line]))return;if(S.money<STUD_REG)return toast('Not enough cash.');
+    let nm=prompt('Name your registered line:',line.replace(/'s line$/,' Line'));if(nm===null)return;nm=String(nm).trim().slice(0,32)||line;
+    S.money-=STUD_REG;(S.stud=S.stud||{})[line]={name:nm,day:S.day,gen:L.gen,breed:L.breed};addRep(1,`Registered the ${nm} in the stud book`);addLog(`The ${nm} is registered in the stud book (${L.gen} generations).`);toast(`${nm} is in the stud book!`);save();render()},
+  studView(){const L=R21.lines().filter(x=>x.dogs>=2||x.gen>=2);
+    return`<p class="sub">A line you have bred ${STUD_GEN} generations deep on your ranch can be registered in the stud book (${fmt(STUD_REG)}). Registered dogs are worth 10% more and their papers carry the line's name.</p>
+    ${L.length?L.map(x=>{const r=S.stud&&S.stud[x.line];return`<div class="panel spread" style="margin-bottom:6px;gap:8px"><div><b>${esc(r?r.name:x.line)}</b>${r?' <span class="tag" style="background:var(--gold);color:#fff">Registered</span>':''}<div class="small muted">${esc(x.breed)} · ${x.gen} generation${x.gen===1?'':'s'} · ${x.live} living, ${x.dogs} on record${r?` · registered day ${r.day}`:''}</div>${!r?`<div class="meter" style="height:6px;margin-top:4px"><i style="width:${clamp(x.gen/STUD_GEN*100,0,100)}%;background:var(--gold)"></i></div>`:''}</div>
+      ${r?'':x.gen>=STUD_GEN?`<button class="btn sm" data-act="r21Stud" data-k="${esc(x.line)}" ${S.money>=STUD_REG?'':'disabled'}>Register (${fmt(STUD_REG)})</button>`:`<span class="small muted">${STUD_GEN-x.gen} more gen.</span>`}</div>`}).join(''):'<p class="small muted">Breed within a line to build it up.</p>'}`},
+  // ---------- famous blood ----------
+  famBlood(a,b){let p=0,g=0;for(const par of[a,b]){const F=par&&(PAPERS.get(par.id)||par);if(!F)continue;if(PAPERS.famous(F))p++;for(const gp of PAPERS.parentsOf(F))if(gp&&!gp.snap&&PAPERS.famous(gp))g++}return{p,g}},
+  // ---------- breeding goals ----------
+  goals(){const G=S.bgoal||(S.bgoal={list:[],done:0});G.list=G.list.filter(x=>x.until>=S.day);while(G.list.length<3)G.list.push(R21.newGoal());return G.list},
+  newGoal(){const seen=[...new Set(S.dogs.flatMap(d=>R21_COATW.filter(w=>R21.coatHas(d,w))))],coat=pick(seen.length&&R()<.75?seen:R21_COATW),g={id:'BG'+S.day+'-'+ri(100,999),coat,until:S.day+12};
+    let hard=1;if(R()<.5){g.sex=pick(['M','F']);hard+=.3}if(R()<.5){g.role=pick(['bay','catch']);hard+=.4}if(R()<.3){g.grade=pick(['B+','A']);hard+=g.grade==='A'?1:.6}if(!seen.includes(coat))hard+=.8;
+    g.reward=Math.round(600*hard*(1+S.level*.05)/50)*50;return g},
+  goalText(g){return`${g.grade?`Grade ${g.grade}+ `:''}${g.coat} ${g.sex==='M'?'male':g.sex==='F'?'female':''} ${g.role?g.role+' dog ':''}pup`.replace(/\s+/g,' ')},
+  goalHit(g,d){return R21.coatHas(d,g.coat)&&(!g.sex||d.sex===g.sex)&&(!g.role||R21.roleOf(d)===g.role)&&(!g.grade||R21.gradeRank(PAPERS.quality(d))>=R21.gradeRank(g.grade))},
+  checkGoals(d){const G=S.bgoal;if(!G)return;for(const g of[...G.list]){if(!R21.goalHit(g,d))continue;G.list=G.list.filter(x=>x!==g);G.done=(G.done||0)+1;earn(g.reward);addRep(.5,'Met a breeding goal');
+      const m=`🎯 Breeding goal met: ${d.name} is a ${R21.goalText(g)}. +${fmt(g.reward)}`;addLog(m);toast(m);PAPERS.rec(d).aw.push({t:'Breeding goal: '+R21.goalText(g),day:S.day});break}},
+  // ---------- pairing predictor ----------
+  predict(s,m){const coi=typeof R2!=='undefined'?R2.coi(s,m):0,frac=(d,L,a)=>(d.genes[L]||[]).filter(x=>x===a).length/2,out=[];
+    for(const L of Object.keys(LOCI)){const ord=Coat.GLOCI[L]||[],al=[...new Set([...(s.genes[L]||[]),...(m.genes[L]||[])])];for(const a of al){if(ord.indexOf(a)<=0)continue;
+      const pa=frac(s,L,a),pm=frac(m,L,a),carry=1-(1-pa)*(1-pm),show=pa*pm;if(carry<.01)continue;out.push({L,a,name:known(a)?(DISCOVER[a]||LOCI[L].name+' '+a):'an unknown trait',carry,show})}}
+    const dm=frac(s,'M','M')*frac(m,'M','M'),sw=frac(s,'S','sw')*frac(m,'S','sw'),big=((s.kg+m.kg)/2)>=32,hips=Math.round(clamp(((s.hips??(big?62:78))+(m.hips??(big?62:78)))/2-coi*60,5,100));
+    const ap=avg(STATS.map(([k])=>(s.pot[k]+m.pot[k])/2)),grade=ap>=88?'A+':ap>=82?'A':ap>=76?'B+':ap>=70?'B':ap>=62?'C':'D',fb=R21.famBlood(s,m);
+    const coats=predictCoats(s,m),goals=R21.goals().map(g=>{let p=coats.filter(c=>new RegExp('\\b'+g.coat,'i').test(c.n)).reduce((t,c)=>t+c.p,0);if(g.sex)p*=.5;if(g.role){const r=(R21.bayPot(s)+R21.bayPot(m))/2>=(R21.catchPot(s)+R21.catchPot(m))/2?'bay':'catch';p*=r===g.role?.75:.25}
+      if(g.grade)p*=R21.gradeRank(grade)>=R21.gradeRank(g.grade)?.6:.12;return{g,p}});
+    return{coi,car:out.sort((a,b)=>b.carry-a.carry).slice(0,6),dm,deaf:dm*.5+sw*(.12+coi),blind:dm*.5,hips,bloat:DEEP_CHEST.includes(s.breed)||DEEP_CHEST.includes(m.breed),grade,fb,goals}},
+  predictPanel(s,m){const P=R21.predict(s,m),pc=v=>(v*100).toFixed(v<.1&&v>0?1:0)+'%',risk=v=>v>=.2?'var(--bad)':v>=.05?'#d9a521':'var(--good)';
+    return`<div class="panel" style="margin-top:10px"><b>🔮 Pairing predictor</b><div class="small muted" style="margin-bottom:6px">Odds for each pup in this litter, from both parents' genes and pedigrees.</div>
+    ${PAPERS.row('Inbreeding (COI)',`<span style="color:${risk(P.coi)}">${pc(P.coi)}</span>`)}${PAPERS.row('Expected genetic grade',P.grade)}${PAPERS.row('Hips (expected)',`${P.hips}/100 ${P.hips>=70?'Good':P.hips>=45?'Fair':'Poor'}`)}
+    ${PAPERS.row('Double merle (blind/deaf risk)',`<span style="color:${risk(P.dm)}">${pc(P.dm)}</span>`)}${PAPERS.row('Deafness risk',`<span style="color:${risk(P.deaf)}">${pc(P.deaf)}</span>`)}${P.bloat?PAPERS.row('Bloat','Deep-chested line: watch for it'):''}
+    ${P.fb.p||P.fb.g?PAPERS.row('Famous blood',`${P.fb.p?P.fb.p+' famous parent'+(P.fb.p>1?'s':''):''}${P.fb.p&&P.fb.g?', ':''}${P.fb.g?P.fb.g+' famous grandparent'+(P.fb.g>1?'s':''):''}: pups get a head start and sell for more`):''}
+    ${P.car.length?`<div class="small" style="margin-top:6px"><b>Genes the pups can carry</b></div>${P.car.map(c=>`<div class="pp-row small"><span>${esc(c.name)}</span><b>carry ${pc(c.carry)} · show ${pc(c.show)}</b></div>`).join('')}`:''}
+    <div class="small" style="margin-top:6px"><b>Breeding goals</b></div>${P.goals.map(x=>`<div class="pp-row small"><span>${esc(R21.goalText(x.g))} (${fmt(x.g.reward)})</span><b>${pc(x.p)} a pup</b></div>`).join('')}</div>`},
+  goalsPanel(){const G=R21.goals();return`<div class="panel" style="margin-top:10px"><b>🎯 Breeding goals</b><div class="small muted">Breed a pup that fits and get paid. New goals come in as old ones are met or run out. Met so far: ${S.bgoal.done||0}.</div>
+    ${G.map(g=>`<div class="pp-row small"><span>${esc(R21.goalText(g))}<span class="muted"> · ${g.until-S.day} day${g.until-S.day===1?'':'s'} left</span></span><b>${fmt(g.reward)}</b></div>`).join('')}</div>`},
+  // ---------- Dog of the Year ----------
+  doyScore(d,b){const H=d.hunt||{},bs=b||[0,0,0,0],tiers=d.bdg&&d.bdg.t?Object.values(d.bdg.t).reduce((s,v)=>s+v,0):0,y0=R21.yearStart(),champ=(d.rec?d.rec.aw:[]).filter(a=>a.day>=y0&&/Championship/.test(a.t)&&/Champion\b/.test(a.t)).length;
+    return((H.n||0)-bs[0])+((H.catches||0)-bs[1])*3+((H.bays||0)-bs[2])*2+(tiers-bs[3])*15+champ*25},
+  yearStart(){const y=R21.year();return(y-1)*12-WE_MONTH0+1},
+  doyBase(){const b={};for(const d of S.dogs){const H=d.hunt||{};b[d.id]=[H.n||0,H.catches||0,H.bays||0,d.bdg&&d.bdg.t?Object.values(d.bdg.t).reduce((s,v)=>s+v,0):0]}return b},
+  doyTick(msgs){const Y=R21.year();if(!S.doy){S.doy={y:Y,base:R21.doyBase(),hist:[]};return}if(S.doy.y===Y)return;
+    const cand=S.dogs.filter(d=>isAdult(d)).map(d=>({d,s:R21.doyScore(d,S.doy.base[d.id]),n:(d.hunt?d.hunt.n:0)-((S.doy.base[d.id]||[0])[0])})).filter(x=>x.n>=5).sort((a,b)=>b.s-a.s),top=cand[0],rival=Math.max(20,Math.round(25+S.level*5+gauss()*6));
+    const e={y:S.doy.y,rival};if(top){const d=top.d,r=PAPERS.rec(d);e.id=d.id;e.name=d.name;e.score=top.s;
+      if(top.s>=rival){e.won='doy';earn(3000);addRep(3,`${d.name} was named Dog of the Year`);r.aw.push({t:`Dog of the Year, year ${S.doy.y}`,day:S.day});msgs.push(`🏆 ${d.name} is the county's Dog of the Year for year ${S.doy.y}! +${fmt(3000)}`);addLog(`${d.name} was named Dog of the Year (year ${S.doy.y}, score ${top.s}).`)}
+      else if(top.s>=rival*.7){e.won='team';earn(750);addRep(1,`${d.name} made the All-County team`);r.aw.push({t:`All-County team, year ${S.doy.y}`,day:S.day});msgs.push(`🎖️ ${d.name} made the All-County team for year ${S.doy.y}. +${fmt(750)}`)}
+      else msgs.push(`The county named its Dog of the Year for year ${S.doy.y}. ${d.name} was your best (${top.s} points; the winner had ${rival}).`)}
+    S.doy.hist.unshift(e);if(S.doy.hist.length>30)S.doy.hist.length=30;S.doy.y=Y;S.doy.base=R21.doyBase()},
+  doyRace(){if(!S.doy)return'';const L=S.dogs.filter(isAdult).map(d=>({d,s:R21.doyScore(d,S.doy.base[d.id])})).sort((a,b)=>b.s-a.s).slice(0,5);
+    return`<div class="panel" style="margin-top:10px"><b>🏆 Dog of the Year race, year ${S.doy.y}</b><div class="small muted">Points for hunts, catches (3), bays (2), badge tiers (15) and championships (25) this year. Needs 5+ hunts. The county names a winner when the year turns.</div>
+      ${L.map((x,i)=>`<div class="pp-row small"><span>${i+1}. <button class="linkbtn" data-act="papers" data-id="${x.d.id}">${esc(x.d.name)}</button></span><b>${x.s}</b></div>`).join('')||'<div class="small muted">No adult dogs.</div>'}</div>`},
+  // ---------- championships ----------
+  champOk(d,L){const w=d.champW||[],last=(d.champD||{})[L.k];if(!isAdult(d))return'too young';if(d.retired)return'retired';if(d.inj)return'injured';if(d.health<60)return'not healthy';if(d.energy<30)return'too tired';
+    if(((d.hunt&&d.hunt.n)||0)<L.need)return`needs ${L.need} hunts`;if(L.req&&!w.includes(L.req))return`must win the ${R21_CHAMP.find(x=>x.k===L.req).n} first`;if(last&&S.day-last<3)return`entered ${S.day-last===0?'today':'recently'}`;return''},
+  champScore(d,div){const top=typeof DB!=='undefined'?DB.top(d,6).reduce((s,x)=>s+x.t,0):0,cond=typeof REAL!=='undefined'?REAL.cond(d):55;
+    return(div==='bay'?bayScore(d):catchScore(d))*.8+Math.min(12,((d.hunt&&d.hunt.n)||0)/4)+Math.min(12,top*1.5)+(cond-50)/5+gauss()*6},
+  champ(id,k,div){const d=S.dogs.find(x=>x.id===id),L=R21_CHAMP.find(x=>x.k===k);if(!d||!L)return;const why=R21.champOk(d,L);if(why)return toast(`${d.name} can't enter: ${why}.`);if(S.money<L.fee)return toast('Not enough cash.');
+    S.money-=L.fee;d.energy=Math.max(0,d.energy-30);(d.champD=d.champD||{})[k]=S.day;const me=Math.round(R21.champScore(d,div)*10)/10;
+    const field=Array.from({length:11},()=>({n:`${pick(DOGNAME.lists().cm.concat(DOGNAME.lists().cf))} (${pick(PUP_BUYERS)})`,s:Math.round((L.base+S.level*.8+gauss()*7)*10)/10}));field.push({n:d.name+' (you)',s:me,me:1});field.sort((a,b)=>b.s-a.s);
+    const place=field.findIndex(x=>x.me)+1,pr=[L.prize,Math.round(L.prize*.4),Math.round(L.prize*.2)][place-1]||0,div2=div==='bay'?'Bay':'Catch',r=PAPERS.rec(d);
+    if(pr){earn(pr);addRep(place===1?2:.5,`${d.name} placed at the ${L.n}`);r.aw.push({t:`${L.n}, ${div2} division: ${place===1?'Champion':place===2?'2nd place':'3rd place'}`,day:S.day});if(place===1){(d.champW=d.champW||[]).includes(k)||d.champW.push(k)}sfx.coin()}else sfx.bad();
+    (S.champLog=S.champLog||[]).unshift({day:S.day,id:d.id,name:d.name,ev:L.n,div:div2,place,pr});if(S.champLog.length>40)S.champLog.length=40;gainXP(place===1?40:15);
+    addLog(`${d.name} placed ${place} of 12 at the ${L.n} (${div2}).${pr?' Won '+fmt(pr)+'.':''}`);save();render();
+    openSheet(`<h2>${esc(L.n)}</h2><div class="small muted">${div2} division · 12 dogs</div><div style="display:flex;justify-content:center">${dogArt(d,220)}</div>
+      <h3 style="text-align:center">${place===1?'🏆 CHAMPION!':place<=3?`${place===2?'🥈 2nd':'🥉 3rd'} place`:`${place}th place`}</h3>${pr?`<p style="text-align:center">Prize: <b>${fmt(pr)}</b></p>`:''}
+      ${field.map((x,i)=>`<div class="pp-row small" style="${x.me?'font-weight:700;color:var(--gold)':''}"><span>${i+1}. ${esc(x.n)}</span><b>${x.s}</b></div>`).join('')}`)},
+  champPanel(){const ad=S.dogs.filter(d=>isAdult(d)&&!d.retired),sel=UI.champDog&&ad.find(d=>d.id===UI.champDog)||ad[0];
+    return`<div class="panel" style="margin-top:10px"><b>🏅 Championships</b><div class="small muted">Papered dogs with real hunting records compete for big purses. Win the Parish to reach the Regional, and the Regional to reach the State. Each dog can enter each level once every 3 days.</div>
+    ${ad.length?`<label class="small">Dog <select data-f="champDog">${ad.map(d=>`<option value="${d.id}" ${sel&&d.id===sel.id?'selected':''}>${esc(d.name)} · ${(d.hunt&&d.hunt.n)||0} hunts</option>`).join('')}</select></label>`:''}
+    ${R21_CHAMP.map(L=>{const why=sel?R21.champOk(sel,L):'no dog';return`<div class="panel" style="margin-top:6px"><div class="spread"><b>${L.n}</b><span class="small">Entry ${fmt(L.fee)} · 1st ${fmt(L.prize)}</span></div><div class="small muted">${L.need}+ hunts${L.req?` · a ${R21_CHAMP.find(x=>x.k===L.req).n} win`:''}</div>
+      ${why?`<div class="small muted">${sel?esc(sel.name)+': ':''}${esc(why)}</div>`:`<div class="row" style="margin-top:4px"><button class="btn sm" data-act="r21Champ" data-id="${sel.id}" data-k="${L.k}" data-v="bay" ${S.money>=L.fee?'':'disabled'}>Bay division</button><button class="btn sm alt" data-act="r21Champ" data-id="${sel.id}" data-k="${L.k}" data-v="catch" ${S.money>=L.fee?'':'disabled'}>Catch division</button></div>`}</div>`}).join('')}</div>`},
+  // ---------- hunt journal ----------
+  journal(h,win){const S2=h&&h.sim;if(!S2||h.practice)return;const ids=S2.dogs.map(g=>g.id),dogs=ids.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);if(!dogs.length)return;
+    const se=['spring','summer','fall','winter'][weSeason()],wx=({heat:'in the heat',cold:'on a cold morning',rain:'in the rain',storm:'with a storm building',fog:'in the fog',wind:'in a stiff wind'})[WE.ensure().wx]||'',area=h.area?h.area.name:'the woods',what=h.rabbit?'rabbits':h.coon?'coons':h.blood?'a wounded deer':'hogs';
+    const nm=dogs.map(d=>d.name),list=nm.length>1?nm.slice(0,-1).join(', ')+' and '+nm[nm.length-1]:nm[0];
+    const STORY=/^(strike|located|found|bay|jump|fight|cut|hurt|caught|catching|tie|break|rebay|lost|gator|snake|rival|giant|swim|tree|kick|stroke|flush|scatter|nearmiss|pbay|dbay|refind|thunder|stuck|shook|down)/,ev=[...S2.events].reverse().filter(e=>STORY.test(e.kind||'')).map(e=>{const m=e.txt.match(/^(\d+):(\d+)\s+(.*)$/);return m?`${+m[1]<1?'Right away':+m[1]+' min in'}: ${m[3]}`:e.txt});
+    const pickEv=ev.length<=6?ev:[ev[0],...ev.slice(1,-1).filter((_,i,a)=>i%Math.ceil(a.length/4)===0).slice(0,4),ev[ev.length-1]];
+    const hog=h.hog,end=win?(hog&&hog.w&&!h.rabbit&&!h.coon?`They caught a ${hog.w} lb ${String(hog.name||'hog').toLowerCase()}.`:'A good hunt: the dogs got it done.'):'The hunt ended without a catch.';
+    const hurt=dogs.filter(d=>d.inj&&d.inj.day===S.day).map(d=>`${d.name} came home with ${d.inj.what}.`);
+    const txt=[`Day ${S.day}, ${se}. ${list} went after ${what} in ${area}${wx?' '+wx:''}.`,...pickEv,end,...hurt].join(' ');
+    const J=S.journal||(S.journal=[]),e={id:'J'+S.day+'-'+ri(1000,9999),day:S.day,area,win:!!win,dogs:dogs.map(d=>({id:d.id,n:d.name})),txt};J.unshift(e);if(J.length>40)J.length=40;
+    for(const d of dogs){const r=PAPERS.rec(d);(r.jr=r.jr||[]).unshift(e.id);if(r.jr.length>8)r.jr.length=8}return e},
+  jCard(e){return`<div class="panel small" style="margin-bottom:6px"><div class="spread"><b>Day ${e.day} · ${esc(e.area)}</b><span class="tag ${e.win?'':'warn'}">${e.win?'Caught':'No catch'}</span></div><div style="margin:4px 0;line-height:1.45">${esc(e.txt)}</div>
+    <div class="muted">${e.dogs.map(x=>`<button class="linkbtn" data-act="papers" data-id="${x.id}">${esc(x.n)}</button>`).join(' · ')}</div></div>`},
+  // ---------- kennel staff ----------
+  staffDaily(msgs){const St=S.staff||{};for(const k in St){if(!St[k])continue;const w=R21_STAFF[k].wage;if(S.money<w){St[k]=0;msgs.push(`${R21_STAFF[k].n} quit: you couldn't make payroll.`);continue}S.money-=w;S.st.wages=(S.st.wages||0)+w}
+    if(St.trainer){const cand=S.dogs.filter(d=>isAdult(d)&&!d.retired&&!d.inj&&STATS.some(([k])=>d.stats[k]<d.pot[k])).sort((a,b)=>(a.trained||0)-(b.trained||0)).slice(0,2);
+      for(const d of cand){const[k]=STATS.filter(([k])=>d.stats[k]<d.pot[k]).sort((a,b)=>d.stats[a[0]]/d.pot[a[0]]-d.stats[b[0]]/d.pot[b[0]])[0];d.stats[k]++;d.trained=(d.trained||0)+1;const t=PAPERS.rec(d).t;t.n++;t.xp+=10;t.by[k]=(t.by[k]||0)+1;t.last=S.day}
+      if(cand.length)msgs.push(`🏋️ Your trainer worked ${cand.map(d=>d.name).join(' and ')}.`)}
+    if(St.tech)for(const d of S.dogs){if(d.inj){if(d.inj.left>1)d.inj.left--;d.health=Math.min(d.hcap,d.health+4)}}
+    if(St.handler)for(const d of S.dogs)if(isAdult(d)&&!d.retired){if(typeof REAL!=='undefined')d.cond=Math.min(100,Math.max(REAL.cond(d),REAL.cond(d)+4));d.energy=Math.min(100,d.energy+10)}},
+  staffScreen(){const St=S.staff||{},tot=Object.keys(St).filter(k=>St[k]).reduce((s,k)=>s+R21_STAFF[k].wage,0);
+    return`<h2>Kennel staff</h2><p class="sub">Hire help to keep the dogs working while you hunt. Wages come out every day; miss payroll and they quit.</p>
+    ${Object.entries(R21_STAFF).map(([k,o])=>`<div class="panel spread" style="margin-bottom:8px;gap:10px"><div><div style="font-size:26px">${o.ic}</div><b>${o.n}</b> <span class="small">${fmt(o.wage)}/day</span><div class="small muted">${o.d}</div>${St[k]?`<div class="small" style="color:var(--good)">On staff since day ${St[k]}</div>`:''}</div>
+      ${St[k]?`<button class="btn sm ghost" data-act="r21Staff" data-k="${k}">Let go</button>`:`<button class="btn sm" data-act="r21Staff" data-k="${k}" ${S.money>=o.wage?'':'disabled'}>Hire</button>`}</div>`).join('')}
+    <p class="small muted">Payroll: ${fmt(tot)} a day.</p>`},
+  // ---------- senior care & last hunt ----------
+  seniorDaily(msgs){for(const d of S.dogs){if(!d.senior)continue;if(d.age<SENIOR_AGE){d.senior=false;continue}if(S.money<SENIOR_COST){d.senior=false;msgs.push(`Senior care for ${d.name} stopped: not enough cash.`);continue}
+      S.money-=SENIOR_COST;d.health=Math.min(d.hcap,d.health+3);if(typeof REAL!=='undefined')d.cond=Math.max(REAL.cond(d),45)}},
+  lastHunt(h,win){const S2=h&&h.sim;if(!S2||h.practice)return;for(const g of S2.dogs){const d=S.dogs.find(x=>x.id===g.id);if(!d||!d.lastHunt)continue;d.lastHunt=false;d.retired=true;d.senior=d.age>=SENIOR_AGE?d.senior:false;
+      for(const r of['bay','catch'])UI.huntSel[r]=UI.huntSel[r].filter(id=>id!==d.id);const res=win?(h.hog&&h.hog.w?`caught a ${h.hog.w} lb hog`:'went out a winner'):'ran one last time';
+      const r=PAPERS.rec(d);r.aw.push({t:`Last hunt: ${res}`,day:S.day});r.lastHunt={day:S.day,res};addRep(.5,`${d.name}'s last hunt`);
+      const m=`🌅 ${d.name}'s last hunt: ${res}. ${d.sex==='M'?'He':'She'} retires to the porch with ${(d.hunt&&d.hunt.n)||0} hunts and ${(d.hunt&&d.hunt.catches)||0} catches.`;addLog(m);(h.result&&h.result.lines||[]).push(m);UI.r21Farewell=d.id}},
+  seniorPanel(d){if(d.age<84)return'';const sen=d.age>=SENIOR_AGE;
+    return`<h3>Golden years</h3><div class="panel small">${sen?`<div class="spread"><span><b>Senior care</b> ${fmt(SENIOR_COST)}/day: joint supplements and senior feed. +3 health a day, keeps condition up and adds years.</span><button class="btn sm ${d.senior?'ghost':''}" data-act="r21Senior" data-id="${d.id}">${d.senior?'Stop':'Start'}</button></div>`:`<div class="muted">Senior care opens at 8 years.</div>`}
+      ${!d.retired?`<div class="spread" style="margin-top:6px"><span><b>Last hunt</b>: take ${esc(d.name)} out one more time, then retire ${d.sex==='M'?'him':'her'} with honors.</span><button class="btn sm ${d.lastHunt?'ghost':'alt'}" data-act="r21Last" data-id="${d.id}">${d.lastHunt?'Cancel':'Plan it'}</button></div>${d.lastHunt?'<div style="color:var(--gold)">Next hunt is the last one.</div>':''}`:''}</div>`},
+  // ---------- special pup orders ----------
+  orders(){const O=S.pupOrd||(S.pupOrd=[]);for(let i=O.length-1;i>=0;i--)if(O[i].until<S.day)O.splice(i,1);return O},
+  orderDaily(){const O=R21.orders();if(O.length<3&&R()<.45){const seen=[...new Set(S.dogs.flatMap(d=>R21_COATW.filter(w=>R21.coatHas(d,w))))],o={id:'PO'+S.day+ri(100,999),who:pick(R()<.5?R21_TOWN:PUP_BUYERS),coat:pick(seen.length&&R()<.7?seen:R21_COATW),until:S.day+8,mult:Math.round((1.5+R()*.8)*100)/100};
+      if(R()<.6)o.sex=pick(['M','F']);if(R()<.5)o.role=pick(['bay','catch']);O.push(o)}},
+  orderFits:(o,d)=>!isAdult(d)&&!d.guest&&!isLegend(d)&&R21.coatHas(d,o.coat)&&(!o.sex||d.sex===o.sex)&&(!o.role||R21.roleOf(d)===o.role),
+  orderPrice:(o,d)=>Math.round((PUPB.best(d).price*o.mult+200)/5)*5,
+  orderText:o=>`${o.coat} ${o.sex==='M'?'male':o.sex==='F'?'female':''} ${o.role?o.role+' prospect':'pup'}`.replace(/\s+/g,' '),
+  ordersPanel(){const O=R21.orders();if(!O.length)return'';
+    return`<div class="panel" style="margin:8px 0"><b>📋 Special pup orders</b><div class="small muted">Folks asking for something particular pay well over the going rate.</div>
+    ${O.map(o=>{const fit=S.dogs.filter(d=>R21.orderFits(o,d));return`<div style="margin-top:6px"><div class="spread small"><span><b>${esc(o.who)}</b> wants a ${esc(R21.orderText(o))}</span><span class="muted">${o.until-S.day}d left · ×${o.mult}</span></div>
+      ${fit.length?fit.map(d=>`<div class="spread small" style="margin-top:2px"><span>${esc(d.name)} · ${esc(coatName(d))}</span><button class="btn sm" data-act="r21Order" data-id="${d.id}" data-k="${o.id}">Sell for ${fmt(R21.orderPrice(o,d))}</button></div>`).join(''):'<div class="small muted">None of your pups fit yet.</div>'}</div>`}).join('')}</div>`},
+  sellOrder(id,oid){const d=S.dogs.find(x=>x.id===id),o=R21.orders().find(x=>x.id===oid);if(!d||!o||!R21.orderFits(o,d))return;const p=R21.orderPrice(o,d);S.pupOrd=S.pupOrd.filter(x=>x!==o);S.st.pupsSold=(S.st.pupsSold||0)+1;addRep(.3,'Filled a special pup order');
+    sellDogOut(d,p,`Sold ${d.name} to ${o.who} for ${fmt(p)} (special order).`)},
+  // ---------- shareable papers ----------
+  async papersCard(d){const W=1080,H=1500,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),r=PAPERS.rec(d),H2=d.hunt||{};
+    try{await Promise.all(['700 64px Oswald','600 36px Oswald','500 30px Barlow','400 60px "Alfa Slab One"'].map(f=>document.fonts.load(f)))}catch(e){}
+    const bg=g.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#f1e6cc');bg.addColorStop(1,'#dcc9a0');g.fillStyle=bg;g.fillRect(0,0,W,H);
+    g.strokeStyle='#6b4f23';g.lineWidth=8;g.strokeRect(26,26,W-52,H-52);g.lineWidth=2;g.strokeRect(44,44,W-88,H-88);
+    const T=(t,x,y,f,col,al)=>{g.font=f;g.fillStyle=col||'#2b2018';g.textAlign=al||'center';g.fillText(String(t),x,y)};
+    T('HOGS & DOGS',W/2,120,'400 44px "Alfa Slab One",Georgia,serif','#6b4f23');T('OFFICIAL DOG RECORD',W/2,182,'700 58px Georgia,serif');
+    T(`DOG ID ${PAPERS.dogId(d)}    REG. NO. ${PAPERS.regNo(d)}`,W/2,228,'600 28px ui-monospace,monospace','#4a3a22');
+    let art=null;try{art=await SHARE.art('dog',d)}catch(e){}if(art){const aw=640,ah=aw*art.height/art.width;g.drawImage(art,(W-aw)/2,250,aw,ah)}
+    T(d.name.toUpperCase(),W/2,720,'700 64px Oswald,Arial');T(`${breedName(d)} · ${d.sex==='M'?'Male':'Female'} · ${ageStr(d.age)}`,W/2,768,'500 30px Barlow,Arial','#4a3a22');T(coatName(d),W/2,806,'500 28px Barlow,Arial','#4a3a22');
+    const st=R21.studOf(d),rows=[['Born',PAPERS.dob(d).replace(/^(\w{3})\w*,/,'$1').replace(/ yrs? before the ranch opened/,'y pre-ranch')],['Ranch',d.arch?'—':S.name],['Bloodline',st?st.name:(blOf(d).line||'—')],['Role',PAPERS.role(d)],['Hunts',H2.n||0],['Catches',H2.catches||0],['Bays',H2.bays||0],['Largest hog',r.h.big?r.h.big.w+' lb':'—'],['Genetic grade',PAPERS.quality(d)],['Legacy score',PAPERS.legacy(d).score]];
+    rows.forEach(([k,v],i)=>{const col=i%2,row=Math.floor(i/2),x=90+col*460,y=870+row*48;T(k.toUpperCase(),x,y,'600 22px Oswald,Arial','#6b4f23','left');T(String(v).slice(0,26),x+440,y,'600 26px Barlow,Arial','#2b2018','right')});
+    const P=PAPERS.parentsOf(d),GP=P.map(p=>p?PAPERS.parentsOf(p):[null,null]);T('PEDIGREE',W/2,1140,'700 28px Oswald,Arial','#6b4f23');
+    ['Sire','Dam'].forEach((lab,i)=>{const x=90+i*460;T(`${lab}: ${P[i]?P[i].name:'Foundation'}`,x,1184,'600 26px Barlow,Arial','#2b2018','left');T(`${GP[i][0]?GP[i][0].name:'—'} × ${GP[i][1]?GP[i][1].name:'—'}`,x,1220,'500 22px Barlow,Arial','#4a3a22','left')});
+    const top=typeof DB!=='undefined'?DB.top(d,4):[];if(top.length)T(top.map(x=>`${DB.B[x.id].name} ${BDG_TIERS[x.t-1].n}`).join(' · ').slice(0,80),W/2,1290,'600 24px Barlow,Arial','#6b4f23');
+    const stamp=(t,x,y,col)=>{g.save();g.translate(x,y);g.rotate(-.18);g.strokeStyle=col;g.lineWidth=5;g.font='700 34px Oswald,Arial';const w=g.measureText(t).width+40;g.strokeRect(-w/2,-34,w,56);g.fillStyle=col;g.textAlign='center';g.fillText(t,0,8);g.restore()};
+    if(d.dna)stamp('DNA VERIFIED',st?300:W/2,1310,'#1f6b3a');if(st)stamp('REGISTERED LINE',d.dna?780:W/2,1310,'#8a2a1a');
+    T(`Issued day ${S.day} · ${SHARE.link().replace('https://','')}`,W/2,H-80,'500 24px Barlow,Arial','#6b4f23');return c},
+  async sharePapers(id){const d=PAPERS.get(id);if(!d)return;toast('Printing the papers…');const c=await R21.papersCard(d),blob=await new Promise(r=>c.toBlob(r,'image/png')),name=`${d.name.replace(/\W+/g,'-').toLowerCase()}-papers.png`,file=new File([blob],name,{type:'image/png'});
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Hogs & Dogs papers',text:`${d.name}'s official papers from ${S.name}. ${SHARE.link()}`});S.st.shares=(S.st.shares||0)+1;save();return}}catch(e){if(e&&e.name==='AbortError')return}
+    const url=URL.createObjectURL(blob);S.st.shares=(S.st.shares||0)+1;save();
+    openSheet(`<h2>${esc(d.name)}'s papers</h2><img id="ppCardImg" src="${url}" alt="${esc(d.name)}'s papers" style="width:100%;border-radius:4px"><div class="row" style="margin-top:10px"><a class="btn" href="${url}" download="${name}">Save picture</a><button class="btn ghost" data-act="r21Print">Print</button><button class="btn ghost" data-act="papers" data-id="${d.id}">Back to papers</button></div>`)},
+  print(){const img=document.getElementById('ppCardImg');if(!img)return;const w=window.open('');if(!w)return toast('Allow pop-ups to print.');w.document.write(`<img src="${img.src}" style="width:100%" onload="window.print()">`);w.document.close()}
+};
+document.head.insertAdjacentHTML('beforeend',`<style>.pp-stamp{display:inline-block;transform:rotate(-6deg);border:3px solid #2f8a4f;color:#2f8a4f;font-weight:800;letter-spacing:.08em;padding:2px 10px;border-radius:4px;margin-top:6px;font-size:13px}.pp-stamp.reg{border-color:#b5452f;color:#b5452f}</style>`);
+const R21_ACTIONS={
+  r21Stud:d=>R21.register(d.k),r21Champ:d=>R21.champ(d.id,d.k,d.v),r21Order:d=>R21.sellOrder(d.id,d.k),r21SharePapers:d=>R21.sharePapers(d.id),r21Print:()=>R21.print(),
+  r21Staff:d=>{const St=S.staff||(S.staff={});if(St[d.k]){St[d.k]=0;toast(`${R21_STAFF[d.k].n} let go.`)}else{if(S.money<R21_STAFF[d.k].wage)return toast('Not enough cash.');St[d.k]=S.day;toast(`${R21_STAFF[d.k].n} hired.`);addLog(`Hired a ${R21_STAFF[d.k].n.toLowerCase()} (${fmt(R21_STAFF[d.k].wage)}/day).`)}save();render()},
+  r21Senior:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||x.age<SENIOR_AGE)return;x.senior=!x.senior;toast(x.senior?`${x.name} is on senior care.`:`Senior care stopped for ${x.name}.`);save();dogProfile(x.id)},
+  r21Last:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x||x.retired)return;x.lastHunt=!x.lastHunt;if(x.lastHunt){for(const r of['bay','catch'])if(!UI.huntSel[r].includes(x.id)&&UI.huntSel.bay.length+UI.huntSel.catch.length<4){UI.huntSel[R21.roleOf(x)==='bay'?'bay':'catch'].push(x.id);break}toast(`${x.name}'s next hunt will be the last. ${x.sex==='M'?'He':'She'} is in the hunt lineup.`)}save();dogProfile(x.id)},
+  papersExt:()=>{if(UI.ppExt)PAPERS.open(UI.ppExt.id,'overview')},
+  regView:d=>{UI.regView=d.k;render()}
+};
+// ---- wiring ----
+// papers: permanent IDs that survive a trade; DNA and stud-book stamps; honors; share button; journal on the hunting tab
+PAPERS.dogId=d=>d.hdId||'HD-'+d.id;
+PAPERS.regNo=d=>d.hdReg||'HDA-'+String(parseInt(String(d.id).replace(/\D/g,''),10)||0).padStart(6,'0');
+{const o=PAPERS.get;PAPERS.get=function(id){return o(id)||(UI.ppExt&&UI.ppExt.id===id?UI.ppExt:null)}}
+{const o=PAPERS.html;PAPERS.html=function(d){let h=o(d);const st=R21.studOf(d),stamps=(d.dna?'<span class="pp-stamp">DNA VERIFIED</span> ':'')+(st?`<span class="pp-stamp reg">REGISTERED: ${esc(st.name)}</span>`:'');
+  if(stamps)h=h.replace('</div></div>\n      <div class="pp-tabs">',`</div><div>${stamps}</div></div>\n      <div class="pp-tabs">`);
+  return h.replace('<div class="row" style="margin-top:10px">',`<div class="row" style="margin-top:10px"><button class="btn sm" data-act="r21SharePapers" data-id="${d.id}">🖨️ Share / print papers</button>`)}}
+{const o=PAPERS.t_overview;PAPERS.t_overview=function(d,r,st){const hon=[],fb=d.fam;if(d.dna)hon.push('🧬 DNA verified');const sb=R21.studOf(d);if(sb)hon.push('📘 Stud book: '+esc(sb.name));if(fb&&(fb.p||fb.g))hon.push(`⭐ Famous blood (${fb.p} parent${fb.p===1?'':'s'}, ${fb.g} grandparent${fb.g===1?'':'s'})`);
+  for(const a of r.aw.filter(a=>/Dog of the Year|All-County|Champion\b|Last hunt/.test(a.t)).slice(-4))hon.push('🏆 '+esc(a.t));if(d.senior)hon.push('🧓 On senior care');
+  return o(d,r,st)+(hon.length?`<h3>Honors</h3>${hon.map(x=>`<div class="small">${x}</div>`).join('')}`:'')}}
+{const o=PAPERS.t_genetics;PAPERS.t_genetics=function(d){const h=o(d);return(d.dna?'<div class="pp-stamp" style="margin-bottom:6px">DNA VERIFIED</div>':PAPERS.mine(d)?`<div class="panel small" style="margin-bottom:8px">Not DNA verified. A lab test reveals every hidden gene and stamps the papers. <button class="btn sm" data-act="dnaTest" data-id="${d.id}" ${S.money>=DNA_TEST?'':'disabled'}>DNA test (${fmt(DNA_TEST)})</button></div>`:'')+h}}
+{const o=PAPERS.t_hunting;PAPERS.t_hunting=function(d,r){const J=(r.jr||[]).map(id=>(S.journal||[]).find(e=>e.id===id)).filter(Boolean).slice(0,4);return o(d,r)+(J.length?`<h3>Hunt journal</h3>${J.map(R21.jCard).join('')}`:'')}}
+{const o=A.dnaTest;A.dnaTest=function(d){const was=!!document.querySelector('#sheet:not(.hidden) .pp');const r=o(d);try{if(was){const x=PAPERS.get(d.id);if(x)openSheet(PAPERS.html(x))}}catch(e){}return r}}
+// registry: dogs / stud book / awards
+{const o=PAPERS.screen;PAPERS.screen=function(){const v=UI.regView||'dogs',seg=`<div class="seg" style="margin-bottom:8px">${[['dogs','Dogs'],['stud','Stud book'],['awards','Awards']].map(([k,l])=>`<button class="${v===k?'on':''}" data-act="regView" data-k="${k}">${l}</button>`).join('')}</div>`;
+  if(v==='stud')return`<h2>Stud book</h2>${seg}${R21.studView()}`;
+  if(v==='awards'){const H=(S.doy&&S.doy.hist)||[],C=S.champLog||[];return`<h2>Awards</h2>${seg}${R21.doyRace()}<h3>Dog of the Year</h3>${H.length?H.map(e=>`<div class="pp-row small"><span>Year ${e.y}: ${e.name?`<button class="linkbtn" data-act="papers" data-id="${e.id}">${esc(e.name)}</button>`:'—'}</span><b>${e.won==='doy'?'🏆 Dog of the Year':e.won==='team'?'🎖️ All-County':'—'}</b></div>`).join(''):'<div class="small muted">The first award comes when the year turns.</div>'}
+    <h3>Championships</h3>${C.length?C.map(e=>`<div class="pp-row small"><span>Day ${e.day} · <button class="linkbtn" data-act="papers" data-id="${e.id}">${esc(e.name)}</button> · ${esc(e.ev)} (${e.div})</span><b>${e.place===1?'🏆 1st':e.place+(['st','nd','rd'][e.place-1]||'th')}</b></div>`).join(''):'<div class="small muted">No championships entered yet (More → Shows & trials).</div>'}`}
+  return o().replace('<h2>Dog registry</h2>','<h2>Dog registry</h2>'+seg)}}
+// market: papers travel with the dog, and buyers can read them first
+{const o=importDog;importDog=function(obj,from){const d=o(obj,from);try{d.hdId=obj.hdId||('HD-'+obj.id);d.hdReg=obj.hdReg||('HDA-'+String(parseInt(String(obj.id).replace(/\D/g,''),10)||0).padStart(6,'0'));
+  if(PAPERS.all().some(x=>x!==d&&PAPERS.dogId(x)===d.hdId)){const t=String(from||'X').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()||'X';d.hdId+='-'+t;d.hdReg+='-'+t}
+  const r=PAPERS.rec(d);r.own.push({day:S.day,how:'Came from '+(from||'another ranch'),owner:PAPERS.owner()})}catch(e){}return d}}
+{const o=remoteDogSheet;remoteDogSheet=function(d,actions){UI.ppExt=d;return o(d,(actions||'')+`<div style="margin-top:6px"><button class="btn sm ghost" data-act="papersExt">📜 View ${esc(d.name)}'s papers</button></div>`)}}
+R21.wrapLate=function(){const o=A.onBuy;if(!o)return;A.onBuy=async function(d){const n0=S.dogs.length,L=(UI.od&&UI.od.market&&UI.od.market.d.l||[]).find(y=>y.id==d.id);await o(d);try{if(S.dogs.length>n0&&L){const x=S.dogs[S.dogs.length-1],r=PAPERS.rec(x),e=r.own[r.own.length-1];e.how='Bought';e.price=L.price;e.from=L.seller_ranch}}catch(e){}}};
+{const o=A.buy;A.buy=function(d){const n0=S.dogs.length,src=[...S.market,...S.featured].find(x=>x.id===d.id),price=src?src.price:0;const r=o(d);try{if(S.dogs.length>n0){const x=S.dogs[S.dogs.length-1],rr=PAPERS.rec(x);rr.own=[{day:S.day,how:'Bought',price,owner:PAPERS.owner(),ranch:S.name}]}}catch(e){}return r}}
+// value: stud book and famous blood
+{const o=dogValue;dogValue=function(d){let v=o(d);try{if(R21.studOf(d))v*=1.1;const f=d.fam;if(f)v*=Math.min(1.35,1+.12*f.p+.04*f.g)}catch(e){}return Math.round(v/5)*5}}
+// pups: famous blood head start, breeding goals
+{const mp=makePuppy;makePuppy=function(a,b){const d=mp(a,b);try{const fb=R21.famBlood(a,b);if(fb.p||fb.g){d.fam=fb;for(let i=0;i<fb.p*2+fb.g;i++){const[k]=pick(STATS);d.pot[k]=Math.min(99,d.pot[k]+(i<fb.p*2?2:1))}}
+  if(!UI.r21Preview)R21.checkGoals(d)}catch(e){console.warn('r21',e)}return d}}
+{const o=A.previewLitter;if(o)A.previewLitter=function(d){UI.r21Preview=1;try{return o(d)}finally{UI.r21Preview=0}}}
+// breed screen: predictor and goals
+{const o=SCREENS.breed;SCREENS.breed=function(){let html=o();if(UI.breedMode&&UI.breedMode!=='dog')return html;try{const s=S.dogs.find(d=>d.id===UI.sire),m=S.dogs.find(d=>d.id===UI.dam),add=(s&&m?R21.predictPanel(s,m):'')+R21.goalsPanel();
+  const i=html.indexOf('<h3>In the barn</h3>');html=i<0?html+add:html.slice(0,i)+add+html.slice(i)}catch(e){console.warn('r21',e)}return html}}
+// events: championships and the Dog of the Year race
+{const o=SCREENS.events;SCREENS.events=function(){return o()+R21.champPanel()+R21.doyRace()}}
+// kennel pup panel: special orders
+{const o=PUPB.panel;PUPB.panel=function(){return R21.ordersPanel()+o()}}
+// hunts: journal and last hunts
+{const f=finishHunt;finishHunt=function(win,lines){const h=UI.hunt,r=f(win,lines);try{R21.journal(h,win);R21.lastHunt(h,win)}catch(e){console.warn('r21',e)}return r}}
+// daily: staff, senior care, orders, Dog of the Year
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{R21.staffDaily(msgs);R21.seniorDaily(msgs);R21.orderDaily();R21.goals();R21.doyTick(msgs)}catch(e){console.warn('r21',e)}}}
+// profile: golden years
+{const o=dogProfile;dogProfile=function(id){o(id);try{const d=S.dogs.find(x=>x.id===id),el=document.getElementById('sheetInner');if(!d||!el)return;const html=R21.seniorPanel(d);if(!html)return;const h3=[...el.querySelectorAll('h3')].find(x=>x.textContent==='Actions');
+  if(h3)h3.insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}catch(e){console.warn('r21',e)}}}
+// screens
+SCREENS.staff=()=>R21.staffScreen();
+SCREENS.journal=()=>{const J=S.journal||[];return`<h2>Hunt journal</h2><p class="sub">Every hunt, written up. Each dog's papers keep its own hunts too.</p>${J.length?J.map(R21.jCard).join(''):'<p class="small muted">Go hunting and the journal fills itself in.</p>'}`};
+{const o=SCREENS.more;SCREENS.more=function(){const tiles=[['staff','🧑‍🌾','Kennel staff','Trainer, vet tech and handler work the dogs daily'],['journal','📓','Hunt journal','Every hunt, written up']].map(([t,ic,n,d])=>`<button class="panel" style="text-align:left" data-act="tab" data-t="${t}"><div class="tileic">${ic}</div><b>${n}</b><div class="small muted">${d}</div></button>`).join('');
+  return o().replace('<div class="grid">','<div class="grid">'+tiles)}}
+Object.assign(A,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
