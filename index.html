@@ -2034,7 +2034,7 @@ function dogProfile(id){
   <h3>Pedigree</h3>${ped}
   <h3>Actions</h3><div class="row">
    <button class="btn sm alt" data-act="goTrain" data-id="${d.id}">Train</button>
-   <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>${d.inj?`<button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet: ${esc(d.inj.what)} (${fmt(WE_VET[d.inj.sev])})</button>`:''}
+   <button class="btn sm alt" data-act="useLin" data-id="${d.id}" ${S.inv.liniment&&d.health<d.hcap?'':'disabled'}>Liniment (${S.inv.liniment})</button>${d.inj?`${HOGAI.isCut(d)&&!d.inj.stitched?`<button class="btn sm" data-act="stitch" data-id="${d.id}">🩹 Stitch it (${S.inv.kit>0?'use a trauma kit':fmt(ITEMS.kit.price)})</button>`:''}<button class="btn sm alt" data-act="wvet" data-id="${d.id}" ${S.money>=WE_VET[d.inj.sev]?'':'disabled'}>Vet: ${esc(d.inj.what)} (${fmt(WE_VET[d.inj.sev])})</button>`:''}
    <button class="btn sm alt" data-act="dnaTest" data-id="${d.id}" ${d.dna||S.money<DNA_TEST?'disabled':''}>${d.dna?'DNA tested':'DNA test ('+fmt(DNA_TEST)+')'}</button>
    <button class="btn sm ghost" data-act="rename" data-id="${d.id}">Rename</button>${S.dogs.includes(d)?SHARE.btn('dog',d.id):''}
    <button class="btn sm ghost" data-act="setPair" data-id="${d.id}" ${isAdult(d)?'':'disabled'}>Use for breeding</button>
@@ -3173,9 +3173,9 @@ function hwHogStep(S2,h,dt){if(h.rabbit)return RB.step(S2,h,dt);if(h.coon)return
   h.alert=clamp(h.alert+heard*h.aware*dt*.6-dt*.01,0,3);
   const sz=h.w/180,away=g?Math.atan2(h.y-g.y,h.x-g.x):h.hd;
   const flee=(spd)=>{let best=away,bs=-1e9;for(let k=0;k<8;k++){const an=away+(k-3.5)*.4,X=h.x+Math.cos(an)*8,Y=h.y+Math.sin(an)*8,tt=hwT(X,Y);
-    const edge=Math.min(X,Y,HW.N-X,HW.N-Y),sc=Math.cos(an-away)+HOG_COVER[tt]*.7-HNAVW.hog[tt]*.25+(R()-.5)*.6+Math.cos(an-h.hd)*.4-(edge<60?(60-edge)/20:0);if(sc>bs){bs=sc;best=an}}
+    const edge=Math.min(X,Y,HW.N-X,HW.N-Y),sc=Math.cos(an-away)+HOG_COVER[tt]*.7-HNAVW.hog[tt]*.25+HOGAI.waterPull(h,tt)+(R()-.5)*.6+Math.cos(an-h.hd)*.4-(edge<60?(60-edge)/20:0);if(sc>bs){bs=sc;best=an}}
     return hwMove(h,Math.cos(best)*10,Math.sin(best)*10,spd,dt,'hog')};
-  const was=h.st,wasWet=t===T_WATER;
+  const was=h.st,wasWet=t===T_WATER;HOGAI.wet(S2,h,t);
   if(h.st==='bed'){if(gd<9||pd<10){h.st=R()<.1+h.aggr*.35+(sz-.8)*.3?'stand':'run';hwJump(S2,h)}else if(h.alert>1){h.st=R()<h.aggr*.4*sz?'stand':'sneak'}}
   else if(h.st==='wander'){h.next-=dt;if(h.next<=0||Math.hypot(h.wx-h.x,h.wy-h.y)<2){const[x,y]=hwCover(h.x+(R()-.5)*WE.hogWander(h),h.y+(R()-.5)*WE.hogWander(h),20);h.wx=x;h.wy=y;h.next=60+R()*120}
     hwMove(h,h.wx-h.x,h.wy-h.y,.32*h.sp,dt,'hog',(R()-.5)*.3);h.stam=Math.min(1,h.stam+dt*.01);
@@ -3192,7 +3192,7 @@ function hwHogStep(S2,h,dt){if(h.rabbit)return RB.step(S2,h,dt);if(h.coon)return
   if(h.st!=='bed'&&h.st!=='stand'&&h.st!=='fight'&&h.k>=0)hsLay(S2,h.k,h.x,h.y,S2.t);
   const nowWet=hwT(h.x,h.y)===T_WATER;if(h===S2.target&&h.rev&&nowWet&&!wasWet)hwEvent(S2,'creek','Hog crossed the creek.',60);
   if(h===S2.target&&h.rev&&was!==h.st&&h.st==='run'&&was==='stand')hwEvent(S2,'break','Hog broke bay and is running!',10)}
-function hwJump(S2,h){h.alert=3;if(!S2.target||S2.target===h){S2.target=h}hwEvent(S2,'spook',h.rev?'The hog is up and moving.':'Something spooked the dogs.',30)}
+function hwJump(S2,h){h.alert=3;if(!S2.target||S2.target===h){S2.target=h}HOGAI.scatter(S2,h);hwEvent(S2,'spook',h.rev?'The hog is up and moving.':'Something spooked the dogs.',30)}
 // the hog the dogs have found becomes the hunt's hog: its marker shows from now on
 function hwReveal(S2,h,why){const q=hwQuarry(S2);if(q&&h!==q){if(!h.seenOther){h.seenOther=1;hwEvent(S2,'other','You saw a different hog. The dogs are staying on theirs.',60)}return}S2.target=h;const uh=UI.hunt;uh.found=true;uh.hog={name:h.name,w:h.w,mult:h.mult,rar:h.rar};uh.hogKey=h.key;if(h.rev)return;h.rev=true;
   hwEvent(S2,'located',`HOG LOCATED: ${why}`,1);hwBanner(S2,'HOG LOCATED');WE.revealed(S2,h);sfx.bark()}
@@ -3247,7 +3247,7 @@ function hwDogStep(S2,g,dt){const P=S2.player,h0=S2.target,tile=hwT(g.x,g.y),tir
     hwMove(g,h.x-g.x,h.y-g.y,2.15*g.at.spd*tired,dt,'dog',(R()-.5)*.25);
     if(d<3.5&&(h.st==='stand'||h.st==='fight')){g.st='bay';g.ang=Math.atan2(g.y-h.y,g.x-h.x);if(!S2.baying)hwBayStart(S2,g,h)}
     else if(d>40){g.st='track';g.k=h.k;g.i=Math.max(0,S2.tracks[h.k].pts.length-8);g.dir=1;g.s0=0;hwEvent(S2,'behind','The hog outran the dogs; they are back on its track.',40)}return}
-  if(g.st==='bay'){const h=g.hog;drain(1.8);g.m.bayT+=dt;if(h.st==='run'){g.st='hot';return}
+  if(g.st==='bay'){const h=g.hog;drain(1.8);g.m.bayT+=dt;HOGAI.charge(S2,g,h,dt);if(h.st==='run'){g.st='hot';return}
     g.ang+=dt*(.6+R()*.8)*(g.off%2?1:-1);const r=1.8+Math.sin(S2.t*1.3+g.off)*.8;g.x+=(h.x+Math.cos(g.ang)*r-g.x)*Math.min(1,dt*3);g.y+=(h.y+Math.sin(g.ang)*r-g.y)*Math.min(1,dt*3);return}}
 // scent the dogs have smelled shows on the map (never scent they haven't, so it can't give the hog away)
 function hwKnow(S2,k,i){const r=S2.known[k];if(!r)S2.known[k]=[i,i];else{if(i<r[0])r[0]=i;if(i>r[1])r[1]=i}}
@@ -3578,7 +3578,7 @@ const WE={
   // ---------- injuries (on top of the kennel's health: they cap health until they heal, or the vet sees the dog) ----------
   injure(d,what,dmg){d.health=Math.max(5,d.health-dmg);const sev=dmg>=22?3:dmg>=14?2:1,old=d.inj;
     if(!old||sev>=old.sev)d.inj={what,sev,left:WE_HEAL[sev],day:S.day};d.health=Math.min(d.health,WE_CAP[d.inj.sev])},
-  injuryDaily(msgs){for(const d of S.dogs){if(!d.inj)continue;d.inj.left--;
+  injuryDaily(msgs){try{HOGAI.daily(msgs)}catch(e){}for(const d of S.dogs){if(!d.inj)continue;d.inj.left--;
       if(d.inj.left<=0){msgs.push(`${d.name}'s ${d.inj.what.split(':')[0]} has healed.`);delete d.inj}else d.health=Math.min(d.health,WE_CAP[d.inj.sev])}},
   vet(d){const c=WE_VET[d.inj?d.inj.sev:0];if(!d.inj||S.money<c)return false;S.money-=c;addLog(`The vet treated ${d.name} (${d.inj.what}) for ${fmt(c)}.`);delete d.inj;d.health=Math.min(d.hcap,d.health+40);return true},
   // ---------- the hunt reads the world ----------
@@ -6290,7 +6290,34 @@ const BAYT={
 };
 SCREENS.baytrial=()=>BAYT.screen();
 const BAYT_ACTIONS={baytGo:d=>BAYT.start(d.id,!!(document.getElementById('baytOnline')||{}).checked),baytAgain:()=>{UI.bayt=null;render()}};
-Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- SMARTER HOGS, CUTS AND STITCHES ----------
+// Sounders scatter when one is jumped, some hogs run for water and swim it (the scent dies there), and big mean
+// boars charge and cut bay dogs. Cuts need care: stitch them in the field with a trauma kit, or see the vet;
+// an untreated cut can get infected.
+const HOGAI={
+  // the rest of the sounder breaks every which way, laying fresh tracks the dogs may split on
+  scatter(S2,h){if(S2.mode||h.scattered)return;h.scattered=1;let n=0;
+    for(const o of S2.hogs){if(o===h||o.st==='gone'||o.st==='caught'||o.rabbit||o.coon||!o.full)continue;if(Math.hypot(o.x-h.x,o.y-h.y)>28)continue;if(o.st!=='bed'&&o.st!=='wander'&&o.st!=='sneak')continue;
+      o.st='run';o.hd=R()*6.283;o.alert=3;o.scattered=1;if(o.k<0){o.k=S2.tracks.length;S2.tracks.push({h:o.id,pts:[]})}n++}
+    if(n)hwEvent(S2,'scatter','The sounder busted: hogs scattered every direction! The dogs may split.',60)},
+  swimmer:h=>h.swim??(h.swim=R()),
+  // a running hog that knows water is near heads for it
+  waterPull(h,tt){return tt===T_WATER?1.3*HOGAI.swimmer(h):tt===T_MARSH?.4*HOGAI.swimmer(h):0},
+  wet(S2,h,t){if(t===T_WATER&&h.st==='run'&&!h.swamIt){h.swamIt=1;hwEvent(S2,'swim'+h.id,h.rev?'The hog hit the water and is swimming for it!':'The dogs came to water. The scent went cold at the bank.',1)}},
+  // at the bay: a big, mean boar may charge and cut a bay dog
+  charge(S2,g,h,dt){if(!h||h.rabbit||h.coon)return;const risk=dt*.004*h.aggr*(h.w/150)*(h.giant?1.5:1);if(R()>risk)return;
+    const vest=S.inv.vest>0&&R()<.4,dmg=vest?ri(3,7):ri(8,24);g.m.hurt=g.m.hurt&&g.m.hurt.dmg>dmg?g.m.hurt:{what:`tusk cut from the ${h.name.toLowerCase()}`,dmg};
+    hwEvent(S2,'cut'+g.id,`The boar charged and cut ${g.name}!${vest?' The vest took most of it.':''}`,20);g.sta=Math.max(0,g.sta-.08)},
+  // treating cuts back home
+  isCut:d=>!!(d.inj&&/cut|tusk|slash/i.test(d.inj.what)),
+  stitch(id){const d=S.dogs.find(x=>x.id===id);if(!d||!HOGAI.isCut(d)||d.inj.stitched)return;if(!(S.inv.kit>0)){if(S.money<ITEMS.kit.price)return toast(`A trauma kit costs ${fmt(ITEMS.kit.price)}.`);S.money-=ITEMS.kit.price}else S.inv.kit--;
+    d.inj.stitched=true;d.inj.left=Math.max(1,d.inj.left-2);d.health=Math.min(d.hcap||100,d.health+10);addLog(`Stitched ${d.name}'s cut.`);toast(`${d.name} is stitched up. It'll heal faster and won't get infected.`);sfx.ok();save();closeSheet();render()},
+  daily(msgs){for(const d of S.dogs){if(!HOGAI.isCut(d)||d.inj.stitched)continue;if(R()<.25){d.inj.left+=2;d.health=Math.max(5,d.health-8);msgs.push(`${d.name}'s cut is getting infected. Stitch it or take it to the vet.`)}}}
+};
+ITEMS.kit={name:'Trauma kit',price:60,qty:1,desc:'Stitch a dog’s cut in the field: heals faster and won’t get infected.'};
+const HOGAI_ACTIONS={stitch:d=>HOGAI.stitch(d.id)};
+if(S&&S.inv&&S.inv.kit===undefined)S.inv.kit=0;
+Object.assign(A,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS);checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
