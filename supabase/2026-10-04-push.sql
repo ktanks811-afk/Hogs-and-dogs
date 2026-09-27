@@ -2,7 +2,7 @@
 -- (streak about to end, daily goals ready). The server also queues its own (tournament ending, a dog sold, a trade
 -- offer, a club message, a co-op partner). Every few minutes pg_cron calls the hd-push edge function, which takes
 -- what is due through hd_push_take and sends it. VAPID keys and the cron secret live in Vault (not in this file).
-create extension if not exists pg_net;
+create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron;
 
 create table if not exists public.hd_push_subs(
