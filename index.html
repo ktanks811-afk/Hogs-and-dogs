@@ -4691,8 +4691,25 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.2.0';
-const PATCH_NOTES=[{v:'2.2.0',title:'Hands-on hunts',items:[
+const GAME_VERSION='2.3.0';
+const PATCH_NOTES=[{v:'2.3.0',title:'Working dogs & living hogs',items:[
+  ['Sounders and boars','Sows lead sounders of young hogs (piglets in spring) that travel, feed and bed together, and scatter when jumped. Mature boars travel alone.'],
+  ['Every hog is different','Common hogs, sows, large, old, aggressive, elite, giant and legendary boars. Old and legendary boars are warier, leave less scent and are harder to trail.'],
+  ['Hogs keep a daily rhythm','They head for thick cover to bed as the day warms (sooner in the heat) and get up to travel and feed toward evening and at night. Seasons change where they feed.'],
+  ['Escape plans','A pressured hog runs, circles back, heads for water, ducks into the thick stuff and lies tight, or turns to fight.'],
+  ['Sign by the ground','Read sign now shows what you would really find: hoof prints and wallows in mud, rubs and acorns in the hardwoods, beds in the brush, rooting in the open. Fresh sign reads fresh (fixed).'],
+  ['Trackers and bay dogs','On the hunt screen, set each bay dog as a Tracker (better nose, runs old trails, recovers lost ones) or a Bay dog (more grit on the bay). Catch dogs can now be recalled.'],
+  ['Lost trail','When every dog is circling you get LOST TRAIL: wait quietly, send them wider, cast them ahead, or send your best nose. Smart, keen-nosed dogs and a familiar team recover faster.'],
+  ['Pack familiarity','Dogs that hunt (or pack-drill) together build familiarity: better obedience, trailing and bay work. New badge: Hunt Partner.'],
+  ['Working profile','Papers now show 18 working ratings (speed, acceleration, scent, baying, courage, heat tolerance and more) from genes, training and real experience, plus working XP, hunting partners and a career path.'],
+  ['Training stages','Puppy to Novice, Developing, Working, Advanced and Elite. More than three sessions before a rest overtrains a dog: smaller gains and a risk of soreness. New Pack drill.'],
+  ['Breeding value','Genetics, working record, bloodline, health and pedigree are rated separately. Proven workers are worth more, and your lines earn a working type like Iron Trail or Red Grip.'],
+  ['Rival kennels','Seven county kennels with owners, bloodlines and dogs (with papers). They hunt, breed, sell dogs in the market, fill championship fields and make offers on your dogs.'],
+  ['Working trials','Tracking trial, Field hunt trial and Dog team trial, with prize money and a season ranking against the rival kennels.'],
+  ['Hunt record','Every hunt keeps a full record: weather, dogs and their jobs, the hog, distance, earnings, badges, injuries and a timeline of what happened.'],
+  ['Failure teaches','A hunt that fails tells you why: lost trails, a broken bay, tired dogs, weather or no sign.'],
+  ['Trophy room','Championships, trials, Dog of the Year, the biggest hogs, your bloodlines and your retired champions on the trophy wall.']]},
+  {v:'2.2.0',title:'Hands-on hunts',items:[
   ['Walk in yourself','Sneak, walk or run to the dogs. Running is fast but burns your wind, and a winded hunter slows way down. Sneak in quiet when you get close.'],
   ['Hunt by ear','Hear the dogs: a chop at the bay, a bawl on a track, louder when they are close and from the side they are on. Tap 👂 Listen to stop and place each dog you can hear, marked on the map.'],
   ['Read sign','Tap 🔎 Read sign to look over the hog sign around you: fresh rooting, old wallows, tracks. Pick the freshest and the bay dogs go to it.'],
@@ -6504,7 +6521,7 @@ const HOGAI={
   wet(S2,h,t){if(t===T_WATER&&h.st==='run'&&!h.swamIt){h.swamIt=1;hwEvent(S2,'swim'+h.id,h.rev?'The hog hit the water and is swimming for it!':'The dogs came to water. The scent went cold at the bank.',1)}},
   // at the bay: a big, mean boar may charge and cut a bay dog
   // only boars of some size, and a dog gets cut at most once per hunt, so bays still hold
-  charge(S2,g,h,dt){if(!h||h.rabbit||h.coon||h.sex!=='M'||h.w<120||g.m.cutOnce)return;const risk=dt*.0008*h.aggr*(h.w/150)*(h.giant?1.5:1)*(1-BFX(g,'fearless')*2);if(R()>risk)return;g.m.cutOnce=1;
+  charge(S2,g,h,dt){if(!h||h.rabbit||h.coon||h.sex!=='M'||h.w<120||g.m.cutOnce)return;const risk=dt*.0008*h.aggr*(h.w/150)*(h.giant?1.5:1)*(1-BFX(g,'fearless')*2)*(WK.cutRisk?WK.cutRisk(S2,g,h):1);if(R()>risk)return;g.m.cutOnce=1;
     const vest=S.inv.vest>0&&R()<.4,dmg=vest?ri(3,7):ri(8,24);g.m.hurt=g.m.hurt&&g.m.hurt.dmg>dmg?g.m.hurt:{what:`tusk cut from the ${h.name.toLowerCase()}`,dmg};
     hwEvent(S2,'cut'+g.id,`The boar charged and cut ${g.name}!${vest?' The vest took most of it.':''}`,20)},
   // treating cuts back home
@@ -7526,7 +7543,7 @@ const R21={
     return(div==='bay'?bayScore(d):catchScore(d))*.8+Math.min(12,((d.hunt&&d.hunt.n)||0)/4)+Math.min(12,top*1.5)+(cond-50)/5+gauss()*6},
   champ(id,k,div){const d=S.dogs.find(x=>x.id===id),L=R21_CHAMP.find(x=>x.k===k);if(!d||!L)return;const why=R21.champOk(d,L);if(why)return toast(`${d.name} can't enter: ${why}.`);if(S.money<L.fee)return toast('Not enough cash.');
     S.money-=L.fee;d.energy=Math.max(0,d.energy-30);(d.champD=d.champD||{})[k]=S.day;const me=Math.round(R21.champScore(d,div)*10)/10;
-    const field=Array.from({length:11},()=>({n:`${pick(DOGNAME.lists().cm.concat(DOGNAME.lists().cf))} (${pick(PUP_BUYERS)})`,s:Math.round((L.base+S.level*.8+gauss()*7)*10)/10}));field.push({n:d.name+' (you)',s:me,me:1});field.sort((a,b)=>b.s-a.s);
+    const field=(WK.champField&&WK.champField(L,div))||Array.from({length:11},()=>({n:`${pick(DOGNAME.lists().cm.concat(DOGNAME.lists().cf))} (${pick(PUP_BUYERS)})`,s:Math.round((L.base+S.level*.8+gauss()*7)*10)/10}));field.push({n:d.name+' (you)',s:me,me:1});field.sort((a,b)=>b.s-a.s);
     const place=field.findIndex(x=>x.me)+1,pr=[L.prize,Math.round(L.prize*.4),Math.round(L.prize*.2)][place-1]||0,div2=div==='bay'?'Bay':'Catch',r=PAPERS.rec(d);
     if(pr){earn(pr);addRep(place===1?2:.5,`${d.name} placed at the ${L.n}`);r.aw.push({t:`${L.n}, ${div2} division: ${place===1?'Champion':place===2?'2nd place':'3rd place'}`,day:S.day});if(place===1){(d.champW=d.champW||[]).includes(k)||d.champW.push(k)}sfx.coin()}else sfx.bad();
     (S.champLog=S.champLog||[]).unshift({day:S.day,id:d.id,name:d.name,ev:L.n,div:div2,place,pr});if(S.champLog.length>40)S.champLog.length=40;gainXP(place===1?40:15);
@@ -7777,7 +7794,262 @@ const IH_ACTIONS={
 {const o=huntHud;huntHud=function(f){o(f);try{const h=UI.hunt;if(h&&h.sim)IH.hud(h.sim)}catch(e){}}}
 {const o=huntPlayLive;huntPlayLive=function(){return o().replace('<div id="hMeters"','<div id="ihPanel" style="margin:6px 0"></div><div id="hMeters"')}}
 {const o=finishHunt;finishHunt=function(win,lines){try{const S2=UI.hunt&&UI.hunt.sim;if(S2&&Array.isArray(lines))lines.push(...IH.summary(S2))}catch(e){}return o(win,lines)}}
-Object.assign(A,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- WORKING-DOG & HOG-HUNTING SIMULATOR (2.3) ----------
+// An expansion of the hunt, not a new one: sounders led by a sow and solitary boars, hogs that keep a daily rhythm and
+// pick an escape plan, a hog class for every animal (common to legendary), sign you can read by the ground it's on,
+// trackers and bay dogs as separate jobs, a lost-trail state you work out of, pack familiarity between dogs that hunt
+// together, an 18-point working profile read from genes + training + experience, training stages and overtraining,
+// a career path, working experience on the papers, breeding value, working bloodlines, rival NPC kennels, working
+// trials, a full hunt record with a timeline, a trophy room, and a lesson when a hunt fails.
+const WK_CLS={legend:['LEGENDARY BOAR',5],giant:['GIANT BOAR',4],elite:['ELITE BOAR',3],old:['OLD BOAR',3],aggr:['AGGRESSIVE BOAR',2],large:['LARGE BOAR',2],boar:['BOAR',1],sow:['SOW (sounder matriarch)',1],young:['YOUNG HOG',0],piglet:['PIGLET',0],common:['COMMON HOG',0]};
+const WK_STAGES=['PUPPY','NOVICE','DEVELOPING','WORKING','ADVANCED','ELITE'];
+const WK_LINES=[['Iron Trail',p=>p.trk+p.sta,'high scent and endurance'],['Red Grip',p=>p.str+p.grip,'strength and courage on the catch'],['Swamp Runner',p=>p.sta+p.spd*.6+p.int*.4,'goes anywhere: swamp, brush and heat'],['Bay Master',p=>p.int+p.obd+p.trk*.5,'smart, steady bay dogs'],['Ghost Nose',p=>p.trk*1.3+p.int*.7,'cold noses that run old trails']];
+const WK_TRIALS=[{k:'track',n:'Tracking trial',fee:150,prize:1500,d:'Find scent, follow an aged trail and recover it when it goes cold.',one:true},{k:'field',n:'Field hunt trial',fee:250,prize:2500,d:'A full hunt, judged start to finish.',one:true},{k:'team',n:'Dog team trial',fee:400,prize:4000,d:'Tracker, bay dog and catch dog working together (uses your hunt team).'}];
+const WK_OWNERS=['Earl Doucet','Mae Thibodeaux','Buck Landry','Ray Fontenot','Wade Hebert','Lynn Guidry','Jimmy Broussard','Clay Arceneaux'];
+const WK={
+  // ================= hogs =================
+  hour(S2){const b=S2.night&&typeof CN_NIGHT!=='undefined'?CN_NIGHT:390;return Math.floor((b+S2.t/60)/60)%24},
+  cls(h){if(h.cls)return h.cls;let c;if(h.lead!=null)c=h.w<40?'piglet':'young';else if(h.key==='ghost'||h.rar>=4)c='legend';else if(h.giant||h.w>=320)c='giant';else if(h.sex==='M'){c=h.age>=6?'old':h.rar>=3?'elite':h.aggr>.8?'aggr':h.w>=220?'large':'boar'}else c=h.sounder?'sow':'common';return h.cls=c},
+  clsName:h=>WK_CLS[WK.cls(h)][0],
+  // each class hunts differently: smart hogs lay less scent and hear more, big mean boars stand and fight
+  shape(h){const c=WK.cls(h),rank=WK_CLS[c][1];h.scentMul=1;
+    if(c==='old'){h.aware=Math.min(1,h.aware+.2);h.scentMul=.75;h.end*=.9;h.aggr=Math.min(1,h.aggr+.1)}
+    if(c==='elite'){h.aware=Math.min(1,h.aware+.15);h.end*=1.15;h.scentMul=.85}
+    if(c==='legend'){h.aware=Math.max(h.aware,.9);h.scentMul=.6;h.end*=1.3;h.sp*=1.08}
+    if(c==='aggr'){h.aggr=Math.max(h.aggr,.85)}
+    const smart=h.aware>.7||rank>=3;h.tactic=h.lead!=null?'follow':c==='aggr'||c==='large'||c==='giant'?(R()<.6?'stand':'cover'):smart?pick(['circle','water','cover','circle']):h.sex==='F'?'cover':pick(['run','cover','water']);if(h.tactic==='water')h.swim=1},
+  // sounders: a sow leads young hogs (piglets in spring); boars travel alone
+  sounders(S2,ent){const se=weSeason(),add=[];for(const h of S2.hogs.slice()){if(!h.full||h.rabbit||h.coon||h.deer||h.sex!=='F'||h.w<70)continue;if(R()>.7)continue;
+      h.sounder=true;const n=se===0?ri(3,6):ri(1,3);h.group=[];
+      for(let i=0;i<n;i++){const pig=se===0&&i>0||R()<.3,w=pig?ri(12,35):ri(45,95),x=clamp(h.x+(R()-.5)*8,5,HW.N-6),y=clamp(h.y+(R()-.5)*8,5,HW.N-6);
+        const f={...hwMakeHog({hogs:[[h.key,1]]},{},x,y,h.st),key:h.key,name:pig?'Piglet':'Young hog',w,sex:R()<.5?'M':'F',lead:h.id,full:true,mult:h.mult*.6};f.sp*=pig?.8:1.02;f.aggr*=.5;f.id=S2.hogs.length;f.k=S2.tracks.length;S2.tracks.push({h:f.id,pts:[]});S2.hogs.push(f);h.group.push(f.id);add.push(f)
+        try{hwHistory(S2,f,f.k,h.st==='bed'?600+R()*1800:R()*120)}catch(e){}}}
+    for(const h of S2.hogs){if(!h.rabbit&&!h.coon&&!h.deer){if(h.age===undefined)h.age=h.lead!=null?(h.w<40?0:1):h.sex==='M'?ri(1,8):ri(1,6);WK.shape(h)}}
+    return add.length},
+  // the daily rhythm: bed down in thick cover as the day warms, get up and travel to feed toward evening and at night
+  food(h){const se=weSeason(),want=se===2?[T_HARD,T_TREE]:se===3?[T_BRUSH,T_HARD]:[T_GRASS,T_MUD,T_MARSH];let best=null,bs=-1;for(let k=0;k<30;k++){const a=R()*6.283,d=40+R()*160,X=clamp(Math.round(h.x+Math.cos(a)*d),4,HW.N-5),Y=clamp(Math.round(h.y+Math.sin(a)*d),4,HW.N-5),t=hwT(X,Y),sc=(want.includes(t)?1:0)+R()*.3;if(sc>bs){bs=sc;best=[X+.5,Y+.5]}}return best},
+  diel(S2){const hr=WK.hour(S2),se=weSeason(),kind=(HWX&&HWX.kind)||'clear',day=hr>=8&&hr<18,warm=kind==='heat'||se===1,cool=kind==='cold'||se===3;
+    for(const h of S2.hogs){if(!h.full||h.rev||h.rabbit||h.coon||h.deer||h.lead!=null||h.alert>.5)continue;
+      if(h.st==='wander'&&!h.toBed&&day&&R()<(.1*(warm?2:1)*(cool?.5:1)*(kind==='rain'||kind==='storm'?1.3:1))){const[x,y]=hwCover(h.x,h.y,50);h.toBed=[x,y];h.wx=x;h.wy=y;h.next=999}
+      else if(h.st==='bed'&&(!day||cool&&R()<.3)&&R()<.08){h.st='wander';const f=WK.food(h);if(f){h.wx=f[0];h.wy=f[1];h.next=180}}}},
+  hogPre(S2,h,dt){if(h.lead!=null&&h.full){const L=S2.hogs[h.lead];if(L&&(h.st==='wander'||h.st==='bed')&&h.alert<1){if(L.st==='bed'&&h.st==='wander'&&Math.hypot(L.x-h.x,L.y-h.y)<6)h.st='bed';else if(L.st==='wander'){h.st='wander';h.wx=L.x+Math.cos(h.id)*4;h.wy=L.y+Math.sin(h.id)*4;h.next=999}}}
+    if(h.toBed&&h.st==='wander'){h.wx=h.toBed[0];h.wy=h.toBed[1];h.next=999;if(Math.hypot(h.x-h.toBed[0],h.y-h.toBed[1])<3){h.st='bed';h.toBed=null}}
+    if(h.st==='run')h.runT=(h.runT||0)+dt;else h.runT=0},
+  // escape plans: circle back, head for thick cover and lie tight, hit the water, or stand and fight
+  hogPost(S2,h,dt,was){if(!h.full||h.rabbit||h.coon||h.deer)return;const t=hwT(h.x,h.y),tgt=h===S2.target&&h.rev,X=S2.wk;if(!X)return;
+    if(h.st==='run'){if(h.tactic==='circle'&&h.runT>30)h.hd+=dt*.08;
+      if(h.tactic==='stand'&&S2.dogs.some(g=>g.role==='bay'&&Math.hypot(g.x-h.x,g.y-h.y)<6)&&R()<dt*.25){h.st='stand';if(tgt)hwEvent(S2,'stand'+h.id,`The ${WK.clsName(h).toLowerCase()} turned to fight instead of running.`,30)}
+      if(h.tactic==='cover'&&(t===T_BRUSH||t===T_HARD)&&h.stam<.6&&h.runT>20&&!S2.dogs.some(g=>Math.hypot(g.x-h.x,g.y-h.y)<10)&&R()<dt*.05){h.st='bed';h.alert=1.5;if(tgt)hwEvent(S2,'hide','The hog ducked into the thick stuff and is lying tight. The dogs will have to root him out.',60)}
+      if(tgt){const cov=t===T_BRUSH||t===T_HARD||t===T_MARSH;if(cov&&!X.inCov)hwEvent(S2,'brush',`Hog entered ${t===T_MARSH?'the marsh':'thick brush'}.`,60);X.inCov=cov;
+        X.hdT=(X.hdT||0)+dt;if(X.hdT>12){if(X.hd0!==undefined){const dd=Math.abs(Math.atan2(Math.sin(h.hd-X.hd0),Math.cos(h.hd-X.hd0)));if(dd>1.8)hwEvent(S2,'turn','The hog changed direction and is circling back.',45)}X.hd0=h.hd;X.hdT=0}}}},
+  // scent: smart hogs lay less of it
+  lay(S2,k){const tr=S2.tracks[k];if(!tr||tr.h<0)return;const h=S2.hogs[tr.h],p=tr.pts[tr.pts.length-1];if(h&&p&&h.scentMul&&h.scentMul!==1&&!p.wk){p.f*=h.scentMul;p.wk=1}},
+  // sign: what you see depends on the ground and how old it is
+  sign(c){const s=typeof c==='number'?c:c.s,t=typeof c==='number'?-1:hwT(c.x,c.y),f=s>.35?0:s>.12?1:2;
+    const G=t===T_MUD||t===T_MARSH||t===T_FORD?[['sharp hoof prints in the mud, water still seeping in','a wallow churned muddy'],['hoof prints softened at the edges','a wallow with the water settled clear'],['old tracks cracked and dry','a dry, cracked wallow']]:
+      t===T_HARD||t===T_TREE?[['a rub tree with wet mud on the bark','acorns crushed, hulls still white'],['a rub tree, mud dried gray','acorn hulls scattered'],['an old rub, bark worn smooth','hulls gone black']]:
+      t===T_BRUSH?[['a bed pushed down in the brush, still warm','broken stems, sap still wet'],['an old bed in the brush','broken stems wilting'],['a flattened bed full of leaves','dead broken brush']]:
+      [['fresh rooting, dirt dark and damp, roots white','droppings, fresh'],['rooting drying at the edges','droppings, not fresh'],['rooting crusted over','old droppings gone gray']];
+    return G[f].slice().sort(()=>R()-.5).join(', ')+(f===0&&R()<.5?', a trail beaten through the grass':'')},
+  // ================= the team =================
+  pk:(a,b)=>a<b?a+'|'+b:b+'|'+a,
+  fam(ids){const P=S.pack||{};let s=0,n=0;for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){s+=clamp((P[WK.pk(ids[i],ids[j])]||0)/15,0,1);n++}return n?s/n:0},
+  famWord:f=>f>=.7?'Seasoned pack':f>=.35?'Getting to know each other':f>0?'Green team':'Brand-new team',
+  partners(d){const P=S.pack||{},out=[];for(const k in P){const[a,b]=k.split('|');if(a===d.id||b===d.id){const o=a===d.id?b:a,x=PAPERS.get(o);if(x)out.push({d:x,n:P[k]})}}return out.sort((a,b)=>b.n-a.n).slice(0,5)},
+  jobOf(d){const j=UI.huntSel&&UI.huntSel.jobs&&UI.huntSel.jobs[d.id];if(j)return j;const r=PAPERS.role(d);return r==='TRACKER'?'tracker':'bay'},
+  setup(S2,opts){if(!S2)return S2;const X=S2.wk={lost:false,lostN:0,lostAt:0,strikes:0,ev:{},t0:WK.hour(S2),boost:{}};
+    if(!S2.mode&&!(opts&&opts.practice)){try{X.fol=WK.sounders(S2)}catch(e){console.warn('wk',e)}}
+    const ids=S2.dogs.map(g=>g.id),F=X.fam=WK.fam(ids);
+    for(const g of S2.dogs){const a=g.at,ver=PAPERS.role(g.d)==='VERSATILE';if(g.role==='bay'){g.job=WK.jobOf(g.d);if(g.job==='tracker'){a.nose*=1.15;a.trail*=1.2;a.range*=1.1;a.grit*=ver?.9:.8}else{a.grit*=1.1;a.voice*=1.05;a.trail*=ver?1:.95}}else g.job='catch';
+      a.obd*=1+.15*F;a.trail*=1+.08*F;a.grit*=1+.05*F;g.m.wk={s0:0}}
+    if(!S2.mode&&!(opts&&opts.practice))hwEvent(S2,'team',`${WK.famWord(F)} (${Math.round(F*100)}% familiar)${S2.dogs.some(g=>g.job==='tracker')?' · trackers: '+S2.dogs.filter(g=>g.job==='tracker').map(g=>g.name).join(', '):''}.`,1);return S2},
+  // ================= the hunt, step by step =================
+  step(S2,dt){if(!S2||S2.over||!S2.wk)return;const X=S2.wk,P=S2.player;X.acc=(X.acc||0)+dt;X.dacc=(X.dacc||0)+dt;if(X.dacc>=30){X.dacc=0;if(!S2.mode)WK.diel(S2)}if(X.acc<1)return;const T=X.acc;X.acc=0;
+    const bays=S2.dogs.filter(g=>g.role==='bay'),h=S2.target;
+    // strikes: a dog finding fresh sign
+    for(const g of bays){if((g.m.strike||0)>(g.m.wk.s0||0)){g.m.wk.s0=g.m.strike;X.strikes++;if(!X.ev['str'+g.id]){X.ev['str'+g.id]=1;hwEvent(S2,'strike',`${g.name} found fresh sign and struck: FRESH TRAIL.`,1)}}}
+    // the lost trail: the dogs had a track and now all of them are circling
+    const working=bays.some(g=>g.st==='track'||g.st==='hot'||g.st==='bay'),circling=bays.filter(g=>g.st==='recast'||g.st==='cast');
+    if(!S2.mode&&bays.length&&X.strikes>0&&!working&&circling.length===bays.length&&S2.phase!=='won'&&S2.phase!=='catch'){X.lostT=(X.lostT||0)+T;
+      if(!X.lost&&X.lostT>25){X.lost=true;X.lostN++;X.lostAt=S2.t;hwEvent(S2,'lost','LOST TRAIL: the dogs are circling. Wait, search wider, cast them ahead, or send your best nose.',1);hwBanner(S2,'LOST TRAIL')}}
+    else{if(X.lost&&working){hwEvent(S2,'refound','Back on it: the dogs have the trail again.',1);hwBanner(S2,'TRAIL FOUND')}X.lost=false;X.lostT=0}
+    if(X.lost){const waiting=X.wait>S2.t&&P.tx===null,wide=X.wide>S2.t;
+      for(const g of circling){const skill=g.at.int*1.4+Math.min(1.5,g.at.nose)*.6+(g.job==='tracker'?.3:0)+X.fam*.6+(BFX(g,'recover')||0)*4,b=(X.boost[g.id]>S2.t?2.5:1)*(waiting?1.6:1)*(wide?1.25:1);
+        if(R()<T*.012*skill*b){const r=wide?60:32,best=hsBest(S2,g.x,g.y,r,S2.t);if(best&&best.s>.04){const p=S2.tracks[best.k].pts[best.i];hwKnow(S2,best.k,best.i);g.st='cast';g.ctx=p.x;g.cty=p.y;g.goTrack={k:best.k,i:best.i};g.next=9999;
+          DB.earn(g,'recover',8);DB.earn(g,'solver',4);g.m.wk.rec=(g.m.wk.rec||0)+1;hwEvent(S2,'recover',`${g.name} worked it out and picked the trail back up!`,1);break}}}}
+    // a dog needs help: spent or cut at the bay with you far off
+    if(h&&S2.phase==='bay')for(const g of bays){if(g.st!=='bay')continue;const far=Math.hypot(P.x-g.x,P.y-g.y)>60;if(far&&(g.sta<.12||(g.m.hurt&&g.m.hurt.dmg>=10))&&!X.ev['help'+g.id]){X.ev['help'+g.id]=1;hwEvent(S2,'help',`${g.name} NEEDS HELP at the bay. Get there or send the catch dogs.`,1);hwBanner(S2,'DOG NEEDS HELP')}}
+    // out of range of the collar
+    for(const g of S2.dogs){if(g.st==='leash')continue;const d=Math.hypot(P.x-g.x,P.y-g.y);if(d>1300&&!X.ev['sig'+g.id]){X.ev['sig'+g.id]=1;hwEvent(S2,'signal',`Lost ${g.name}'s collar signal: too far out. Move toward the last position.`,1)}else if(d<900)X.ev['sig'+g.id]=0}
+    // what the dogs found
+    if(h&&h.rev&&!X.ev.rev){X.ev.rev=1;const c=WK.cls(h);if(WK_CLS[c][1]>=3){hwEvent(S2,'giant',`${WK.clsName(h)}! This is no ordinary hog.`,1);hwBanner(S2,WK.clsName(h))}
+      if(h.sounder||h.lead!=null){const L=h.lead!=null?S2.hogs[h.lead]:h,n=(L.group||[]).length;hwEvent(S2,'sounder',`SOUNDER: a sow with ${n} young ones. Expect them to scatter.`,1)}
+      if(h.st==='stand'||S2.phase==='bay')hwEvent(S2,'sound','You can hear the hog popping its jaws at the dogs.',60)}},
+  // player choices when the trail is lost
+  lostAct(k){const S2=UI.hunt&&UI.hunt.sim,X=S2&&S2.wk;if(!X||!X.lost)return;const P=S2.player;
+    if(k==='wait'){X.wait=S2.t+60;P.tx=null;hwEvent(S2,'wait','You stand quiet and let the dogs work it out.',1)}
+    else if(k==='wide'){X.wide=S2.t+60;huntDogs(S2,'bay').forEach(g=>{if(g.st==='recast')g.next=0});hwEvent(S2,'wide','You send the dogs out wider to search.',1)}
+    else if(k==='cast'){HV.castMode=true;toast('Tap the map where you want the dogs to search.')}
+    else if(k==='nose'){const g=huntDogs(S2,'bay').filter(x=>x.st==='recast'||x.st==='cast').sort((a,b)=>(b.at.nose+b.at.int)-(a.at.nose+a.at.int))[0];if(g){X.boost[g.id]=S2.t+60;hwEvent(S2,'nose',`You sent ${g.name} (your best nose) to work the last scent.`,1)}}
+    huntHud(true)},
+  recall(){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.over)return;const c=S2.dogs.filter(g=>g.role==='catch'&&(g.st==='run'||g.st==='hold'));if(!c.length)return;
+    c.forEach(g=>{g.st='leash';g.x=S2.player.x;g.y=S2.player.y});S2.ctl=Math.max(0,S2.ctl-25);if(S2.phase==='catch'){S2.phase='bay';if(S2.target)S2.target.st='stand'}S2.released=false;hwEvent(S2,'recall','You called the catch dogs off and leashed them.',1);huntHud(true)},
+  panel(S2){const X=S2.wk;if(!X)return'';const h=S2.target,c=S2.dogs.filter(g=>g.role==='catch'&&(g.st==='run'||g.st==='hold')).length;let o='';
+    if(X.lost)o+=`<div class="panel" style="border-color:#d9a521;margin-bottom:6px"><b>🔎 LOST TRAIL</b><div class="small muted">The dogs are circling. Smart, high-scent dogs and a familiar team work it out faster.</div><div class="row" style="gap:6px;margin-top:4px"><button class="btn sm" data-act="wkLost" data-k="wait">⏳ Wait</button><button class="btn sm" data-act="wkLost" data-k="wide">🔁 Search wider</button><button class="btn sm alt" data-act="wkLost" data-k="cast">📍 Cast ahead</button><button class="btn sm alt" data-act="wkLost" data-k="nose">👃 Send best nose</button></div></div>`;
+    if(h&&h.rev&&!S2.mode)o+=`<div class="small" style="margin:2px 0"><b>${esc(WK.clsName(h))}</b> · ~${h.w} lb${h.lead!=null||h.sounder?' · sounder':''}</div>`;
+    if(c)o+=`<button class="btn sm ghost" data-act="wkRecall">↩️ Recall catch dogs</button>`;return o},
+  key(S2){const X=S2.wk;return X?[X.lost,S2.target&&S2.target.rev,S2.dogs.filter(g=>g.role==='catch'&&(g.st==='run'||g.st==='hold')).length].join('|'):''},
+  hud(S2){const el=document.getElementById('wkPanel');if(!el)return;const k=WK.key(S2);if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=WK.panel(S2)}},
+  // injury risk from real factors: hog vs dog size, the dog's health, experience, role, time out, footing, support
+  cutRisk(S2,g,h){const d=g.d||{},sz=clamp((h.w/2.2)/Math.max(10,d.kg||25),.5,4),exp=1-Math.min(.35,((d.hunt&&d.hunt.n)||0)/150),hp=1.4-(d.health||100)/(d.hcap||100)*.4,tired=1+(1-g.sta)*.5,
+    foot=[T_MUD,T_MARSH,T_BRUSH].includes(hwT(g.x,g.y))?1.2:1,support=1/(1+.25*Math.max(0,S2.dogs.filter(o=>o!==g&&o.st==='bay'&&o.hog===h).length)),role=g.job==='tracker'?1.2:1;
+    return clamp(sz*.5*exp*hp*tired*foot*support*role,.3,3)},
+  // ================= dogs =================
+  // the working profile: 18 numbers read from genes (potential), training (stats) and the dog's own record
+  prof(d){const s=d.stats,p=d.pot,H=d.hunt||{},r=d.rec||{},ex=Math.min(1,((H.n||0)+(r.t?r.t.n:0)/3)/60),pr=typeof huntProfile==='function'?huntProfile(d):{nose:1,voice:1,grit:1},bl=blOf(d)||{},areas=Object.keys(r.areas||{}).length,cond=typeof REAL!=='undefined'?REAL.cond(d):55,fam=WK.partners(d),coat=gameCoat(d),T=d.temp;
+    const c=v=>Math.round(clamp(v,0,100));
+    return[['Speed',c(s.spd)],['Acceleration',c(s.spd*.7+(60-(d.kg||25))*.6+s.str*.15)],['Stamina',c(s.sta*.8+cond*.2)],['Recovery',c(40+(bl.hardy||2)*9+s.sta*.2)],['Scent',c(p.trk*.6*pr.nose+s.trk*.4)],['Tracking',c(s.trk*.75+ex*25)],['Baying',c(bayScore(d)*.8+pr.voice*12+ex*10)],
+      ['Strength',c(s.str)],['Grip',c(s.grip)],['Agility',c(typeof RB!=='undefined'?RB.score(d):s.spd)],['Courage',c((d.conf??70)*.8+(T==='Bold'||T==='Gritty'?15:0))],['Intelligence',c(s.int)],['Teamwork',c(s.obd*.5+(fam.length?Math.min(40,fam[0].n*3):0)+10)],
+      ['Obedience',c(s.obd)],['Health',c(d.health/(d.hcap||100)*100)],['Temperament',c(['Steady','Calm','Loyal'].includes(T)?80:['Hot-headed','Eager'].includes(T)?55:68)],['Heat tolerance',c(80-(coat.coatLen||0)*40-Math.max(0,(d.kg||25)-30)*1.2+(d.age<96?0:-10))],['Environmental adaptation',c(35+areas*10+(bl.hardy||2)*6+ex*15)]]},
+  stage(d){if(d.age<12)return'PUPPY';const r=d.rec||{},H=d.hunt||{},q=avg(Object.keys(d.pot).map(k=>d.stats[k]/Math.max(1,d.pot[k]))),sc=(d.trained||0)+(H.n||0)*2+q*100;
+    return sc<45?'NOVICE':sc<80?'DEVELOPING':sc<130?'WORKING':sc<200||q<.85?'ADVANCED':'ELITE'},
+  cond(d){if(d.inj)return d.inj.sev>=2&&d.inj.left>2?'MAJOR INJURY':d.inj.left<=2?'RECOVERING':'MINOR INJURY';if(d.sore&&d.sore>=S.day)return'SORE';if(d.energy<50)return'TIRED';return'READY'},
+  // what the dog has become, from what it has done
+  path(d){const r=PAPERS.rec(d),F=r.first||{},H=d.hunt||{},cr=PAPERS.career(d),st=WK.stage(d),sp=typeof SPEC!=='undefined'&&SPEC.row?String(SPEC.row(d)).replace(/<[^>]+>/g,'').trim():'';
+    return[['Puppy',d.age>=0,null],['Training',(d.trained||0)>0,r.t&&r.t.ms[0]&&r.t.ms[0].day],['First hunt',(H.n||0)>0,F.hunt],['First track',(H.strikes||0)+(r.h.trk||0)>0,F.track],['First bay',(H.bays||0)>0,F.bay],['First successful hunt',r.h.ok>0,F.ok],
+      ['Specialization',!!sp,null],['Elite worker',st==='ELITE',null],['Champion',cr.c==='CHAMPION'||r.aw.some(a=>/Champion\b|Dog of the Year/.test(a.t)),null],['Retirement',!!d.retired||(d.arch&&d.arch.status!=='SOLD'),null],['Legacy',PAPERS.legacy(d).fam.length>0,null]]},
+  // breeding value: genes, work, bloodline, health, pedigree kept apart, then combined
+  bv(d){const g=Math.round(avg(Object.values(d.pot))),H=d.hunt||{},r=d.rec||{h:{ok:0}},tiers=d.bdg&&d.bdg.t?Object.values(d.bdg.t).reduce((s,v)=>s+v,0):0,work=Math.round(clamp(((r.h&&r.h.ok)||0)*1.2+(H.bays||0)*.5+(H.catches||0)*.6+tiers*3,0,100)),bl=tierIdx(blOf(d))*25,
+    hl=Math.round(clamp((d.health/(d.hcap||100))*70+(d.hips!=null?(d.hips-50)*.3:0)+(d.tested?10:0)-((d.deaf||d.blind)?40:0),0,100)),fb=d.fam?(d.fam.p*15+d.fam.g*5):0,ped=Math.round(clamp(50+fb-(d.coi||0)*150+(d.gen||0)*3,0,100)),tot=Math.round(g*.35+work*.25+bl*.15+hl*.15+ped*.1);
+    return{g,work,bl,hl,ped,tot,grade:tot>=80?'A':tot>=68?'B':tot>=55?'C':'D'}},
+  lineType(line){const L=PAPERS.all().filter(x=>blOf(x).line===line);if(L.length<3)return null;const P={};for(const k of['str','spd','sta','trk','grip','int','obd'])P[k]=avg(L.map(x=>x.pot[k]||50));const best=WK_LINES.slice().sort((a,b)=>b[1](P)-a[1](P))[0];return{n:best[0],d:best[2]}},
+  // ================= after the hunt =================
+  lesson(S2){const X=S2.wk||{},h=S2.target,bays=S2.dogs.filter(g=>g.role==='bay');
+    if(bays.length&&bays.every(g=>g.sta<.08))return'💡 The dogs ran out of gas. Condition them with road work, keep them fed and rested, and avoid hunting in the heat.';
+    if(h&&h.rev&&(S2.phase==='chase'||S2.phase==='bay'))return'💡 The hog got away from a bay. More bay dogs, getting to the bay sooner, and sending the catch dogs when the bay is set keep a hog standing.';
+    if(X.lostN)return`💡 The dogs lost the trail ${X.lostN} time${X.lostN>1?'s':''}. Dogs with more Scent and Intelligence, a team that has hunted together, cool damp weather, or waiting quietly instead of pushing all help.`;
+    if(HWX&&(HWX.kind==='rain'||HWX.kind==='storm'))return'💡 The weather washed out the scent. Hunt after the rain passes, when the ground is fresh and muddy.';
+    if(!X.strikes)return'💡 The dogs never struck a track. Start near fresh sign: trail cameras, bait sites and Read sign help.';return'💡 Daylight ran out. Start closer to fresh sign and move in quicker when the dogs strike.'},
+  after(S2,win){const X=S2.wk;if(!X||S2.practice)return;const dogs=S2.dogs.map(g=>({g,d:S.dogs.find(x=>x.id===g.id)})).filter(o=>o.d),P=S.pack||(S.pack={});
+    for(let i=0;i<dogs.length;i++)for(let j=i+1;j<dogs.length;j++){const k=WK.pk(dogs[i].d.id,dogs[j].d.id);P[k]=(P[k]||0)+1}
+    const area=UI.hunt&&UI.hunt.area?UI.hunt.area.id:'?';
+    for(const{g,d}of dogs){const r=PAPERS.rec(d),F=r.first||(r.first={}),w=r.wx||(r.wx={track:0,trail:0,recover:0,bay:0,catch:0,team:0}),m=g.m||{};(r.areas||(r.areas={}))[area]=1;
+      if(!F.hunt)F.hunt=S.day;if(m.strike&&!F.track)F.track=S.day;if(m.bayT>5&&!F.bay)F.bay=S.day;if(win&&!F.ok)F.ok=S.day;
+      w.track+=(m.strike||0)*5;w.trail+=Math.round((g.dist||0)/40);w.recover+=((m.wk&&m.wk.rec)||0)*10;w.bay+=Math.round((m.bayT||0)/6);w.catch+=Math.round((m.catchT||0)/3);w.team+=Math.round(X.fam*10)+2}},
+  record(S2,win){const h=UI.hunt,X=S2.wk||{},e=(S.journal||[])[0];if(!e||e.day!==S.day||e.rec)return;const tg=S2.target;
+    const tl=[...S2.events].reverse().map(v=>({t:v.t,kind:v.kind,txt:v.txt.replace(/^\d+:\d+\s+/,'')})).filter(v=>/^(start|strike|recover|lost|refound|located|bay|break|rebay|release|send|catching|ctl|tied|swim|creek|brush|turn|giant|sounder|help|charged|scatter|cut|timing|arrive|hide|stand|signal)/.test(v.kind)).slice(0,30);
+    e.rec={se:['Spring','Summer','Fall','Winter'][weSeason()],y:R21.year(),wx:HWX&&WEATHER[HWX.kind]?WEATHER[HWX.kind].name:'',start:WE.clock(0,S2.night&&typeof CN_NIGHT!=='undefined'?CN_NIGHT:390),dur:Math.round(S2.t/60),hog:tg&&tg.rev?{w:tg.w,n:tg.name,c:WK.clsName(tg)}:null,
+      dist:Math.round(yd(Math.max(0,...S2.dogs.map(g=>g.dist||0)))),pay:win?(h.lastPay||0):0,fam:Math.round((X.fam||0)*100),lost:X.lostN||0,
+      dogs:S2.dogs.map(g=>{const d=S.dogs.find(x=>x.id===g.id)||{};return{id:g.id,n:g.name,job:g.job||g.role,strike:(g.m&&g.m.strike)||0,bay:Math.round((g.m&&g.m.bayT)||0),catch:Math.round((g.m&&g.m.catchT)||0),yd:Math.round(yd(g.dist||0)),hurt:d.inj&&d.inj.day===S.day?d.inj.what:null}}),
+      bdg:(h.bdg||[]).flatMap(x=>(x.g||[]).map(b=>`${x.name}: ${DB.B[b.id]?DB.B[b.id].name:b.id}`)).slice(0,12),tl:tl.map(v=>[Math.round(v.t),v.txt])}},
+  recSheet(id){const e=(S.journal||[]).find(x=>x.id===id);if(!e)return;const r=e.rec,fm=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    openSheet(`<h2>Hunt record</h2><div class="small muted">Day ${e.day}${r?` · ${r.se}, year ${r.y} · ${esc(r.wx)} · started ${esc(r.start)}`:''}</div>
+      ${PAPERS.row('Location',esc(e.area))}${PAPERS.row('Result',e.win?'✅ Success':'❌ No catch')}${r?PAPERS.row('Duration',r.dur+' min')+PAPERS.row('Distance tracked',r.dist.toLocaleString()+' yd')+PAPERS.row('Hog',r.hog?`${r.hog.w} lb ${esc(r.hog.n)} · ${esc(r.hog.c)}`:'Not located')+PAPERS.row('Earnings',fmt(r.pay))+PAPERS.row('Team familiarity',r.fam+'%')+PAPERS.row('Lost trails',r.lost):''}
+      ${r?`<h3>Dogs</h3>${r.dogs.map(x=>`<div class="pp-row small"><span><button class="linkbtn" data-act="papers" data-id="${x.id}">${esc(x.n)}</button> <span class="muted">${esc(x.job)}</span></span><b>${x.strike?x.strike+' strikes · ':''}${x.bay?x.bay+'s bay · ':''}${x.catch?x.catch+'s catch · ':''}${x.yd.toLocaleString()} yd${x.hurt?' · 🩹 '+esc(x.hurt):''}</b></div>`).join('')}
+        ${r.bdg.length?`<h3>Badge progress</h3>${r.bdg.map(b=>`<div class="small">🏅 ${esc(b)}</div>`).join('')}`:''}
+        <h3>Timeline</h3>${r.tl.map(([t,x])=>`<div class="pp-row small"><span class="num">${fm(t)}</span><span style="flex:1;margin-left:8px">${esc(x)}</span></div>`).join('')||'<div class="small muted">No events.</div>'}`:''}
+      <h3>The story</h3><div class="small" style="line-height:1.45">${esc(e.txt)}</div>`)},
+  // ================= rival kennels =================
+  npc(){if(S.npcK&&S.npcK.length)return S.npcK;const names=[...RIVALS].slice(0,8);S.npcK=names.map((n,i)=>{const lt=WK_LINES[i%WK_LINES.length],br=pick(Object.keys(BREEDS).filter(b=>b!=='White')),K={id:'NK'+i,name:n,owner:WK_OWNERS[i%WK_OWNERS.length],rep:ri(35,80),line:{n:`${lt[0]} (${n.split(' ')[0]})`,t:lt[0]},hunts:ri(40,300),wins:0,champs:0,dogs:[]};
+      for(let j=0;j<4;j++)K.dogs.push(WK.npcDog(K,br,lt));K.wins=Math.round(K.hunts*(.4+R()*.3));return K});return S.npcK},
+  npcDog(K,br,lt){const d=makeDog({breed:br||pick(Object.keys(BREEDS)),sex:R()<.5?'M':'F',age:ri(24,70)});const boost={'Iron Trail':['trk','sta'],'Red Grip':['str','grip'],'Swamp Runner':['sta','spd'],'Bay Master':['int','obd'],'Ghost Nose':['trk','int']}[lt?lt[0]:K.line.t]||['sta'];
+    boost.forEach(k=>d.pot[k]=Math.min(99,d.pot[k]+ri(6,14)));STATS.forEach(([k])=>d.stats[k]=Math.round(d.pot[k]*(.75+R()*.2)));d.hunt={n:ri(10,80),bays:ri(5,40),catches:ri(3,30),xp:300};d.fromRanch=K.name;d.npc=K.id;d.bl={...blOf(d),line:K.line.n};return d},
+  npcDaily(msgs){const L=WK.npc();for(const K of L){const n=ri(0,3);K.hunts+=n;const sk=avg(K.dogs.map(d=>(bayScore(d)+catchScore(d))/2));K.wins+=Math.round(n*clamp(sk/90,.3,.9));K.rep=clamp(K.rep+(R()-.45)*1.2,10,99);K.dogs.forEach(d=>{d.hunt.n+=n?1:0});
+      if(R()<.03){const o=K.dogs.sort((a,b)=>b.age-a.age)[0],x=WK.npcDog(K,o.breed);x.age=ri(14,20);K.dogs[K.dogs.indexOf(o)]=x}
+      if(R()<.04&&S.market&&S.market.length<40){const x=WK.npcDog(K);x.price=Math.round(dogValue(x)*1.15/5)*5;S.market.push(x);msgs.push(`🏷️ ${K.name} listed ${x.name} (${breedName(x)}) in the market.`)}}
+    const O=S.npcOffers||(S.npcOffers=[]);for(let i=O.length-1;i>=0;i--)if(O[i].until<S.day||!S.dogs.find(d=>d.id===O[i].dog))O.splice(i,1);
+    if(O.length<2&&R()<.05){const good=S.dogs.filter(d=>isAdult(d)&&!d.retired&&(d.hunt.n||0)>=10).sort((a,b)=>dogValue(b)-dogValue(a))[0];if(good){const K=pick(L),p=Math.round(dogValue(good)*(1.2+R()*.4)/10)*10;O.push({id:'OF'+S.day+ri(10,99),k:K.id,dog:good.id,price:p,until:S.day+5});msgs.push(`📨 ${K.owner} of ${K.name} wants to buy ${good.name} for ${fmt(p)} (More → Rival kennels).`)}}},
+  npcField(n,score){const all=WK.npc().flatMap(K=>K.dogs.filter(isAdult).map(d=>({d,K})));const f=all.sort(()=>R()-.5).slice(0,n).map(({d,K})=>({n:`${d.name} (${K.name})`,s:Math.round(score(d)*10)/10,K:K.id,id:d.id}));return f},
+  rivals(){const L=WK.npc().slice().sort((a,b)=>b.rep-a.rep),O=S.npcOffers||[],me=repOf();
+    return`<h2>Rival kennels</h2><p class="sub">Other kennels in the county hunt, breed, sell dogs, enter championships and trials, and make offers on your dogs. Your reputation: <b>${Math.round(me)}</b>.</p>
+    ${O.length?`<div class="panel" style="margin-bottom:8px"><b>📨 Offers on your dogs</b>${O.map(o=>{const d=S.dogs.find(x=>x.id===o.dog),K=L.find(x=>x.id===o.k);return d&&K?`<div class="spread small" style="margin-top:6px;gap:8px"><span>${esc(K.owner)} (${esc(K.name)}) wants <button class="linkbtn" data-act="papers" data-id="${d.id}">${esc(d.name)}</button> · ${o.until-S.day}d left</span><span><button class="btn sm" data-act="wkOffer" data-k="${o.id}" data-v="1">Sell ${fmt(o.price)}</button><button class="btn sm ghost" data-act="wkOffer" data-k="${o.id}" data-v="0">No</button></span></div>`:''}).join('')}</div>`:''}
+    ${L.map((K,i)=>`<div class="panel" style="margin-bottom:8px"><div class="spread"><b>${esc(K.name)}</b>${i<2?'<span class="tag warn">Major rival</span>':''}</div><div class="small muted">Owner ${esc(K.owner)} · ${esc(K.line.n)} bloodline (${esc(K.line.t)}) · Reputation ${Math.round(K.rep)} · ${K.hunts} hunts, ${K.wins} caught · 🏆 ${K.champs}</div>
+      <div class="row small" style="margin-top:4px;gap:6px">${K.dogs.map(d=>`<button class="btn sm ghost" data-act="wkNpcDog" data-id="${d.id}">${esc(d.name)} · ${esc(breedName(d))}</button>`).join('')}</div></div>`).join('')}`},
+  // ================= working trials =================
+  pv:(d,k)=>{const P=Object.fromEntries(WK.prof(d));return P[k]||0},
+  trialScore(k,team){const[a,b,c]=team,p=WK.pv;if(k==='track')return p(a,'Scent')*.4+p(a,'Tracking')*.4+p(a,'Intelligence')*.2+DB.tierOf(a,'recover')*3+gauss()*5;
+    if(k==='field')return avg(['Scent','Tracking','Baying','Stamina','Courage','Obedience','Intelligence'].map(x=>p(a,x)))+Math.min(10,((a.hunt&&a.hunt.n)||0)/5)+gauss()*5;
+    return p(a,'Tracking')*.3+p(b,'Baying')*.3+(p(c,'Grip')+p(c,'Strength'))*.15+WK.fam([a.id,b.id,c.id])*15+gauss()*5},
+  trial(k){const T=WK_TRIALS.find(x=>x.k===k);if(!T)return;let team;
+    if(T.one){const d=S.dogs.find(x=>x.id===UI.wkTrialDog);if(!d||!isAdult(d)||d.retired||d.inj)return toast('Pick a healthy adult dog.');team=[d]}
+    else{const bay=(UI.huntSel.bay||[]).map(id=>S.dogs.find(x=>x.id===id)).filter(Boolean),ct=(UI.huntSel.catch||[]).map(id=>S.dogs.find(x=>x.id===id)).filter(Boolean),tr=bay.find(d=>WK.jobOf(d)==='tracker')||bay[0],by=bay.find(d=>d!==tr)||tr;
+      if(!tr||!ct[0])return toast('Set a hunt team first (Hunt tab): at least one bay dog and one catch dog.');team=[tr,by,ct[0]]}
+    if(team.some(d=>((d.lastTrialWk||{})[k]||-9)>S.day-3))return toast('That dog entered this trial in the last 3 days.');if(S.money<T.fee)return toast('Not enough cash.');S.money-=T.fee;team.forEach(d=>{(d.lastTrialWk=d.lastTrialWk||{})[k]=S.day;d.energy=Math.max(0,d.energy-20)});
+    const me=Math.round(WK.trialScore(k,team)*10)/10,field=WK.npc().map(K=>{const ad=K.dogs.filter(isAdult);if(!ad.length)return null;const t=T.one?[ad.sort((a,b)=>WK.pv(b,'Tracking')-WK.pv(a,'Tracking'))[0]]:[ad[0],ad[1]||ad[0],ad[2]||ad[0]];return{n:`${t[0].name} (${K.name})`,s:Math.round(WK.trialScore(k,t)*10)/10,K:K.id}}).filter(Boolean);
+    field.push({n:(T.one?team[0].name:team.map(d=>d.name).join(' · '))+' (you)',s:me,me:1});field.sort((a,b)=>b.s-a.s);const place=field.findIndex(x=>x.me)+1,pr=[T.prize,Math.round(T.prize*.4),Math.round(T.prize*.2)][place-1]||0,pts=[10,6,4,2,1][place-1]||0;
+    const TP=S.trialPts||(S.trialPts={});TP.me=(TP.me||0)+pts;field.forEach((x,i)=>{if(x.K){TP[x.K]=(TP[x.K]||0)+([10,6,4,2,1][i]||0);if(i===0){const K=WK.npc().find(y=>y.id===x.K);if(K)K.champs++}}});
+    if(pr){earn(pr);addRep(place===1?1.5:.4,`${T.n}: ${place===1?'won':'placed'}`);team.forEach(d=>PAPERS.rec(d).aw.push({t:`${T.n}: ${place===1?'Champion':place===2?'2nd place':'3rd place'}`,day:S.day}));if(place===1)(S.titles=S.titles||[]).includes(T.n+' champion')||S.titles.push(T.n+' champion');sfx.coin()}else sfx.bad();
+    (S.champLog=S.champLog||[]).unshift({day:S.day,id:team[0].id,name:team.map(d=>d.name).join(' · '),ev:T.n,div:T.one?'Solo':'Team',place,pr});gainXP(place===1?35:12);save();render();
+    openSheet(`<h2>${esc(T.n)}</h2><div class="small muted">${esc(T.d)}</div><h3 style="text-align:center">${place===1?'🏆 CHAMPION!':place<=3?`${place===2?'🥈 2nd':'🥉 3rd'} place`:`${place}th of ${field.length}`}</h3>${pr?`<p style="text-align:center">Prize: <b>${fmt(pr)}</b> · +${pts} ranking points</p>`:''}
+      ${field.map((x,i)=>`<div class="pp-row small" style="${x.me?'font-weight:700;color:var(--gold)':''}"><span>${i+1}. ${esc(x.n)}</span><b>${x.s}</b></div>`).join('')}`)},
+  trialPanel(){const ad=S.dogs.filter(d=>isAdult(d)&&!d.retired),sel=ad.find(d=>d.id===UI.wkTrialDog)||ad[0];if(sel)UI.wkTrialDog=sel.id;const TP=S.trialPts||{},rank=[{n:'You',p:TP.me||0,me:1},...WK.npc().map(K=>({n:K.name,p:TP[K.id]||0}))].sort((a,b)=>b.p-a.p);
+    return`<div class="panel" style="margin-top:10px"><b>🐾 Working trials</b><div class="small muted">Judged on real working skills against the county's kennels. Each dog can enter each trial once every 3 days.</div>
+      ${ad.length?`<label class="small">Dog <select data-f="wkTrialDog">${ad.map(d=>`<option value="${d.id}" ${sel&&d.id===sel.id?'selected':''}>${esc(d.name)} · ${WK.stage(d)}</option>`).join('')}</select></label>`:''}
+      ${WK_TRIALS.map(T=>`<div class="panel" style="margin-top:6px"><div class="spread"><b>${T.n}</b><span class="small">Entry ${fmt(T.fee)} · 1st ${fmt(T.prize)}</span></div><div class="small muted">${T.d}</div><button class="btn sm" style="margin-top:4px" data-act="wkTrial" data-k="${T.k}" ${S.money>=T.fee&&ad.length?'':'disabled'}>Enter</button></div>`).join('')}
+      <h3>Trial rankings</h3>${rank.slice(0,9).map((x,i)=>`<div class="pp-row small" style="${x.me?'font-weight:700;color:var(--gold)':''}"><span>${i+1}. ${esc(x.n)}</span><b>${x.p} pts</b></div>`).join('')}</div>`},
+  // ================= trophy room =================
+  trophyRoom(){const all=PAPERS.all(),aw=all.flatMap(d=>(d.rec&&d.rec.aw||[]).filter(a=>/Champion\b|Dog of the Year|All-County|trial/i.test(a.t)).map(a=>({d,a}))).sort((x,y)=>y.a.day-x.a.day).slice(0,20),
+      big=all.filter(d=>d.rec&&d.rec.h&&d.rec.h.big).sort((a,b)=>b.rec.h.big.w-a.rec.h.big.w).slice(0,5),ret=all.filter(d=>(d.retired||d.arch&&d.arch.status==='DECEASED')&&d.rec&&d.rec.aw&&d.rec.aw.length).slice(0,12),lines=R21.lines().filter(l=>l.gen>=3).slice(0,6);
+    return`<h3>🏛️ Trophy room</h3><div class="panel small">${aw.length?aw.map(({d,a})=>`<div class="pp-row"><span>🏆 ${esc(a.t)}</span><button class="linkbtn" data-act="papers" data-id="${d.id}">${esc(d.name)}</button></div>`).join(''):'<div class="muted">Win championships, trials and Dog of the Year to fill the trophy room.</div>'}
+      ${(S.titles||[]).length?`<div style="margin-top:6px"><b>Titles:</b> ${S.titles.map(esc).join(' · ')}</div>`:''}</div>
+      ${big.length?`<h3>Largest hogs</h3><div class="panel small">${big.map(d=>`<div class="pp-row"><span>🐗 ${d.rec.h.big.w} lb ${esc(d.rec.h.big.name||'hog')}</span><button class="linkbtn" data-act="papers" data-id="${d.id}">${esc(d.name)}</button></div>`).join('')}</div>`:''}
+      ${lines.length?`<h3>Bloodlines</h3><div class="panel small">${lines.map(l=>{const t=WK.lineType(l.line),sb=S.stud&&S.stud[l.line];return`<div class="pp-row"><span>🩸 ${esc(sb?sb.name:l.line)}${t?` · <i>${esc(t.n)}</i>`:''}</span><b>${l.gen} gen</b></div>`}).join('')}</div>`:''}
+      ${ret.length?`<h3>Hall of retired champions</h3><div class="panel small">${ret.map(d=>`<div class="pp-row"><span>${d.arch?'🕊️':'🌅'} ${esc(d.name)} · ${esc(breedName(d))}</span><button class="btn sm ghost" data-act="papers" data-id="${d.id}">Papers</button></div>`).join('')}</div>`:''}`}
+};
+// Hunt Partner: a badge for dogs that have hunted with the same partners many times
+if(!DOG_BADGES.find(b=>b.id==='partner')){const b={id:'partner',name:'Hunt Partner',cat:'team',ic:'🤝',desc:'Works best with dogs it knows.',how:'Hunt again and again with the same partners.',apt:['obd','int'],fx:[.03,.05,.08,.12],fxText:e=>`+${bpct(e)} teamwork with familiar partners`};DOG_BADGES.push(b);DB.B.partner=b}
+const WK_ACTIONS={
+  wkLost:d=>WK.lostAct(d.k),wkRecall:()=>WK.recall(),wkRec:d=>WK.recSheet(d.id),wkTrial:d=>WK.trial(d.k),
+  wkJob:d=>{const J=UI.huntSel.jobs||(UI.huntSel.jobs={});J[d.id]=d.k;render()},
+  wkNpcDog:d=>{const x=WK.npc().flatMap(K=>K.dogs).find(y=>y.id===d.id);if(x){UI.ppExt=x;PAPERS.open(x.id,'overview')}},
+  wkOffer:d=>{const O=S.npcOffers||[],o=O.find(x=>x.id===d.k);if(!o)return;S.npcOffers=O.filter(x=>x!==o);const x=S.dogs.find(y=>y.id===o.dog),K=WK.npc().find(y=>y.id===o.k);if(d.v==='1'&&x&&K){const cp=JSON.parse(JSON.stringify(x));sellDogOut(x,o.price,`Sold ${x.name} to ${K.name} for ${fmt(o.price)}.`);cp.npc=K.id;cp.fromRanch=K.name;K.dogs.push(cp);if(K.dogs.length>6)K.dogs.shift()}else{toast('Offer declined.');save();render()}},
+  wkPackDrill:()=>{const ids=[...(UI.huntSel.bay||[]),...(UI.huntSel.catch||[])],dogs=ids.map(id=>S.dogs.find(x=>x.id===id)).filter(d=>d&&isAdult(d)&&d.energy>=20);if(dogs.length<2)return toast('Pick at least 2 rested dogs for your hunt team first (Hunt tab).');
+    const P=S.pack||(S.pack={});for(let i=0;i<dogs.length;i++)for(let j=i+1;j<dogs.length;j++){const k=WK.pk(dogs[i].id,dogs[j].id);P[k]=(P[k]||0)+.5}dogs.forEach(d=>{d.energy-=15;d.trained=(d.trained||0)+1;const t=PAPERS.rec(d).t;t.n++;t.xp+=8;t.by.pack=(t.by.pack||0)+1;t.last=S.day;d.tload=(d.tload||0)+1});
+    toast(`Pack drill: ${dogs.map(d=>d.name).join(', ')} worked together.`);save();render()}
+};
+// ---- wiring ----
+{const o=huntWorldStart;huntWorldStart=function(a,bay,ctch,lh,own,opts){const S2=o(a,bay,ctch,lh,own,opts);try{WK.setup(S2,opts)}catch(e){console.warn('wk',e)}return S2}}
+{const o=hwHogStep;hwHogStep=function(S2,h,dt){const was=h.st;try{WK.hogPre(S2,h,dt)}catch(e){}const r=o(S2,h,dt);try{WK.hogPost(S2,h,dt,was)}catch(e){}return r}}
+{const o=hsLay;hsLay=function(S2,k,x,y,t){o(S2,k,x,y,t);try{WK.lay(S2,k)}catch(e){}}}
+{const o=hwStep;hwStep=function(S2,dt){o(S2,dt);try{WK.step(S2,dt)}catch(e){console.warn('wk',e)}}}
+{const o=huntHud;huntHud=function(f){o(f);try{const h=UI.hunt;if(h&&h.sim)WK.hud(h.sim)}catch(e){}}}
+{const o=huntPlayLive;huntPlayLive=function(){return o().replace('<div id="ihPanel"','<div id="wkPanel" style="margin:6px 0"></div><div id="ihPanel"')}}
+IH.clue=c=>WK.sign(c);
+{const o=finishHunt;finishHunt=function(win,lines){const S2=UI.hunt&&UI.hunt.sim;try{if(S2&&S2.wk&&!S2.mode&&!S2.practice){if(!win&&Array.isArray(lines))lines.push(WK.lesson(S2));const fam=S2.wk.fam||0;if(fam>=.5)S2.dogs.forEach(g=>DB.earn(g,'partner',Math.round(4+fam*6)));
+    const tg=S2.target;if(win&&tg&&Array.isArray(lines))lines.push(`🐗 ${WK.clsName(tg)}${tg.lead!=null?' from a sounder':''}.`)}}catch(e){console.warn('wk',e)}
+  const r=o(win,lines);try{if(S2&&S2.wk&&!S2.practice){WK.after(S2,win);WK.record(S2,win)}}catch(e){console.warn('wk',e)}return r}}
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{WK.npcDaily(msgs);S.dogs.forEach(d=>{if(d.tload)d.tload=Math.max(0,d.tload-2)})}catch(e){console.warn('wk',e)}}}
+// training: stages and overtraining (more than 3 sessions before a rest = tired dog, smaller gains, sore risk)
+{const o=A.train;A.train=function(d){const dog=S.dogs.find(x=>x.id===UI.trainDog);const n0=dog&&dog.trained,s0=dog&&dog.stats[d.k];const r=o(d);try{if(dog&&dog.trained>n0){dog.tload=(dog.tload||0)+1;
+    if(dog.tload>3){const gain=dog.stats[d.k]-s0;if(gain>0&&R()<.5)dog.stats[d.k]-=1;dog.energy=Math.max(0,dog.energy-10);if(R()<.12){dog.sore=S.day+1;toast(`${dog.name} is overworked and came up sore. Rest ${dog.sex==='M'?'him':'her'}.`)}else toast(`${dog.name} is overtrained: smaller gains until ${dog.sex==='M'?'he':'she'} rests.`)}}}catch(e){}return r}}
+{const o=SCREENS.train;SCREENS.train=function(){let html=o();try{const d=S.dogs.find(x=>x.id===UI.trainDog);const box=`<div class="panel small" style="margin:6px 0">${d?`<div class="spread"><span><b>${esc(d.name)}</b>: ${WK.stage(d)}</span><span>${(d.tload||0)>3?'<b style="color:var(--bad)">Overtrained</b>':(d.tload||0)>=2?'Worked':'Fresh'} · ${WK.cond(d)}</span></div>`:''}
+    <div class="muted" style="margin-top:4px">Stages: ${WK_STAGES.join(' → ')}. Training builds skill slowly; more than 3 sessions before a day's rest wears a dog down. Obedience &amp; recall: obedience work · Scent &amp; tracking: scent trails · Endurance: road work · Agility: sprint drills · Catch: catch work and weight pull · Baying: bay pen trials · Teamwork: pack drill.</div>
+    <button class="btn sm alt" style="margin-top:6px" data-act="wkPackDrill">🐾 Pack drill with your hunt team</button></div>`;const i=html.indexOf('<label>Dog <select');html=i<0?html+box:html.slice(0,i)+box+html.slice(i)}catch(e){}return html}}
+// hunt setup: trackers vs bay dogs, and how well the team knows each other
+{const o=SCREENS.hunt;SCREENS.hunt=function(){let html=o();try{if(!UI.hunt&&!UI.huntMode){const bay=(UI.huntSel.bay||[]).map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),ids=[...(UI.huntSel.bay||[]),...(UI.huntSel.catch||[])];if(bay.length||ids.length>1){
+    const F=WK.fam(ids),box=`<div class="panel small" style="margin:6px 0"><b>Team roles</b> <span class="muted">· ${WK.famWord(F)} (${Math.round(F*100)}% familiar)</span>${bay.map(d=>{const j=WK.jobOf(d);return`<div class="spread" style="margin-top:4px;gap:8px"><span>${esc(d.name)} <span class="muted">${esc(PAPERS.role(d))}</span></span><span class="seg"><button class="${j==='tracker'?'on':''}" data-act="wkJob" data-id="${d.id}" data-k="tracker">👃 Tracker</button><button class="${j==='bay'?'on':''}" data-act="wkJob" data-id="${d.id}" data-k="bay">🗣️ Bay dog</button></span></div>`}).join('')}
+      <div class="muted" style="margin-top:4px">Trackers run old trails and recover lost ones; bay dogs locate and hold the hog. Dogs that hunt together often coordinate better.</div></div>`;const i=html.indexOf('<h3>Catch dogs');html=i<0?html+box:html.slice(0,i)+box+html.slice(i)}}}catch(e){}return html}}
+// papers: working profile, working experience, partners, career path, breeding value, working bloodline
+{const o=PAPERS.t_hunting;PAPERS.t_hunting=function(d,r){const w=r.wx||{},P=WK.partners(d);return o(d,r)+`<h3>Working profile</h3><div class="small muted">Genes set the potential, training builds it, hunting experience finishes it.</div>${WK.prof(d).map(([k,v])=>`<div class="pp-stat"><span>${k}</span>${PAPERS.bar(v)}<b class="num">${v}</b></div>`).join('')}
+    <h3>Working experience</h3>${[['Tracking',w.track],['Trail work',w.trail],['Lost trail recovery',w.recover],['Baying',w.bay],['Catch',w.catch],['Teamwork',w.team]].map(([k,v])=>PAPERS.row(k,(v||0)+' XP')).join('')}
+    ${P.length?`<h3>Hunting partners</h3>${P.map(x=>`<div class="pp-row small"><button class="linkbtn" data-act="papers" data-id="${x.d.id}">${esc(x.d.name)}</button><b>${x.n} hunt${x.n===1?'':'s'} together</b></div>`).join('')}`:''}`}}
+{const o=PAPERS.t_career;PAPERS.t_career=function(d){return o(d)+`${PAPERS.row('Training stage',WK.stage(d))}${PAPERS.row('Condition',WK.cond(d))}<h3>Career path</h3>${WK.path(d).map(([n,ok,day])=>`<div class="small" style="${ok?'':'opacity:.45'}">${ok?'✅':'⬜'} ${n}${day?` <span class="muted">day ${day}</span>`:''}</div>`).join('')}`}}
+{const o=PAPERS.t_breeding;PAPERS.t_breeding=function(d,r){const b=WK.bv(d);return`<h3>Breeding value: ${b.grade} (${b.tot})</h3><div class="small muted">Genetics, work, bloodline, health and pedigree are kept separate: a great worker is not automatically great breeding stock.</div>${[['Genetic potential',b.g],['Working performance',b.work],['Bloodline quality',b.bl],['Health',b.hl],['Pedigree',b.ped]].map(([k,v])=>`<div class="pp-stat"><span>${k}</span>${PAPERS.bar(v)}<b class="num">${v}</b></div>`).join('')}`+o(d,r)}}
+{const o=PAPERS.t_pedigree;PAPERS.t_pedigree=function(d){const t=WK.lineType(blOf(d).line);return(t?PAPERS.row('Working bloodline',`${esc(t.n)} <span class="muted">(${esc(t.d)})</span>`):'')+o(d)}}
+{const o=PAPERS.get;PAPERS.get=function(id){return o(id)||((S.npcK||[]).flatMap(K=>K.dogs).find(x=>x.id===id))||null}}
+// value: a proven worker is worth more than its potential alone
+{const o=dogValue;dogValue=function(d){let v=o(d);try{const tiers=d.bdg&&d.bdg.t?Object.values(d.bdg.t).reduce((s,x)=>s+x,0):0,wins=(d.rec&&d.rec.aw||[]).filter(a=>/Champion\b|Dog of the Year/.test(a.t)).length,ok=(d.rec&&d.rec.h&&d.rec.h.ok)||0,st=WK.stage(d);
+    v*=1+Math.min(.6,tiers*.01+wins*.08+Math.min(.2,ok/100*.2)+(st==='ELITE'?.12:st==='ADVANCED'?.06:0))}catch(e){}return Math.round(v/5)*5}}
+// screens
+SCREENS.rivals=()=>WK.rivals();
+{const o=SCREENS.events;SCREENS.events=function(){return o()+WK.trialPanel()}}
+{const o=SCREENS.trophies;SCREENS.trophies=function(){return o()+WK.trophyRoom()}}
+{const o=R21.jCard;R21.jCard=function(e){return o(e).replace(/<\/div><\/div>$/,`${e.rec?` <button class="btn sm ghost" data-act="wkRec" data-id="${e.id}" style="margin-top:4px">📋 Hunt record &amp; timeline</button>`:''}</div></div>`)}}
+{const o=SCREENS.more;SCREENS.more=function(){return o().replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="rivals"><div class="tileic">🏚️</div><b>Rival kennels</b><div class="small muted">County kennels, their bloodlines, and offers on your dogs</div></button>`)}}
+
+// championships: the field is the rival kennels' real dogs, scaled to the level of the event
+WK.champField=function(L,div){try{const f=WK.npcField(11,d=>(div==='bay'?bayScore(d):catchScore(d))*.8+Math.min(12,((d.hunt&&d.hunt.n)||0)/4)+(L.base-60)*.8+gauss()*6);while(f.length<11)f.push({n:`${pick(DOGNAME.lists().cm)} (${pick(PUP_BUYERS)})`,s:Math.round((L.base+S.level*.8+gauss()*7)*10)/10});return f}catch(e){return null}};
+Object.assign(A,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
