@@ -3467,6 +3467,10 @@ function huntDraw(){const cv=HV.cv,h=UI.hunt;if(!cv||!h||!h.sim)return;const S2=
     const hi=z>=1.5&&SPR.hog(H0),tNow=performance.now();
     if(hi){const hw=clamp(z*9*(.8+H0.w/400),30,96);if(!SPR.draw(ctx,v,sx(H0.x),sy(H0.y),hi,hw,SPR.facing(H0),'right',H0.st==='run'||H0.st==='wander'||H0.st==='sneak',tNow*1.2,(H0.seed||1)%7,'#3a2414',z>=4?`${H0.w} lb`:''))edge(H0.x,H0.y,HCOL.hog)}
     else if(!dot(H0.x,H0.y,HCOL.hog,r0+2,z>=4?`${H0.w} lb`:''))edge(H0.x,H0.y,HCOL.hog)}
+  // every other hog you've seen: the rest of a sounder, a hog in sight, one the dogs ran into
+  if(!S2.mode)for(const Hx of S2.hogs){if(Hx===H0||!Hx.seen||Hx.bagged||Hx.rabbit||Hx.coon||Hx.deer||['gone','caught','dead'].includes(Hx.st))continue;const hi2=z>=1.5&&SPR.hog(Hx);
+    if(hi2){const hw2=clamp(z*9*(.8+Hx.w/400),22,90);SPR.draw(ctx,v,sx(Hx.x),sy(Hx.y),hi2,hw2,SPR.facing(Hx),'right',Hx.st==='run'||Hx.st==='wander'||Hx.st==='sneak',performance.now()*1.2,(Hx.seed||Hx.id||1)%7,'#3a2414',z>=4?`${Hx.w} lb`:'')}
+    else dot(Hx.x,Hx.y,HCOL.hog,Math.max(3,r0-1),z>=4?`${Hx.w} lb`:'')}
   {const tNow=performance.now(),dogs=S2.dogs.filter(g=>!(g.st==='leash'&&z<6)).sort((a,b)=>a.y-b.y);
    for(const g of dogs){const im=z>=1.5&&g.d&&SPR.dog(g.d);
      if(im){const w=clamp(z*8,28,72)*(isAdult(g.d)?1:.75);if(!SPR.draw(ctx,v,sx(g.x),sy(g.y),im,w,SPR.facing(g),'left',SPR.moving(g.st),tNow,g.off||0,HCOL[g.role],g.name))edge(g.x,g.y,HCOL[g.role],g.name)}
@@ -4696,8 +4700,15 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.8.0';
-const PATCH_NOTES=[{v:'2.8.0',title:'Catching Vest',items:[
+const GAME_VERSION='2.9.0';
+const PATCH_NOTES=[{v:'2.9.0',title:'Big sounders',items:[
+  ['Hog families','Now and then the dogs strike a whole family of hogs moving together: 8 to 12 of them, with two or three sows, young hogs, sometimes a boar, and piglets in spring. You get a warning when the dogs strike one.'],
+  ['They fight back','Bay one and the rest of the family comes to it. They slash and maul the dogs at the bay and pull against the catch dogs. A dog that takes too much can be killed.'],
+  ['Catch dogs decide it','Good catch dogs (strength, grip, grit, stamina) fight the hogs off the bay one at a time and keep the other dogs alive. Weak ones can’t hold them back.'],
+  ['Your call','When the sounder turns on your dogs, choose: send the catch dogs in, call the dogs off (the hogs get away, your dogs live), or let the bay dogs hold.'],
+  ['More than one hog a hunt','After you tie a hog, keep hunting if there’s daylight left: the hog goes in the truck, the catch dogs come back to you and the bay dogs cast for the next one. The dogs bay and catch them one at a time, and every hog is paid and counted.'],
+  ['Every hog on the map','Hogs you’ve seen stay on the hunting map: the whole sounder once the dogs strike it, any hog in sight and any the dogs run into.']]},
+{v:'2.8.0',title:'Catching Vest',items:[
   ['Catching Vest','New dog equipment for catch dogs (Inventory → Hunting equipment, $2,500). Protection +15 (hog hits do 15% less damage), Catch safety +8% (a little less chance of a cut in the catch, and about 1 hit in 12 is turned), Durability 100, Weight moderate, Movement −1%. It never changes a dog’s stats or genes, and a dog wearing one can still get hurt.'],
   ['8 colors','Standard Black, Brown, Forest Camo, Mud Camo, Snow Camo, Swamp Camo, Desert Camo and Winter White. Colors are cosmetic, and you can preview any of them on your own dog before buying or change them any time.'],
   ['Fits every dog','The vest is drawn on your dog’s picture, fitted to its own body, whatever the breed, size or mix.'],
@@ -8727,6 +8738,108 @@ document.addEventListener('change',e=>{if(e.target&&e.target.id==='cvPrevDog')CV
 {const o=dogProfile;dogProfile=function(id){o(id);UI.cvSheet='dog';try{const d=S.dogs.find(x=>x.id===id),el=document.getElementById('sheetInner');if(d&&el){const p=el.querySelector('.panel');if(p)p.insertAdjacentHTML('afterend',CV.section(d,false))}}catch(e){console.warn('cv',e)}}}
 {const o=SCREENS.inventory;SCREENS.inventory=function(){return o()+`<h3 style="margin-top:14px">Hunting equipment</h3><div class="grid wide">${CV.card()}</div>`}}
 {const o=closeSheet;closeSheet=function(){UI.cvSheet=null;return o.apply(this,arguments)}}
+// ---------- BIG SOUNDERS: hog families that fight back ----------
+// Now and then a sounder isn't a sow and a few young ones but a whole family: two or three sows, yearlings, sometimes a
+// boar running with them and piglets in spring, 8-12 hogs moving together. Bay one of them and the rest come to it:
+// they slash and maul the dogs at the bay and pull against the catch. Good catch dogs fight them off the bay one by one;
+// weak ones can't, and a dog that takes too much can be killed. Built on the existing sounders (WK.sounders), the dogs'
+// damage (WE.hurt), hunt deaths (g.m.dead, REAL.end and the memorial) and the decision moments (HX).
+const BS={
+  // how likely a big family is on a hunt: more in farrowing season, more in the swamp and the thicket
+  chance(){const se=weSeason(),a=(UI.hunt&&UI.hunt.area&&UI.hunt.area.id)||'';return UI.bsForce?1:.09+(se===0?.07:0)+(/swamp|thicket|basin/.test(a)?.05:0)},
+  make(S2,lead,kind){const se=weSeason(),x=clamp(lead.x+(R()-.5)*10,5,HW.N-6),y=clamp(lead.y+(R()-.5)*10,5,HW.N-6);
+    const K={sow:[ri(95,170),'Sow','F',.75+R()*.2,'sow'],boar:[ri(150,240),'Boar','M',.85+R()*.15,'boar'],year:[ri(45,90),'Young hog',R()<.5?'M':'F',.5+R()*.2,'young'],pig:[ri(12,32),'Piglet',R()<.5?'M':'F',.25,'piglet']}[kind];
+    const f={...hwMakeHog({hogs:[[lead.key,1]]},{},x,y,lead.st),key:lead.key,name:K[1],w:K[0],sex:K[2],lead:lead.id,full:true,mult:lead.mult*(kind==='pig'?.3:.7),fam:lead.fam};
+    f.aggr=K[3];f.cls=K[4];f.sp*=kind==='pig'?.8:1;f.id=S2.hogs.length;f.k=S2.tracks.length;S2.tracks.push({h:f.id,pts:[]});S2.hogs.push(f);(lead.group=lead.group||[]).push(f.id);
+    try{hwHistory(S2,f,f.k,lead.st==='bed'?600+R()*1800:R()*120)}catch(e){}return f},
+  // turn one sounder (or a lone sow) into a big family of 8-9 or 10-12
+  spawn(S2){if(!S2||S2.mode||S2.practice||S2.fams)return;S2.fams=[];if(R()>BS.chance())return;
+    const sows=S2.hogs.filter(h=>h.full&&!h.rabbit&&!h.coon&&!h.deer&&h.sex==='F'&&h.lead==null&&h.w>=80);if(!sows.length)return;const lead=sows.find(h=>h.sounder)||sows[0];
+    const N=R()<.5?ri(8,9):ri(10,12),fam={id:1,lead:lead.id,n:N,warned:false,mob:false,drove:0,hits:0,dead:[]};lead.fam=fam.id;lead.sounder=true;lead.aggr=Math.max(lead.aggr||.5,.8);lead.cls='sow';
+    const se=weSeason();let have=1+(lead.group||[]).length;for(const id of lead.group||[]){const g=S2.hogs[id];if(g)g.fam=fam.id}
+    const plan=['sow'];if(N>=10)plan.push('sow');if(R()<.4)plan.push('boar');while(have+plan.length<N)plan.push(se===0&&R()<.5?'pig':'year');
+    for(const k of plan){if(have>=N)break;BS.make(S2,lead,k);have++}fam.n=have;S2.fams.push(fam);return fam},
+  fam(S2,h){return h&&h.fam&&S2.fams&&S2.fams.find(f=>f.id===h.fam)},
+  members(S2,fam){return S2.hogs.filter(h=>h.fam===fam.id&&!['caught','gone','dead'].includes(h.st))},
+  adults(S2,fam,T){return BS.members(S2,fam).filter(h=>h!==T&&h.w>=45&&!h.drove)},
+  // every sim second
+  step(S2,dt){if(!S2||!S2.fams||!S2.fams.length||S2.over||S2.mode)return;const T=S2.target,fam=BS.fam(S2,T);if(!fam)return;
+    if(T.rev&&!fam.warned){fam.warned=true;hwEvent(S2,'bigsounder',`⚠️ BIG SOUNDER: ${fam.n} hogs running together. If they're bayed they'll gang up on your dogs. Get good catch dogs in fast.`,1);hwBanner(S2,`BIG SOUNDER · ${fam.n} HOGS`)}
+    const onBay=(S2.phase==='bay'||S2.phase==='catch')&&(T.st==='stand'||T.st==='fight');if(!onBay){if(fam.mob){fam.mob=false}return}
+    const A=BS.adults(S2,fam,T);
+    // the family comes to the fight
+    for(const h of A){const d=Math.hypot(h.x-T.x,h.y-T.y);if(d>6){h.x+=(T.x-h.x)/d*Math.min(d-4,4*dt);h.y+=(T.y-h.y)/d*Math.min(d-4,4*dt)}}
+    const near=A.filter(h=>Math.hypot(h.x-T.x,h.y-T.y)<14);if(near.length<2)return;
+    if(!fam.mob){fam.mob=true;fam.fought=true;fam.at=S2.t;hwEvent(S2,'sounderfight',`🐗🐗 The whole sounder turned on the dogs: ${near.length+1} hogs in the fight!`,1);hwBanner(S2,'SOUNDER FIGHT!');sfx.bad&&sfx.bad();
+      try{if(UI.huntTimer&&UI.tab==='hunt'&&UI.hunt&&UI.hunt.sim===S2&&!S2.pausedFor&&!HX.st(S2).asked.mob)HX.ask(S2,'mob')}catch(e){}}
+    const fight=S2.dogs.filter(g=>!g.m.dead&&(g.st==='bay'||g.st==='hold')&&Math.hypot(g.x-T.x,g.y-T.y)<25),catchers=fight.filter(g=>g.role==='catch'&&g.st==='hold');
+    const mob=near.reduce((s,h)=>s+(h.aggr||.5)*Math.pow(h.w/120,.7),0)*.45,def=catchers.reduce((s,g)=>s+g.at.catch*(.6+.4*(g.at.grit||1))*(.5+g.sta*.5),0)+fight.filter(g=>g.st==='bay').reduce((s,g)=>s+.15*(g.at.grit||1),0),press=mob-def*1.1;fam.press=press;
+    // a big family stands its ground: the bay doesn't break while they fight
+    S2.hold=Math.max(S2.hold||0,60);if(T.st==='stand')T.stam=Math.min(T.stam||1,.9);
+    // the family pulls against the catch dogs
+    if(S2.phase==='catch'&&press>0)S2.ctl-=dt*press*5;
+    for(const g of fight){const rate=Math.min(.09,Math.max(.002*near.length,.02*press)/Math.max(.5,g.at.grit||1));if(R()>rate*dt)continue;
+      const dmg=ri(8,18)+near.length;fam.hits++;WE.hurt(S2,g,'slashed and mauled by the sounder',dmg);g.sta=Math.max(0,g.sta-.1);g.m.mob=(g.m.mob||0)+dmg*(typeof CV!=='undefined'&&CV.live&&CV.live(g)?.85:1);g.m.mobHits=(g.m.mobHits||0)+1;
+      hwEvent(S2,'mobhit'+g.id,`${g.name} is getting mauled by the sounder!`,25);
+      if(g.m.mob>=60&&g.m.mobHits>=3&&R()<.18*(1-Math.min(.9,def/Math.max(.01,mob)))){g.m.dead='killed by a big sounder of hogs';g.st='leash';g.hog=null;fam.dead.push(g.name);hwEvent(S2,'mobdead'+g.id,`🕊️ ${g.name} went down under the sounder.`,1);hwBanner(S2,'DOG DOWN');sfx.bad&&sfx.bad()}}
+    // good catch dogs fight the family off the bay, one hog at a time
+    for(const g of catchers){if(R()>.06*g.at.catch*(g.at.grit||1)*(.5+g.sta*.5)*dt)continue;const h=near.find(x=>!x.drove);if(!h)break;h.drove=1;h.st='run';h.alert=2;h.stam=Math.min(1,(h.stam||.5)+.2);const a=Math.atan2(h.y-T.y,h.x-T.x);h.hd=a;h.x=clamp(h.x+Math.cos(a)*6,3,HW.N-4);h.y=clamp(h.y+Math.sin(a)*6,3,HW.N-4);fam.drove++;
+      hwEvent(S2,'drove'+h.id,`${g.name} fought a ${h.name.toLowerCase()} off the bay.`,1)}},
+  // pull every dog out of the fight: the hog gets away, the dogs live
+  pullOff(S2){const T=S2.target;for(const g of S2.dogs){if(g.m.dead)continue;if(['bay','hold','run'].includes(g.st)){g.st='recall';g.hog=null}}if(T){T.st='run';T.alert=2;T.stam=Math.min(1,(T.stam||.5)+.3)}S2.phase='chase';S2.ctl=0;
+    const fam=BS.fam(S2,T);if(fam){fam.mob=false;fam.pulled=true;for(const h of BS.members(S2,fam)){h.st='run';h.alert=2}}},
+  // after the hunt: what the family did
+  lines(S2,L){const fam=(S2.fams||[]).find(f=>f.warned);if(!fam||!Array.isArray(L))return;
+    L.push(`🐗 Big sounder: ${fam.n} hogs.${fam.fought?` They ganged up on your dogs${fam.hits?` (${fam.hits} hit${fam.hits>1?'s':''})`:''}.`:''}${fam.drove?` Your catch dogs fought ${fam.drove} off the bay.`:''}${fam.pulled?' You pulled the dogs out of it.':''}`);
+    if(fam.dead.length)L.push(`The sounder killed ${fam.dead.join(' and ')}.`)}
+};
+HX.Q.mob={t:'🐗 The whole sounder is on your dogs',d:'The family has come to the bay and is ganging up on the dogs. Dogs can be killed in a fight like this.',
+  o:[['catch','Send the catch dogs in','Good catch dogs can fight the hogs off and finish it.'],['off','Call the dogs off','Pull everyone out. The hogs get away, the dogs live.'],['hold','Let them hold','Risky: the bay dogs take the fight until you get there.']]};
+{const o=HX.pick;HX.pick=function(c){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.pausedFor!=='mob')return o.apply(this,arguments);const X=HX.st(S2);S2.pausedFor=null;S2.speed=X.sp||4;HX._picking=1;try{closeSheet()}finally{HX._picking=0}
+  let msg='';if(c==='catch'){if(!S2.released)huntRelease();msg='You sent the catch dogs into the sounder.'}else if(c==='off'){BS.pullOff(S2);msg='You called the dogs off. The sounder broke away into the brush.'}else msg='The bay dogs are holding against the whole sounder.';
+  X.calls.push({k:'mob',c,t:S2.t});hwEvent(S2,'call'+'mob'+X.calls.length,`YOUR CALL: ${msg}`,1);huntHud(true)}}
+// wiring: families are made with the sounders, the fight runs every sim second, the family shows in the results and tips
+{const o=WK.sounders;WK.sounders=function(S2,ent){const r=o.apply(this,arguments);try{BS.spawn(S2)}catch(e){console.warn('bs',e)}return r}}
+{const o=hwStep;hwStep=function(S2,dt){o(S2,dt);try{if(S2.fams&&S2.fams.length){S2.bsAcc=(S2.bsAcc||0)+dt;while(S2.bsAcc>=1){S2.bsAcc-=1;BS.step(S2,1)}}}catch(e){console.warn('bs',e)}}}
+{const o=REAL.end;REAL.end=function(h){const S2=h&&h.sim;const done=S2&&S2.realDone;o.apply(this,arguments);try{if(S2&&!done&&h.result)BS.lines(S2,h.result.lines)}catch(e){}}}
+{const o=HH.tip;HH.tip=function(S2){try{const fam=BS.fam(S2,S2&&S2.target);if(fam&&fam.mob)return'The whole sounder is on your dogs! Send good catch dogs in, or call the dogs off to save them.';if(fam&&fam.warned&&S2.phase!=='bay')return'Big sounder: if they bay one, the rest will fight. Be ready with the catch dogs.'}catch(e){}return o.apply(this,arguments)}}
+// ---------- MORE THAN ONE HOG A HUNT, AND EVERY HOG ON THE MAP ----------
+// After a hog is tied, if there's daylight left and other hogs on the ground, you choose: load up and go home, or put
+// that hog in the truck and keep hunting. The catch dogs come back to you, the bay dogs cast for the next hog, and the
+// dogs bay and catch them one at a time. Every hog caught is paid and counted. Hogs you've seen stay on the map: the ones
+// in sight, the ones the dogs are on, and a whole sounder once the dogs strike it.
+const MH={
+  left(S2){return S2.hogs.filter(h=>h.full&&!h.bagged&&!h.rabbit&&!h.coon&&!h.deer&&!['caught','gone','dead'].includes(h.st)&&h!==S2.target)},
+  can(S2){return!!(S2&&!S2.mode&&!S2.practice&&!S2.coop&&!S2.mhDone&&S2.target&&S2.target.st==='caught'&&S2.limit-S2.t>600&&S2.dogs.some(g=>g.role==='bay'&&!(g.m&&g.m.dead))&&MH.left(S2).length)},
+  // put the tied hog in the truck and send the dogs out again
+  bag(S2){const h=S2.target,uh=UI.hunt,e={h,hog:{...uh.hog},key:uh.hogKey,tieQ:S2.tie&&S2.tie.q,catchers:S2.dogs.filter(g=>g.role==='catch'&&g.m.catchT>0).map(g=>g.id),at:S2.t};(S2.bag=S2.bag||[]).push(e);
+    h.bagged=1;h.st='gone';
+    S2.target=null;S2.quarry=null;S2.phase='search';S2.released=false;delete S2.relAt;delete S2.bayAt;delete S2.relDist;S2.ctl=0;S2.tie=null;S2.hold=100;S2.wonAt=undefined;S2.baying=false;
+    const P=S2.player;for(const g of S2.dogs){if(g.m&&g.m.dead)continue;g.hog=null;g.m.catchT=0;if(g.role==='catch'){g.st='leash';g.x=P.x;g.y=P.y}else{g.st='recast';g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;g.next=3}}
+    uh.found=false;hwEvent(S2,'bag'+S2.bag.length,`🐗 The ${e.hog.w} lb ${e.hog.name.toLowerCase()} is in the truck (${S2.bag.length} so far). The dogs are casting for another hog.`,1);hwBanner(S2,'KEEP HUNTING');try{huntHud(true)}catch(err){}},
+  // pay for the hogs caught before the last one
+  pay(S2,lines){const B=S2.mhExtra||[];if(!B.length||!Array.isArray(lines))return;const area=UI.hunt&&UI.hunt.area,land=(area&&area.land)||1;let tot=0;
+    for(const e of B){const pay=Math.round(e.hog.w*4*(e.hog.mult||1)*(1+(land-1)*.08));tot+=pay;earn(pay);S.st.hogs++;if(e.hog.w>S.st.best)S.st.best=e.hog.w;
+      for(const id of e.catchers){const d=S.dogs.find(x=>x.id===id);if(d&&d.hunt)d.hunt.catches=(d.hunt.catches||0)+1}
+      addLog(`Caught a ${e.hog.w} lb ${e.hog.name.toLowerCase()} in ${area?area.name:'the woods'} for ${fmt(pay)}.`);lines.splice(1,0,`🐗 Also caught: the ${e.hog.w} lb ${e.hog.name.toLowerCase()}, worth ${fmt(pay)}.`)}
+    lines.splice(1+B.length,0,`🚚 ${B.length+1} hogs caught this hunt (${fmt(tot)} for the extra${B.length>1?'s':''} on top).`)},
+  // which hogs show on the map
+  seen(S2){const P=S2.player,fams=S2.fams||[];for(const h of S2.hogs){if(h.seen||h.rabbit||h.coon||h.deer)continue;
+    if(h.rev||Math.hypot(h.x-P.x,h.y-P.y)<40||S2.dogs.some(g=>['hot','bay','hold'].includes(g.st)&&Math.hypot(g.x-h.x,g.y-h.y)<12)||(h.fam&&fams.some(f=>f.id===h.fam&&f.warned)))h.seen=1}}
+};
+HX.Q.mh={t:'🐗 Hog tied!',d:'',o:[['home','Load up and head home','End the hunt here.'],['keep','Keep hunting','The hog goes in the truck, the catch dogs come back to you and the bay dogs cast for another one.']]};
+{const o=HX.pick;HX.pick=function(c){const S2=UI.hunt&&UI.hunt.sim;if(!S2||S2.pausedFor!=='mh')return o.apply(this,arguments);const X=HX.st(S2);S2.pausedFor=null;S2.speed=X.sp||4;HX._picking=1;try{closeSheet()}finally{HX._picking=0}delete X.asked.mh;
+  if(c==='keep')MH.bag(S2);else{S2.mhDone=1;hwEnd(S2,true,[])}}}
+{const o=hwEnd;hwEnd=function(S2,win,lines){if(S2.over)return;
+  if(win&&MH.can(S2)){const live=UI.huntTimer&&UI.tab==='hunt'&&UI.hunt&&UI.hunt.sim===S2;
+    if(UI.mhAuto==='keep'){MH.bag(S2);return}
+    if(live&&UI.mhAuto!=='home'&&!S2.pausedFor){const h=S2.target,n=(S2.bag||[]).length+1,mins=Math.round((S2.limit-S2.t)/60),k=MH.left(S2).length;
+      HX.Q.mh.d=`The ${h.w} lb ${esc(String(h.name||'hog').toLowerCase())} is tied (${n} this hunt). ${mins} minutes of daylight left${k?` and there are more hogs on this ground`:''}.`;HX.ask(S2,'mh');return}}
+  // the hunt is over: if the last hog got away, the last one in the truck is the hunt's hog; the others are paid as extras
+  if(S2.bag&&S2.bag.length){if(!win){const e=S2.bag.pop(),uh=UI.hunt;e.h.st='caught';e.h.bagged=0;S2.target=e.h;S2.phase='won';uh.found=true;uh.hog=e.hog;uh.hogKey=e.key;S2.tie={done:1,q:e.tieQ||1};win=true}S2.mhExtra=S2.bag.slice()}
+  return o.call(this,S2,win,lines)}}
+{const o=finishHunt;finishHunt=function(win,lines){const r=o.apply(this,arguments);try{const S2=UI.hunt&&UI.hunt.sim;if(S2&&S2.mhExtra&&!S2.mhPaid){S2.mhPaid=1;MH.pay(S2,UI.hunt.result?UI.hunt.result.lines:lines)}}catch(e){console.warn('mh',e)}return r}}
+{const o=hwStep;hwStep=function(S2,dt){o(S2,dt);try{S2.mhAcc=(S2.mhAcc||0)+dt;if(S2.mhAcc>=1){S2.mhAcc=0;if(!S2.mode)MH.seen(S2)}}catch(e){}}}
 Object.assign(A,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
