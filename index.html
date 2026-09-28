@@ -4691,8 +4691,12 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.3.0';
-const PATCH_NOTES=[{v:'2.3.0',title:'Working dogs & living hogs',items:[
+const GAME_VERSION='2.3.1';
+const PATCH_NOTES=[{v:'2.3.1',title:'Training crew',items:[
+  ['Training crew','Hire a training crew (More → Kennel staff) and every dog in the kennel gets a training session every day: $60 a day plus $20 per dog trained. Same gains as training by hand, and it all goes on their papers.'],
+  ['Training plan','Set each dog to Auto (works its weakest skill), a set skill, or No training. Pups from 6 months get obedience work.'],
+  ['Looks after the dogs','The crew skips hurt, sore and retired dogs, never overtrains, and (if you want) leaves enough energy to hunt. Miss payroll and they quit.']]},
+  {v:'2.3.0',title:'Working dogs & living hogs',items:[
   ['Sounders and boars','Sows lead sounders of young hogs (piglets in spring) that travel, feed and bed together, and scatter when jumped. Mature boars travel alone.'],
   ['Every hog is different','Common hogs, sows, large, old, aggressive, elite, giant and legendary boars. Old and legendary boars are warier, leave less scent and are harder to trail.'],
   ['Hogs keep a daily rhythm','They head for thick cover to bed as the day warms (sooner in the heat) and get up to travel and feed toward evening and at night. Seasons change where they feed.'],
@@ -7570,13 +7574,13 @@ const R21={
   jCard(e){return`<div class="panel small" style="margin-bottom:6px"><div class="spread"><b>Day ${e.day} · ${esc(e.area)}</b><span class="tag ${e.win?'':'warn'}">${e.win?'Caught':'No catch'}</span></div><div style="margin:4px 0;line-height:1.45">${esc(e.txt)}</div>
     <div class="muted">${e.dogs.map(x=>`<button class="linkbtn" data-act="papers" data-id="${x.id}">${esc(x.n)}</button>`).join(' · ')}</div></div>`},
   // ---------- kennel staff ----------
-  staffDaily(msgs){const St=S.staff||{};for(const k in St){if(!St[k])continue;const w=R21_STAFF[k].wage;if(S.money<w){St[k]=0;msgs.push(`${R21_STAFF[k].n} quit: you couldn't make payroll.`);continue}S.money-=w;S.st.wages=(S.st.wages||0)+w}
+  staffDaily(msgs){const St=S.staff||{};for(const k in St){if(!St[k]||!R21_STAFF[k])continue;const w=R21_STAFF[k].wage;if(S.money<w){St[k]=0;msgs.push(`${R21_STAFF[k].n} quit: you couldn't make payroll.`);continue}S.money-=w;S.st.wages=(S.st.wages||0)+w}
     if(St.trainer){const cand=S.dogs.filter(d=>isAdult(d)&&!d.retired&&!d.inj&&STATS.some(([k])=>d.stats[k]<d.pot[k])).sort((a,b)=>(a.trained||0)-(b.trained||0)).slice(0,2);
       for(const d of cand){const[k]=STATS.filter(([k])=>d.stats[k]<d.pot[k]).sort((a,b)=>d.stats[a[0]]/d.pot[a[0]]-d.stats[b[0]]/d.pot[b[0]])[0];d.stats[k]++;d.trained=(d.trained||0)+1;const t=PAPERS.rec(d).t;t.n++;t.xp+=10;t.by[k]=(t.by[k]||0)+1;t.last=S.day}
       if(cand.length)msgs.push(`🏋️ Your trainer worked ${cand.map(d=>d.name).join(' and ')}.`)}
     if(St.tech)for(const d of S.dogs){if(d.inj){if(d.inj.left>1)d.inj.left--;d.health=Math.min(d.hcap,d.health+4)}}
     if(St.handler)for(const d of S.dogs)if(isAdult(d)&&!d.retired){if(typeof REAL!=='undefined')d.cond=Math.min(100,Math.max(REAL.cond(d),REAL.cond(d)+4));d.energy=Math.min(100,d.energy+10)}},
-  staffScreen(){const St=S.staff||{},tot=Object.keys(St).filter(k=>St[k]).reduce((s,k)=>s+R21_STAFF[k].wage,0);
+  staffScreen(){const St=S.staff||{},tot=Object.keys(St).filter(k=>St[k]&&R21_STAFF[k]).reduce((s,k)=>s+R21_STAFF[k].wage,0);
     return`<h2>Kennel staff</h2><p class="sub">Hire help to keep the dogs working while you hunt. Wages come out every day; miss payroll and they quit.</p>
     ${Object.entries(R21_STAFF).map(([k,o])=>`<div class="panel spread" style="margin-bottom:8px;gap:10px"><div><div style="font-size:26px">${o.ic}</div><b>${o.n}</b> <span class="small">${fmt(o.wage)}/day</span><div class="small muted">${o.d}</div>${St[k]?`<div class="small" style="color:var(--good)">On staff since day ${St[k]}</div>`:''}</div>
       ${St[k]?`<button class="btn sm ghost" data-act="r21Staff" data-k="${k}">Let go</button>`:`<button class="btn sm" data-act="r21Staff" data-k="${k}" ${S.money>=o.wage?'':'disabled'}>Hire</button>`}</div>`).join('')}
@@ -7837,7 +7841,7 @@ const WK={
     if(h.st==='run')h.runT=(h.runT||0)+dt;else h.runT=0},
   // escape plans: circle back, head for thick cover and lie tight, hit the water, or stand and fight
   hogPost(S2,h,dt,was){if(!h.full||h.rabbit||h.coon||h.deer)return;const t=hwT(h.x,h.y),tgt=h===S2.target&&h.rev,X=S2.wk;if(!X)return;
-    if(h.st==='run'){if(h.tactic==='circle'&&h.runT>30)h.hd+=dt*.08;
+    if(h.st==='run'){if(h.tactic==='circle'&&h.runT>30){h.hd+=dt*.22;hwMove(h,Math.cos(h.hd),Math.sin(h.hd),.35*h.sp,dt,'hog')}
       if(h.tactic==='stand'&&S2.dogs.some(g=>g.role==='bay'&&Math.hypot(g.x-h.x,g.y-h.y)<6)&&R()<dt*.25){h.st='stand';if(tgt)hwEvent(S2,'stand'+h.id,`The ${WK.clsName(h).toLowerCase()} turned to fight instead of running.`,30)}
       if(h.tactic==='cover'&&(t===T_BRUSH||t===T_HARD)&&h.stam<.6&&h.runT>20&&!S2.dogs.some(g=>Math.hypot(g.x-h.x,g.y-h.y)<10)&&R()<dt*.05){h.st='bed';h.alert=1.5;if(tgt)hwEvent(S2,'hide','The hog ducked into the thick stuff and is lying tight. The dogs will have to root him out.',60)}
       if(tgt){const cov=t===T_BRUSH||t===T_HARD||t===T_MARSH;if(cov&&!X.inCov)hwEvent(S2,'brush',`Hog entered ${t===T_MARSH?'the marsh':'thick brush'}.`,60);X.inCov=cov;
@@ -8049,7 +8053,47 @@ SCREENS.rivals=()=>WK.rivals();
 
 // championships: the field is the rival kennels' real dogs, scaled to the level of the event
 WK.champField=function(L,div){try{const f=WK.npcField(11,d=>(div==='bay'?bayScore(d):catchScore(d))*.8+Math.min(12,((d.hunt&&d.hunt.n)||0)/4)+(L.base-60)*.8+gauss()*6);while(f.length<11)f.push({n:`${pick(DOGNAME.lists().cm)} (${pick(PUP_BUYERS)})`,s:Math.round((L.base+S.level*.8+gauss()*7)*10)/10});return f}catch(e){return null}};
-Object.assign(A,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- TRAINING CREW ----------
+// Hire a crew that trains every dog in the kennel once a day. Each dog's session goes through the same training as
+// training by hand (same gains, badges, papers, condition), paid by the crew's daily wage instead of the session fee.
+// Pick a focus per dog (weakest skill, a set skill, or no training); the crew never overworks a dog, skips hurt,
+// sore and retired dogs, and by default leaves enough energy to hunt.
+const CREW_BASE=60,CREW_PER=20;
+const CREW={
+  on:()=>!!(S.staff&&S.staff.crew),
+  plan:id=>(S.crewPlan||{})[id]||'auto',
+  pick(d){const p=CREW.plan(d.id);if(p==='off')return null;if(!isAdult(d))return d.age>=6&&d.stats.obd<d.pot.obd?'obd':null;
+    if(p!=='auto')return TRAIN[p]&&d.stats[p]<d.pot[p]?p:null;const open=STATS.filter(([k])=>TRAIN[k]&&d.stats[k]<d.pot[k]);if(!open.length)return null;return open.sort((a,b)=>d.stats[a[0]]/d.pot[a[0]]-d.stats[b[0]]/d.pot[b[0]])[0][0]},
+  why(d){if(d.retired)return'retired';if(d.inj)return'hurt';if(d.sore&&d.sore>=S.day)return'sore';if(CREW.plan(d.id)==='off')return'off';if(!isAdult(d)&&d.age<6)return'too young';
+    if((d.tload||0)>=3)return'resting';const cost=trainEnergy();if(d.energy<cost+(S.crewKeep===false?0:35))return'saving energy';if(!CREW.pick(d))return'maxed';return''},
+  // one day's work
+  day(msgs){if(!CREW.on())return;const dogs=S.dogs.filter(d=>!d.guest&&!CREW.why(d));const wage=CREW_BASE+CREW_PER*dogs.length;
+    if(S.money<wage){S.staff.crew=0;msgs.push(`🏋️ The training crew quit: you couldn't make payroll (${fmt(wage)}).`);return}
+    const keep={toast,render,save,ok:sfx.ok,ach:checkAch},trainDog=UI.trainDog,out=[];
+    toast=()=>{};render=()=>{};save=()=>{};sfx.ok=()=>{};checkAch=()=>{};
+    try{for(const d of dogs){const k=CREW.pick(d);if(!k)continue;const s0=d.stats[k],n0=d.trained;UI.trainDog=d.id;S.inv.trainPass=(S.inv.trainPass||0)+1;
+        try{A.train({k})}catch(e){console.warn('crew',e)}if(d.trained===n0)S.inv.trainPass=Math.max(0,S.inv.trainPass-1);else{const r=PAPERS.rec(d);r.t.crew=(r.t.crew||0)+1;out.push({d,k,g:d.stats[k]-s0})}}}
+    finally{toast=keep.toast;render=keep.render;save=keep.save;sfx.ok=keep.ok;checkAch=keep.ach;UI.trainDog=trainDog}
+    const paid=CREW_BASE+CREW_PER*out.length;S.money-=paid;S.st.wages=(S.st.wages||0)+paid;S.crewLog={day:S.day,n:out.length,paid,list:out.slice(0,40).map(o=>[o.d.id,o.d.name,o.k,o.g])};
+    if(out.length){const lab=Object.fromEntries(STATS);msgs.push(`🏋️ Training crew worked ${out.length} dog${out.length>1?'s':''} (${fmt(paid)}): ${out.slice(0,6).map(o=>`${o.d.name} ${lab[o.k]} +${o.g}`).join(', ')}${out.length>6?` and ${out.length-6} more`:''}.`)}
+    else msgs.push(`🏋️ The training crew had nobody ready to train today (${fmt(paid)}).`)},
+  card(){const on=CREW.on(),L=S.crewLog,dogs=S.dogs.filter(d=>!d.guest),ready=dogs.filter(d=>!CREW.why(d)).length,est=CREW_BASE+CREW_PER*ready,lab=Object.fromEntries(STATS);
+    return`<div class="panel" style="margin-bottom:8px;${on?'border-color:var(--good)':''}"><div class="spread" style="gap:10px"><div><div style="font-size:26px">🏋️‍♂️</div><b>Training crew</b> <span class="small">${fmt(CREW_BASE)}/day + ${fmt(CREW_PER)} per dog trained</span>
+      <div class="small muted">Trains every dog in your kennel once a day: same gains as training by hand, and it goes on their papers. Skips hurt, sore and retired dogs and never overworks a dog.</div>${on?`<div class="small" style="color:var(--good)">On staff since day ${S.staff.crew} · about ${fmt(est)} tomorrow (${ready} dog${ready===1?'':'s'} ready)</div>`:`<div class="small">Would cost about ${fmt(est)} a day for ${ready} dog${ready===1?'':'s'} right now.</div>`}</div>
+      ${on?`<button class="btn sm ghost" data-act="crewHire">Let go</button>`:`<button class="btn sm" data-act="crewHire" ${S.money>=CREW_BASE?'':'disabled'}>Hire</button>`}</div>
+      ${on?`<label class="small" style="display:block;margin-top:6px"><input type="checkbox" data-act="crewKeep" ${S.crewKeep===false?'':'checked'}> Leave enough energy to hunt</label>
+      ${L&&L.list.length?`<div class="small" style="margin-top:6px"><b>Last session (day ${L.day})</b>: ${L.list.map(([id,n,k,g])=>`${esc(n)} ${lab[k]} +${g}`).join(', ')}</div>`:''}
+      <h3 style="margin-top:10px">Training plan</h3><div class="small muted">Auto works each dog's weakest skill. Pups from 6 months get obedience only.</div>
+      ${dogs.map(d=>{const w=CREW.why(d),p=CREW.plan(d.id);return`<div class="spread small" style="margin-top:4px;gap:8px"><span><b>${esc(d.name)}</b> <span class="muted">${WK.stage?WK.stage(d):''}${w?' · '+w:''}</span></span><select data-crew="${d.id}">${[['auto','Auto (weakest)'],...STATS.filter(([k])=>TRAIN[k]).map(([k,l])=>[k,l]),['off','No training']].map(([k,l])=>`<option value="${k}" ${p===k?'selected':''}>${l}</option>`).join('')}</select></div>`}).join('')}`:''}</div>`}
+};
+const CREW_ACTIONS={
+  crewHire:()=>{const St=S.staff||(S.staff={});if(St.crew){St.crew=0;toast('Training crew let go.')}else{if(S.money<CREW_BASE)return toast('Not enough cash.');St.crew=S.day;toast('Training crew hired: they start with tomorrow’s training.');addLog('Hired a training crew for the whole kennel.')}save();render()},
+  crewKeep:()=>{S.crewKeep=S.crewKeep===false?true:false;save();render()}
+};
+document.addEventListener('change',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.crew){(S.crewPlan=S.crewPlan||{})[el.dataset.crew]=el.value;save();render()}});
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{CREW.day(msgs)}catch(e){console.warn('crew',e)}}}
+{const o=R21.staffScreen;R21.staffScreen=function(){return o().replace('<p class="sub">','<p class="sub">').replace(/(<p class="sub">[^<]*<\/p>)/,'$1'+CREW.card())}}
+Object.assign(A,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
