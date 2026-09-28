@@ -4691,8 +4691,13 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.5.0';
-const PATCH_NOTES=[{v:'2.5.0',title:'Kennel life',items:[
+const GAME_VERSION='2.6.0';
+const PATCH_NOTES=[{v:'2.6.0',title:'Your call',items:[
+  ['Decision moments','The hunt stops and asks you: the hog is making for the county road (call them off, let them run, or head it off in the truck), a neighbor’s fence line (stop, cross, or call the landowner), a gator in the slough (hold up, push through, or circle around), or a dog cut bad at the bay (pull it, leave it in, or send the catch dogs now). Your call changes what happens.'],
+  ['Bay cam','Walk up on a bay and a close-up opens above the map: your dogs circling and lunging at the hog, then the catch dogs latching on.'],
+  ['Hunt grade','Every hunt gets an A to F grade for tracking, the bay, the catch and dog safety, with bonus XP for A, B and C hunts. Grades go in the hunt record.'],
+  ['Trophy photo','After a catch, tap 📸 Trophy photo for a picture of the hog with your dogs, the weight, the grade and the place, ready to save or share.']]},
+  {v:'2.5.0',title:'Kennel life',items:[
   ['Doghouses on the ranch map','Every dog has its own doghouse on your land, by your kennels and dog yards (painted to match), and walks around its own run. Zoom in to see names.'],
   ['Kennel chores','Each kennel has water and cleanliness. Water all, Clean all and Play with all in the Kennel yard, or per kennel. Dry and dirty kennels cost health, bring ticks and can make a dog sick.'],
   ['Kennel hand','Hire a kennel hand (More → Kennel staff, $60/day) to water and clean every kennel each morning.'],
@@ -8258,7 +8263,86 @@ KY.sorted=(function(o){return function(){const s=UI.kySort||'arrive';if(s==='arr
 // the ranch map: doghouses, and each dog walks its own run
 {const o=landDraw;landDraw=function(){o();try{KL.drawMap()}catch(e){}}}
 {const o=landSprites;landSprites=function(P,G){const pool=o(P,G);try{if(P===S.land){const sp=KL.spots(P);let i=0;for(const s of pool){if(s.kind!=='dog')continue;const d=S.dogs[i++];if(!d)break;const h=KL.homeFor(d);if(h&&s.home!==h&&(!s.home||!s.home.kl)){s.home={...h,kl:1}}}}}catch(e){}return pool}}
-Object.assign(A,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- HUNT CALLS, BAY CAM, HUNT GRADE, TROPHY PHOTO ----------
+// Decision moments: the hunt stops and asks you: the hog is making for the county road or a neighbor's fence line,
+// there's a gator in the slough the dogs are about to cross, a dog is cut bad in the middle of the bay. Your call
+// changes what happens. Close in on a bay and the Bay cam shows the fight up close. Every hunt gets an A-F grade,
+// and a successful one gets a trophy photo you can save or share.
+const HX={
+  st(S2){return S2.hx||(S2.hx={asked:{},calls:[]})},
+  // ---- decision moments ----
+  check(S2){if(!S2||S2.over||S2.mode||S2.practice||S2.pausedFor||!S2.speed||(S2.tie&&(S2.tie.active||S2.tie.walk||S2.tie.done)))return;const sh=document.getElementById('sheet');if(sh&&!sh.classList.contains('hidden'))return;const X=HX.st(S2),h=S2.target,P=S2.player,bays=huntDogs(S2,'bay');if(Object.keys(X.asked).length>=2)return;
+    if(h&&h.rev&&h.st==='run'&&!X.asked.road){for(let k=1;k<=5;k++){const x=h.x+Math.cos(h.hd)*k*6,y=h.y+Math.sin(h.hd)*k*6,t=hwT(x,y);if(t===T_ROAD){return HX.ask(S2,'road')}}
+      if(S2.player&&R()<.002&&Math.hypot(h.x-P.x,h.y-P.y)>150&&!X.asked.fence)return HX.ask(S2,'fence')}
+    if(!X.asked.gator&&bays.some(g=>(g.st==='hot'||g.st==='track')&&[T_WATER,T_MARSH].includes(hwT(g.x+Math.cos(g.hd)*6,g.y+Math.sin(g.hd)*6)))&&(weSeason()<=1||(UI.hunt&&UI.hunt.area&&/swamp|creek/.test(UI.hunt.area.id)))&&R()<.25)return HX.ask(S2,'gator');
+    if(S2.phase==='bay'&&!X.asked.cut){const g=bays.find(g=>g.st==='bay'&&g.m.hurt&&g.m.hurt.dmg>=12);if(g){X.cutDog=g.id;return HX.ask(S2,'cut')}}},
+  Q:{road:{t:'🚚 The hog is making for the county road',d:'Your dogs are hard behind it. Trucks run that road.',o:[['off','Call them off','Safe, but the hog may get away.'],['run','Let them run','Keep the pressure on and hope no truck comes.'],['truck','Get ahead in the truck','Burns 10 minutes; you head the hog off at the road.']]},
+    fence:{t:'🚧 The hog is headed for a neighbor’s fence line',d:'You don’t have permission on the other side.',o:[['stop','Stop at the fence','Stay legal. The dogs may lose it.'],['cross','Go over anyway','Keep hunting, but the landowner may hear about it.'],['call','Call the landowner','Takes a few minutes; they may say yes.']]},
+    gator:{t:'🐊 Gator in the slough',d:'The dogs are about to hit water where you saw a big gator this morning.',o:[['wait','Hold up and let the hog cross','The dogs may lose the trail at the water.'],['push','Push on through','Fast, but a dog could get grabbed.'],['around','Circle around','Costs time; you may pick the track up on the far side.']]},
+    cut:{t:'🩸 A dog is cut bad at the bay',d:'',o:[['pull','Pull the dog out','Stitch it up now. The bay gets weaker.'],['leave','Leave it in','The bay holds, but the cut could get worse.'],['catch','Send the catch dogs now','End it fast, whether the bay is set or not.']]}},
+  ask(S2,k){const X=HX.st(S2);X.asked[k]=1;S2.pausedFor=k;X.sp=S2.speed;S2.speed=0;const Q=HX.Q[k],g=k==='cut'&&S2.dogs.find(x=>x.id===X.cutDog);
+    hwBanner(S2,'YOUR CALL');openSheet(`<h2>${Q.t}</h2><p class="sub">${k==='cut'&&g?`${esc(g.name)} took a bad tusk cut and is still in the bay.`:Q.d}</p>${Q.o.map(([id,l,dd])=>`<button class="panel" style="display:block;width:100%;text-align:left;margin-bottom:8px" data-act="hxPick" data-k="${id}"><b>${l}</b><div class="small muted">${dd}</div></button>`).join('')}<p class="small muted">The hunt is paused until you decide.</p>`)},
+  pick(c){const S2=UI.hunt&&UI.hunt.sim;if(!S2||!S2.pausedFor)return;const k=S2.pausedFor,X=HX.st(S2),h=S2.target,P=S2.player,bays=huntDogs(S2,'bay');S2.pausedFor=null;S2.speed=X.sp||4;HX._picking=1;try{closeSheet()}finally{HX._picking=0}let msg='';
+    if(k==='road'){if(c==='off'){CMD.recallAll();msg='You called the dogs off before the road.';if(h&&R()<.6){h.st='sneak';h.alert=2}}
+      else if(c==='run'){if(R()<.25){const g=pick(bays.filter(x=>x.st==='hot'||x.st==='track')||bays);if(g){WE.hurt(S2,g,'clipped by a truck on the road',ri(18,30));msg=`🚚 A truck clipped ${g.name} on the road!`}}else msg='No trucks: the dogs crossed the road on the hog’s heels.'}
+      else{S2.t+=600;if(h){P.x=clamp(h.x+Math.cos(h.hd)*20,2,HW.N-3);P.y=clamp(h.y+Math.sin(h.hd)*20,2,HW.N-3);P.tx=null;h.hd+=Math.PI;h.stam=Math.max(0,h.stam-.2)}msg='You drove ahead and turned the hog back at the road.'}}
+    else if(k==='fence'){if(c==='stop'){if(h&&R()<.5){h.st='sneak';h.alert=2}CMD.recallAll();msg='You stopped at the fence line and called the dogs back.'}
+      else if(c==='cross'){addRep(-1,'Crossed a fence line without permission');if(R()<.3&&typeof R2!=='undefined'&&R2.owner)try{const o=R2.owner(UI.hunt.area.id);o.trust=Math.max(0,o.trust-15)}catch(e){}msg='You went over the fence. Word may get back to the landowner.'}
+      else{S2.t+=300;if(R()<.6){msg='The landowner said go ahead. You keep hunting.'}else{CMD.recallAll();msg='The landowner said no. You called the dogs back.'}}}
+    else if(k==='gator'){if(c==='wait'){bays.forEach(g=>{if(g.st==='hot'||g.st==='track'){g.st='recast';g.next=10}});msg='You held the dogs up. The hog crossed the slough.'}
+      else if(c==='push'){if(R()<.2){const g=pick(bays);WE.hurt(S2,g,'grabbed by an alligator',ri(20,32));g.sta*=.4;msg=`🐊 The gator grabbed ${g.name}! The dog tore loose, badly hurt.`}else msg='The dogs splashed through. No sign of the gator.'}
+      else{S2.t+=420;msg=R()<.65?'You circled the slough and the dogs picked the track up on the far side.':'You circled around, but the dogs couldn’t find where it came out.';if(!/picked/.test(msg))bays.forEach(g=>{if(g.st==='hot'||g.st==='track'){g.st='recast';g.next=10}})}}
+    else if(k==='cut'){const g=S2.dogs.find(x=>x.id===X.cutDog);if(c==='pull'&&g){g.st='leash';g.x=P.x;g.y=P.y;if(g.m.hurt)g.m.hurt.dmg=Math.max(4,g.m.hurt.dmg-8);S2.hold-=15;msg=`You pulled ${g.name} out and stitched the cut.`}
+      else if(c==='leave'&&g){if(R()<.4&&g.m.hurt){g.m.hurt.dmg+=8;msg=`${g.name} stayed in and the cut got worse.`}else{S2.hold=Math.min(100,S2.hold+10);msg=`${g.name} stayed in, bleeding but holding the bay.`}}
+      else{huntRelease();msg='You sent the catch dogs in right now.'}}
+    X.calls.push({k,c,t:Math.round(S2.t)});hwEvent(S2,'call'+k+X.calls.length,`YOUR CALL: ${msg}`,1);huntHud(true)},
+  // ---- the bay cam ----
+  cam(S2){const h=S2.target,P=S2.player;if(!h||!h.rev||S2.mode)return false;if(!(S2.phase==='bay'||S2.phase==='catch'||S2.phase==='won'))return false;return Math.hypot(P.x-h.x,P.y-h.y)<60},
+  drawCam(){const h0=UI.hunt,S2=h0&&h0.sim,cv=document.getElementById('hxCam');if(!cv||!S2)return;const on=HX.cam(S2);cv.style.display=on?'block':'none';const lab=document.getElementById('hxCamLab');if(lab)lab.style.display=on?'block':'none';if(!on)return;
+    const W=cv.clientWidth,H=cv.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+    const t=performance.now()/1000,sky=g.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#2f4a2a');sky.addColorStop(.55,'#4d6b33');sky.addColorStop(1,'#6b5436');g.fillStyle=sky;g.fillRect(0,0,W,H);
+    g.fillStyle='rgba(30,50,25,.8)';for(let i=0;i<14;i++){const x=(i*97)%W,hh=40+((i*53)%50);g.beginPath();g.moveTo(x-30,H*.55);g.lineTo(x,H*.55-hh);g.lineTo(x+30,H*.55);g.fill()}
+    const h=S2.target,cx=W/2,cy=H*.66,hi=SPR.hog(h),hw=Math.min(W*.42,190),spin=Math.sin(t*1.7)*.5;
+    g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(cx,cy+hw*.28,hw*.55,hw*.1,0,0,7);g.fill();
+    const dogs=S2.dogs.filter(x=>(x.st==='bay'||x.st==='hold')&&x.hog===h||x.role==='catch'&&x.st==='hold'||(x.st==='hot'||x.st==='run')&&Math.hypot(x.x-h.x,x.y-h.y)<25),ring=Math.min(W*.4,210);
+    dogs.forEach((x,i)=>{const hold=x.st==='hold',a=hold?(i%2?-.15:.15)+Math.PI*(i%2):(i/Math.max(1,dogs.filter(y=>y.st!=='hold').length))*Math.PI*2+t*.35,lunge=hold?0:Math.max(0,Math.sin(t*3+i*1.7))*ring*.18,r=hold?hw*.35:ring-lunge;
+      const X=cx+Math.cos(a)*r,Y=cy+Math.sin(a)*r*.35,img=x.d&&SPR.dog(x.d),dw=hold?hw*.6:hw*.55,face=Math.cos(a)<0;
+      if(img){g.save();g.translate(X,Y-dw*.2);g.scale(face?1:-1,1);g.drawImage(img,-dw/2,-dw*img.height/img.width/2,dw,dw*img.height/img.width);g.restore()}else{g.fillStyle=x.role==='catch'?HCOL.catch:HCOL.bay;g.beginPath();g.arc(X,Y,8,0,7);g.fill()}
+      if(!hold&&Math.sin(t*6+i)>.6){g.font='700 13px system-ui';g.fillStyle='#fff';g.fillText(pick(['WOOF','ROWF','ARF']),X-14,Y-dw*.55)}});
+    if(hi){g.save();g.translate(cx+Math.sin(t*2.3)*6,cy-hw*.18+Math.abs(Math.sin(t*4))*-4);g.scale(spin>0?1:-1,1);g.drawImage(hi,-hw/2,-hw*hi.height/hi.width/2,hw,hw*hi.height/hi.width);g.restore()}else{g.fillStyle=HCOL.hog;g.beginPath();g.ellipse(cx,cy-20,50,26,0,0,7);g.fill()}
+    g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,W,24);g.font='700 13px system-ui';g.fillStyle='#fff';g.textAlign='left';g.fillText(S2.phase==='bay'?`BAY: ${dogs.filter(x=>x.st!=='hold').map(x=>x.name).join(', ')} · hold ${Math.max(0,Math.round(S2.hold))}%`:S2.phase==='catch'?`CATCH: ${dogs.filter(x=>x.st==='hold').map(x=>x.name).join(' & ')} · control ${Math.max(0,Math.round(S2.ctl))}%`:'HOG CONTROLLED',8,17);g.textAlign='start'},
+  // ---- the grade ----
+  grade(S2,win){const X=S2.wk||{},IHX=S2.ih||{},H=HX.st(S2),dogs=S2.dogs,h=S2.target;
+    const track=clamp(40+(X.strikes||0)*12-(X.lostN||0)*12+(h&&h.rev?25:0),0,100),bay=h&&h.rev?clamp(100-(S2.events.filter(e=>e.kind==='break').length*25)-(IHX.arrive==null?15:0),0,100):20,
+      ctch=!win?15:clamp(60+(IHX.relq==='good'?30:IHX.relq==='early'?-10:5)+((S2.ctlMin??100)>20?10:0),0,100),hurt=dogs.filter(g=>g.m&&g.m.hurt).reduce((s,g)=>s+g.m.hurt.dmg,0),safe=clamp(100-hurt*2.5-(dogs.some(g=>g.m&&g.m.dead)?60:0),0,100),
+      tot=Math.round(track*.25+bay*.25+ctch*.3+safe*.2),L=tot>=85?'A':tot>=72?'B':tot>=58?'C':tot>=45?'D':'F';return{track,bay,ctch,safe,tot,L}},
+  // ---- the trophy photo ----
+  async photo(){const h=UI.hunt,c=h&&h.catchCard;if(!c)return;toast('Taking the photo…');const W=1080,Hh=1350,cv=document.createElement('canvas');cv.width=W;cv.height=Hh;const g=cv.getContext('2d');
+    try{await Promise.all(['700 64px Oswald','400 60px "Alfa Slab One"'].map(f=>document.fonts.load(f)))}catch(e){}
+    const sky=g.createLinearGradient(0,0,0,Hh);sky.addColorStop(0,'#d9a55a');sky.addColorStop(.35,'#7b6a3a');sky.addColorStop(.6,'#3d4a24');sky.addColorStop(1,'#2a2014');g.fillStyle=sky;g.fillRect(0,0,W,Hh);
+    g.fillStyle='rgba(20,30,15,.85)';for(let i=0;i<22;i++){const x=(i*131)%W,hh=160+((i*67)%180);g.beginPath();g.moveTo(x-70,760);g.lineTo(x,760-hh);g.lineTo(x+70,760);g.fill()}
+    g.fillStyle='#4a3a22';g.fillRect(0,760,W,Hh-760);
+    let hog=null;try{hog=await HOGG.render(HOGG.preview(c.pend),.5)}catch(e){}if(hog){const hw=720;g.drawImage(hog,(W-hw)/2,560,hw,hw*hog.height/hog.width)}
+    const dogs=(h.sim?h.sim.dogs:[]).map(x=>S.dogs.find(d=>d.id===x.id)).filter(Boolean).slice(0,4);for(let i=0;i<dogs.length;i++){let a=null;try{a=await SHARE.art('dog',dogs[i])}catch(e){}if(!a)continue;const dw=300,x=i%2?W-dw-20:20,y=i<2?760:930;g.save();if(!(i%2)){g.translate(x+dw,0);g.scale(-1,1);g.drawImage(a,0,y,dw,dw*a.height/a.width)}else g.drawImage(a,x,y,dw,dw*a.height/a.width);g.restore()}
+    g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,W,220);g.fillStyle='#f3e3c2';g.textAlign='center';g.font='400 60px "Alfa Slab One",Georgia,serif';g.fillText('HOGS & DOGS',W/2,86);
+    g.font='700 64px Oswald,Arial';g.fillText(`${c.w} LB ${String(c.name).toUpperCase()}`,W/2,166);g.font='600 30px Oswald,Arial';g.fillStyle='#e8590c';g.fillText(`${(h.hxGrade?'GRADE '+h.hxGrade.L+' · ':'')}${(c.areaName||'').toUpperCase()} · DAY ${c.day}`,W/2,206);
+    g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,Hh-150,W,150);g.fillStyle='#f3e3c2';g.font='600 34px Oswald,Arial';g.fillText(String(c.dogs||'').slice(0,60),W/2,Hh-92);g.font='500 28px Oswald,Arial';g.fillStyle='#e8590c';g.fillText(`${S.name.toUpperCase()} · ${SHARE.link().replace('https://','')}`,W/2,Hh-44);
+    const blob=await new Promise(r=>cv.toBlob(r,'image/png')),name=`trophy-${c.w}lb-hogs-and-dogs.png`,file=new File([blob],name,{type:'image/png'});
+    try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Hogs & Dogs',text:`${c.w} lb ${String(c.name).toLowerCase()} caught at ${S.name}! ${SHARE.link()}`});return}}catch(e){if(e&&e.name==='AbortError')return}
+    const url=URL.createObjectURL(blob);openSheet(`<h2>Trophy photo</h2><img id="hxPhoto" src="${url}" alt="Trophy photo" style="width:100%;border-radius:4px"><div class="row" style="margin-top:10px"><a class="btn" href="${url}" download="${name}">Save picture</a><button class="btn ghost" data-act="closeSheet">Close</button></div>`)}
+};
+const HX_ACTIONS={hxPick:d=>HX.pick(d.k),hxPhoto:()=>HX.photo()};
+// ---- wiring ----
+{const o=hwStep;hwStep=function(S2,dt){o(S2,dt);try{const X=HX.st(S2);X.acc=(X.acc||0)+dt;if(X.acc>=1){X.acc=0;if(UI.huntTimer&&UI.tab==='hunt'&&UI.hunt&&UI.hunt.sim===S2)HX.check(S2)}}catch(e){console.warn('hx',e)}}}
+{const o=huntPlayLive;huntPlayLive=function(){return o().replace('<div class="landwrap huntwrap">','<div id="hxCamLab" class="small" style="display:none;margin:4px 0;color:#ffb35c;font-weight:700">🎥 BAY CAM: you’re at the bay</div><canvas id="hxCam" style="display:none;width:100%;height:220px;border-radius:8px;margin-bottom:6px" aria-label="Close-up of the bay"></canvas><div class="landwrap huntwrap">')}}
+{const o=huntDraw;huntDraw=function(){o();try{HX.drawCam()}catch(e){}}}
+{const o=finishHunt;finishHunt=function(win,lines){const h=UI.hunt,S2=h&&h.sim;let G=null;try{if(S2&&!S2.mode&&!S2.practice){G=HX.grade(S2,win);h.hxGrade=G;if(Array.isArray(lines)){lines.push(`🎓 Hunt grade: ${G.L} (tracking ${G.track} · bay ${G.bay} · catch ${G.ctch} · dog safety ${G.safe})`);const x={A:30,B:20,C:10}[G.L];if(x){gainXP(x);lines.push(`+${x} XP for a grade ${G.L} hunt.`)}}}}catch(e){console.warn('hx',e)}
+  const r=o(win,lines);try{const e=(S.journal||[])[0];if(G&&e&&e.day===S.day&&e.rec&&!e.rec.grade){e.rec.grade=G;e.rec.calls=(S2.hx&&S2.hx.calls)||[]}}catch(e){}return r}}
+{const o=huntPlay;huntPlay=function(){let html=o();try{const h=UI.hunt;if(h&&h.phase!=='sim'&&h.result&&h.result.win&&h.catchCard&&!h.practice&&!h.rabbit&&!h.coon&&!h.blood)html=html.replace('<button class="btn" data-act="hagain">','<button class="btn alt" data-act="hxPhoto">📸 Trophy photo</button><button class="btn" data-act="hagain">');if(h&&h.hxGrade&&h.phase!=='sim')html=html.replace('<h3>Dog performance</h3>',`<div class="panel small" style="margin:8px 0;text-align:center"><div style="font-size:42px;font-weight:800;color:var(--gold)">${h.hxGrade.L}</div><div class="muted">Tracking ${h.hxGrade.track} · Bay ${h.hxGrade.bay} · Catch ${h.hxGrade.ctch} · Dog safety ${h.hxGrade.safe}</div></div><h3>Dog performance</h3>`)}catch(e){}return html}}
+{const o=WK.recSheet;WK.recSheet=function(id){o(id);try{const e=(S.journal||[]).find(x=>x.id===id),G=e&&e.rec&&e.rec.grade,el=document.getElementById('sheetInner');if(G&&el)el.querySelector('h2').insertAdjacentHTML('afterend',`<div class="small" style="margin:4px 0">🎓 Grade <b>${G.L}</b> · tracking ${G.track} · bay ${G.bay} · catch ${G.ctch} · safety ${G.safe}${e.rec.calls&&e.rec.calls.length?` · ${e.rec.calls.length} call${e.rec.calls.length>1?'s':''} made`:''}</div>`)}catch(x){}}}
+// closing the question without answering takes the first (safest) choice, so the hunt never stays stuck
+{const o=closeSheet;closeSheet=function(){const r=o.apply(this,arguments);try{const S2=UI.hunt&&UI.hunt.sim;if(S2&&S2.pausedFor&&!HX._picking)HX.pick(HX.Q[S2.pausedFor].o[0][0])}catch(e){}return r}}
+Object.assign(A,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
