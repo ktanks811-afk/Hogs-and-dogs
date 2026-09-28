@@ -4691,8 +4691,13 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.3.1';
-const PATCH_NOTES=[{v:'2.3.1',title:'Training crew',items:[
+const GAME_VERSION='2.4.0';
+const PATCH_NOTES=[{v:'2.4.0',title:'Kennel yard',items:[
+  ['Every dog gets its own kennel','Each dog on the ranch now has its own doghouse in the Kennel yard, with its name over the door and the dog out front. New dogs, pups and dogs from other ranches get one the day they arrive.'],
+  ['See the whole yard','Open it from the Kennel tab (the yard strip at the top) or More → Kennel yard. Tap a kennel for the dog. Sort by arrival, name, breed, bay or catch, or who needs attention.'],
+  ['How they are doing','Each kennel shows if its dog is hurt, sore, tired, sick, expecting, trained or hunted today, retired (with a porch chair) or on senior care.'],
+  ['Upgrade and paint','🔨 on any kennel: an insulated house and run ($300, +5 energy a day) or a deluxe run with shade, fan and raised floor ($900 total, +10 energy and +2 health a day). Paint it barn red, hunter green, denim blue, white, cedar or tin gray for free.']]},
+  {v:'2.3.1',title:'Training crew',items:[
   ['Training crew','Hire a training crew (More → Kennel staff) and every dog in the kennel gets a training session every day: $60 a day plus $20 per dog trained. Same gains as training by hand, and it all goes on their papers.'],
   ['Training plan','Set each dog to Auto (works its weakest skill), a set skill, or No training. Pups from 6 months get obedience work.'],
   ['Looks after the dogs','The crew skips hurt, sore and retired dogs, never overtrains, and (if you want) leaves enough energy to hunt. Miss payroll and they quit.']]},
@@ -8093,7 +8098,74 @@ const CREW_ACTIONS={
 document.addEventListener('change',e=>{const el=e.target;if(el&&el.dataset&&el.dataset.crew){(S.crewPlan=S.crewPlan||{})[el.dataset.crew]=el.value;save();render()}});
 {const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{CREW.day(msgs)}catch(e){console.warn('crew',e)}}}
 {const o=R21.staffScreen;R21.staffScreen=function(){return o().replace('<p class="sub">','<p class="sub">').replace(/(<p class="sub">[^<]*<\/p>)/,'$1'+CREW.card())}}
-Object.assign(A,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- KENNEL YARD ----------
+// Every dog gets its own kennel in the yard: a doghouse with its name over the door, the dog out front, and how it's
+// doing at a glance. Kennels come with each dog automatically (they live on the dog itself, d.kennel), and can be
+// upgraded: an insulated house and run helps a dog rest up, a deluxe run with shade and a fan helps even more.
+const KY_TIERS=[null,{n:'Doghouse',cost:0,d:'A plywood doghouse and a tie-out.'},{n:'Insulated house & run',cost:300,d:'+5 energy a day. Stays warm in winter.',en:5},{n:'Deluxe run: shade, fan & raised floor',cost:900,d:'+10 energy and +2 health a day. Keeps a dog cool in the heat.',en:10,hp:2}];
+const KY_PAINT={red:['Barn red','#8b2e24','#5e1d17'],green:['Hunter green','#3d5a2a','#27391b'],blue:['Denim blue','#2e4a6b','#1d3047'],white:['White','#d8d2c4','#a8a193'],brown:['Cedar','#8a5a33','#5c3a1f'],gray:['Tin gray','#6b6f73','#45484b']};
+const KY={
+  of(d){const k=d.kennel||(d.kennel={tier:1,paint:pick(Object.keys(KY_PAINT)),since:S.day});return k},
+  house(d,w){const k=KY.of(d),P=KY_PAINT[k.paint]||KY_PAINT.red,t=k.tier,pup=!isAdult(d),ret=d.retired;
+    return`<svg class="ky-house" viewBox="0 0 160 110" width="${w}" aria-hidden="true">
+      ${t>=2?`<g stroke="#b9b2a0" stroke-width="2" opacity=".9"><line x1="4" y1="104" x2="156" y2="104"/><line x1="4" y1="70" x2="4" y2="104"/><line x1="156" y1="70" x2="156" y2="104"/><line x1="4" y1="78" x2="156" y2="78"/>${[20,36,52,108,124,140].map(x=>`<line x1="${x}" y1="78" x2="${x}" y2="104"/>`).join('')}</g>`:''}
+      ${t>=3?`<polygon points="96,18 158,30 158,36 96,24" fill="#3b6b4a" opacity=".85"/><line x1="156" y1="36" x2="156" y2="78" stroke="#555" stroke-width="2"/><text x="136" y="60" font-size="16">🌀</text>`:''}
+      <polygon points="20,44 58,8 96,44" fill="${P[2]}"/><polygon points="24,44 58,12 92,44" fill="${P[1]}"/>
+      <rect x="26" y="42" width="64" height="44" rx="2" fill="${P[1]}" stroke="${P[2]}" stroke-width="2"/>
+      ${[50,58,66,74].map(y=>`<line x1="26" y1="${y}" x2="90" y2="${y}" stroke="${P[2]}" stroke-width=".8" opacity=".5"/>`).join('')}
+      <path d="M46 86 V64 a12 12 0 0 1 24 0 V86 Z" fill="#1c140d"/>
+      <rect x="30" y="30" width="56" height="12" rx="2" fill="#f2e6c8" stroke="#6b4f23"/>
+      ${ret?'<text x="100" y="98" font-size="18">🪑</text>':''}${pup?'<text x="92" y="98" font-size="14">🧸</text>':''}
+      <ellipse cx="80" cy="104" rx="${t>=2?20:14}" ry="4" fill="#00000030"/></svg>`},
+  chips(d){const c=[];if(d.inj)c.push(['🩹','Hurt']);else if(d.sore&&d.sore>=S.day)c.push(['🦶','Sore']);if(d.energy<35)c.push(['💤','Tired']);if(S.preg.some(p=>p.dam===d.id))c.push(['🤰','Expecting']);if(d.retired)c.push(['🌅','Retired']);
+    if(typeof R2!=='undefined'&&R2.sick(d).length)c.push(['🤒','Sick']);if(d.rec&&d.rec.t&&d.rec.t.last===S.day)c.push(['🏋️','Trained today']);if(d.rec&&d.rec.h&&d.rec.h.last&&d.rec.h.last[0]&&d.rec.h.last[0].day===S.day)c.push(['🐗','Hunted today']);if(d.senior)c.push(['🧓','Senior care']);return c},
+  cell(d,small){const k=KY.of(d),w=small?110:150,nm=esc(d.name.length>14?d.name.slice(0,13)+'…':d.name);
+    return`<div class="ky-cell ${small?'sm':''}"><button class="ky-hit" data-act="dog" data-id="${d.id}" aria-label="${esc(d.name)}'s kennel"><div class="ky-plate">${nm}</div>${KY.house(d,w)}<div class="ky-dog">${dogArt(d,small?84:110)}</div></button>
+      <div class="ky-chips">${KY.chips(d).map(([i,t])=>`<span title="${t}">${i}</span>`).join('')}</div>
+      ${small?'':`<div class="ky-foot"><span class="small muted">${d.sex==='M'?'♂':'♀'} ${esc(breedName(d))}${k.tier>1?' · '+(k.tier===3?'Deluxe':'Insulated'):''}</span><button class="btn sm ghost" data-act="kyEdit" data-id="${d.id}">🔨</button></div>`}</div>`},
+  sorted(){const s=UI.kySort||'arrive',L=S.dogs.filter(d=>!d.guest);if(s==='name')return L.slice().sort((a,b)=>a.name.localeCompare(b.name));if(s==='breed')return L.slice().sort((a,b)=>breedName(a).localeCompare(breedName(b)));
+    if(s==='role')return L.slice().sort((a,b)=>(bayScore(b)-catchScore(b))-(bayScore(a)-catchScore(a)));if(s==='status')return L.slice().sort((a,b)=>KY.chips(b).length-KY.chips(a).length);return L},
+  screen(){const L=KY.sorted(),up=L.filter(d=>KY.of(d).tier>1).length;
+    return`<h2>Kennel yard</h2><p class="sub">Every dog on the ranch has its own kennel with its name over the door. Tap a kennel for the dog, or 🔨 to upgrade or paint it. ${up?`${up} upgraded kennel${up===1?'':'s'}.`:'Upgraded kennels help dogs rest up between hunts.'}</p>
+      <div class="seg" style="margin-bottom:8px">${[['arrive','Arrival'],['name','Name'],['breed','Breed'],['role','Bay → catch'],['status','Needs attention']].map(([k,l])=>`<button class="${(UI.kySort||'arrive')===k?'on':''}" data-act="kySort" data-k="${k}">${l}</button>`).join('')}</div>
+      ${L.length?`<div class="ky-yard">${L.map(d=>KY.cell(d)).join('')}</div>`:'<div class="panel">No dogs yet. <button class="btn sm" data-act="tab" data-t="market">Visit the market</button></div>'}
+      <p class="small muted" style="margin-top:8px">🩹 hurt · 🦶 sore · 💤 tired · 🤰 expecting · 🤒 sick · 🏋️ trained today · 🐗 hunted today · 🌅 retired · 🧓 senior care</p>`},
+  strip(){const L=KY.sorted();if(!L.length)return'';return`<div class="panel" style="margin:8px 0;padding:8px"><div class="spread"><b>🏡 Kennel yard</b><button class="btn sm" data-act="tab" data-t="yard">Open the yard</button></div>
+      <div class="ky-strip">${L.slice(0,16).map(d=>KY.cell(d,true)).join('')}${L.length>16?`<button class="ky-more" data-act="tab" data-t="yard">+${L.length-16} more</button>`:''}</div></div>`},
+  edit(id){const d=S.dogs.find(x=>x.id===id);if(!d)return;const k=KY.of(d);
+    openSheet(`<h2>${esc(d.name)}'s kennel</h2><div class="ky-yard" style="grid-template-columns:1fr;max-width:240px;margin:0 auto">${KY.cell(d).replace(/<button class="btn sm ghost" data-act="kyEdit"[^>]*>🔨<\/button>/,'')}</div>
+      <h3>Kennel</h3>${[1,2,3].map(t=>{const T=KY_TIERS[t];return`<div class="panel spread" style="margin-bottom:6px;gap:8px;${k.tier===t?'border-color:var(--good)':''}"><div><b>${T.n}</b><div class="small muted">${T.d}</div></div>${k.tier>=t?'<span class="small">✅</span>':`<button class="btn sm" data-act="kyUp" data-id="${d.id}" data-k="${t}" ${S.money>=KY.upCost(k.tier,t)?'':'disabled'}>${fmt(KY.upCost(k.tier,t))}</button>`}</div>`}).join('')}
+      <h3>Paint</h3><div class="row" style="gap:6px">${Object.entries(KY_PAINT).map(([p,[n,c]])=>`<button class="btn sm ${k.paint===p?'':'ghost'}" data-act="kyPaint" data-id="${d.id}" data-k="${p}" style="border-left:14px solid ${c}">${n}</button>`).join('')}</div>
+      <p class="small muted" style="margin-top:8px">Painting is free. Upgrades stay with the dog's kennel; if the dog leaves the ranch, the next dog doesn't inherit it.</p>`)},
+  upCost:(from,to)=>Math.max(0,KY_TIERS[to].cost-KY_TIERS[from].cost),
+  daily(){const hot=HWX&&HWX.kind==='heat'||weSeason()===1;for(const d of S.dogs){const k=d.kennel;if(!k||k.tier<2)continue;const T=KY_TIERS[k.tier];d.energy=Math.min(100,d.energy+(T.en||0));if(T.hp)d.health=Math.min(d.hcap||100,d.health+T.hp);if(k.tier===3&&hot&&typeof REAL!=='undefined')d.cond=Math.max(REAL.cond(d),REAL.cond(d)+1)}}
+};
+document.head.insertAdjacentHTML('beforeend',`<style>
+.ky-yard{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px;border-radius:10px;background:linear-gradient(180deg,#6f8f45,#56753a);border:6px solid #7a5230;box-shadow:inset 0 0 0 2px #a3794b}
+.ky-cell{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.08));border-radius:8px;padding:6px 6px 4px;min-width:0}
+.ky-hit{display:block;width:100%;background:none;border:0;padding:0;cursor:pointer;position:relative;color:inherit;font:inherit}
+.ky-house{display:block;margin:0 auto;max-width:100%;height:auto}.ky-plate{position:absolute;top:24%;left:18%;width:34%;text-align:center;font:700 10px/1.2 Georgia,serif;color:#3a2a14;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+.ky-cell .ky-plate{top:calc(27% + 1px);left:17%;width:36%}
+.ky-dog{position:absolute;left:44%;bottom:-2px;width:60%;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}.ky-dog img,.ky-dog svg{width:100%!important;height:auto}
+.ky-chips{position:absolute;top:4px;right:6px;display:flex;gap:2px;font-size:14px}.ky-foot{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:4px}.ky-foot .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ky-strip{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 4px;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#6f8f45,#56753a);border-radius:8px;margin-top:6px}.ky-strip .ky-cell{flex:0 0 120px}
+.ky-more{flex:0 0 90px;border:2px dashed #ffffff80;border-radius:8px;background:none;color:#fff;font-weight:700}
+@media(max-width:420px){.ky-yard{grid-template-columns:repeat(2,minmax(0,1fr));padding:8px;gap:8px}}
+</style>`);
+const KY_ACTIONS={
+  kySort:d=>{UI.kySort=d.k;render()},kyEdit:d=>KY.edit(d.id),
+  kyUp:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x)return;const k=KY.of(x),t=+d.k,c=KY.upCost(k.tier,t);if(t<=k.tier)return;if(S.money<c)return toast('Not enough cash.');S.money-=c;k.tier=t;addLog(`Upgraded ${x.name}'s kennel: ${KY_TIERS[t].n}.`);toast(`${x.name}'s kennel is upgraded.`);sfx.coin();save();render();KY.edit(x.id)},
+  kyPaint:d=>{const x=S.dogs.find(y=>y.id===d.id);if(!x)return;KY.of(x).paint=d.k;save();render();KY.edit(x.id)}
+};
+// every dog gets its kennel the day it arrives (born, bought, traded); old saves get theirs on load
+{const o=makeDog;makeDog=function(opt){const d=o(opt);try{KY.of(d)}catch(e){}return d}}
+{const o=makePuppy;makePuppy=function(a,b){const d=o(a,b);try{KY.of(d)}catch(e){}return d}}
+{const o=importDog;importDog=function(obj,from){const d=o(obj,from);try{d.kennel={tier:1,paint:pick(Object.keys(KY_PAINT)),since:S.day}}catch(e){}return d}}
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{KY.daily()}catch(e){console.warn('ky',e)}}}
+SCREENS.yard=()=>KY.screen();
+{const o=SCREENS.kennel;SCREENS.kennel=function(){return o().replace(/(<p class="sub">[\s\S]*?<\/p>)/,'$1'+KY.strip())}}
+{const o=SCREENS.more;SCREENS.more=function(){return o().replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="yard"><div class="tileic">🏡</div><b>Kennel yard</b><div class="small muted">Every dog's own kennel: upgrade and paint them</div></button>`)}}
+Object.assign(A,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
