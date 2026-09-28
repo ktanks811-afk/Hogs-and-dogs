@@ -4691,8 +4691,15 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.4.0';
-const PATCH_NOTES=[{v:'2.4.0',title:'Kennel yard',items:[
+const GAME_VERSION='2.5.0';
+const PATCH_NOTES=[{v:'2.5.0',title:'Kennel life',items:[
+  ['Doghouses on the ranch map','Every dog has its own doghouse on your land, by your kennels and dog yards (painted to match), and walks around its own run. Zoom in to see names.'],
+  ['Kennel chores','Each kennel has water and cleanliness. Water all, Clean all and Play with all in the Kennel yard, or per kennel. Dry and dirty kennels cost health, bring ticks and can make a dog sick.'],
+  ['Kennel hand','Hire a kennel hand (More → Kennel staff, $60/day) to water and clean every kennel each morning.'],
+  ['Moods','Every dog is Happy, Content, Bored, Restless or Anxious from its work, attention, kennel, hunger and neighbors. Happy dogs listen and work harder on the hunt; bored dogs dig and bark at night.'],
+  ['Neighbors','Kennel order matters. Buddies side by side settle in and grow closer as a pack; two dominant males next door (⚠️) may fight through the fence. Move dogs left or right from their kennel.'],
+  ['Better kennel upgrades','Dogs already rest to full energy every night, so upgrades now do something real: insulated kennels give +3 health a day and water lasts longer; deluxe runs give +5 health, faster healing, stay clean longer and keep condition in the heat. Both start dogs fresher on hunts.']]},
+  {v:'2.4.0',title:'Kennel yard',items:[
   ['Every dog gets its own kennel','Each dog on the ranch now has its own doghouse in the Kennel yard, with its name over the door and the dog out front. New dogs, pups and dogs from other ranches get one the day they arrive.'],
   ['See the whole yard','Open it from the Kennel tab (the yard strip at the top) or More → Kennel yard. Tap a kennel for the dog. Sort by arrival, name, breed, bay or catch, or who needs attention.'],
   ['How they are doing','Each kennel shows if its dog is hurt, sore, tired, sick, expecting, trained or hunted today, retired (with a porch chair) or on senior care.'],
@@ -8165,7 +8172,93 @@ const KY_ACTIONS={
 SCREENS.yard=()=>KY.screen();
 {const o=SCREENS.kennel;SCREENS.kennel=function(){return o().replace(/(<p class="sub">[\s\S]*?<\/p>)/,'$1'+KY.strip())}}
 {const o=SCREENS.more;SCREENS.more=function(){return o().replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="yard"><div class="tileic">🏡</div><b>Kennel yard</b><div class="small muted">Every dog's own kennel: upgrade and paint them</div></button>`)}}
-Object.assign(A,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- KENNEL LIFE ----------
+// The yard comes alive. Every kennel has its water and how clean it is; the feed bags already feed the dogs each day.
+// Keep kennels watered and clean (or hire a kennel hand) and dogs stay healthy; let them go and you get fleas, ticks
+// and sick dogs. Each dog has a mood from its work, attention, kennel and neighbors, and the mood shows on the hunt.
+// Neighbors matter: dogs that know each other settle in side by side, two dominant males next door can fight.
+// On the ranch map, each dog has its doghouse by the kennels and dog yards, and walks around its own run.
+const KL_DOM=['Bold','Hot-headed','Gritty','Stubborn'];
+KY_TIERS[2]={...KY_TIERS[2],d:'Insulated house, a bigger water bucket and a run: +3 health a day, stays warm in winter, water lasts longer, starts hunts a little fresher.',en:0,hp:3,fresh:.03};
+KY_TIERS[3]={...KY_TIERS[3],d:'Shade, a fan, an auto-waterer and a raised floor: +5 health a day, faster healing, stays clean longer, keeps condition in the heat, starts hunts fresher.',en:0,hp:5,fresh:.06};
+const KL={
+  k(d){const k=KY.of(d);if(k.water===undefined){k.water=100;k.clean=100}if(k.slot===undefined){const used=S.dogs.map(x=>x.kennel&&x.kennel.slot).filter(v=>v!==undefined);k.slot=used.length?Math.max(...used)+1:0}return k},
+  order(){S.dogs.forEach(d=>KL.k(d));return S.dogs.filter(d=>!d.guest).slice().sort((a,b)=>a.kennel.slot-b.kennel.slot)},
+  neighbors(d){const L=KL.order(),i=L.indexOf(d);return[L[i-1],L[i+1]].filter(Boolean)},
+  dom:d=>d.sex==='M'&&isAdult(d)&&!d.retired&&KL_DOM.includes(d.temp),
+  buddies:(a,b)=>((S.pack||{})[WK.pk(a.id,b.id)]||0)>=5,
+  // ---- mood ----
+  moodOf(d){return d.mood||(d.mood={v:65,why:''})},
+  word(v,why){return v>=70?['Happy','😊']:v>=50?['Content','🙂']:why==='idle'?(v>=35?['Bored','😐']:['Restless','😣']):['Anxious','😟']},
+  daily(msgs){const hot=HWX&&HWX.kind==='heat'||weSeason()===1,L=KL.order();
+    for(const d of L){const k=KL.k(d),T=KY_TIERS[k.tier]||KY_TIERS[1],hand=S.staff&&S.staff.chores;
+      // chores
+      k.water=Math.max(0,k.water-(k.tier>=3?0:k.tier===2?18:30)*(hot?1.3:1));k.clean=Math.max(0,k.clean-(k.tier>=3?5:k.tier===2?8:12));if(hand){k.water=100;k.clean=100}
+      if(k.water<20){d.health=Math.max(Math.min(d.health,50),d.health-6);if(!msgs._kw){msgs._kw=1;msgs.push(`💧 Some kennels are out of water. Water them in the Kennel yard.`)}}
+      if(k.clean<30&&!d.tick&&R()<(k.clean<15?.1:.04)){d.tick={day:S.day};(msgs._tk=msgs._tk||[]).push(d.name)}
+      if(k.clean<15&&R()<.04){d.health=Math.max(Math.min(d.health,50),d.health-10);(msgs._sk=msgs._sk||[]).push(d.name)}
+      // kennel perks
+      if(T.hp)d.health=Math.min(d.hcap||100,d.health+T.hp);if(k.tier>=3&&d.inj&&d.inj.left>1&&R()<.5)d.inj.left--;if(k.tier>=3&&hot&&typeof REAL!=='undefined')d.cond=Math.max(REAL.cond(d),REAL.cond(d)+1);
+      // mood
+      const m=KL.moodOf(d),r=d.rec||{},worked=(r.t&&S.day-(r.t.last||-99)<=2)||(r.h&&r.h.last&&r.h.last[0]&&S.day-r.h.last[0].day<=2)||d.worked>=S.day-2,petted=d.petted>=S.day-1,N=KL.neighbors(d);
+      let v=55,why='';if(worked)v+=15;else if(isAdult(d)&&!d.retired){v-=12;why='idle'}if(petted)v+=10;if(k.water<20)v-=12;if(k.clean<30)v-=10;if(d.hungry===S.day)v-=15;if(d.inj){v-=10;why=why||'hurt'}
+      for(const n of N){if(KL.buddies(d,n))v+=6;if(KL.dom(d)&&KL.dom(n)){v-=12;why='neighbor'}}if(k.tier>=2)v+=4;if(d.retired)v+=10;
+      m.v=Math.round(clamp(m.v*.4+v*.6,0,100));m.why=why;
+      // buddies grow closer, rivals fight
+      for(const n of N){if(n.kennel.slot<d.kennel.slot)continue;if(KL.buddies(d,n)||R()<.3){const P=S.pack||(S.pack={}),key=WK.pk(d.id,n.id);P[key]=(P[key]||0)+.2}
+        if(KL.dom(d)&&KL.dom(n)&&!d.inj&&!n.inj&&R()<.06){const loser=R()<.5?d:n;loser.inj={what:'bite from a kennel fight',sev:1,left:2,day:S.day};loser.health=Math.max(10,loser.health-10);msgs.push(`⚠️ ${d.name} and ${n.name} got into it through the fence: ${loser.name} got bit. Move one of them to another kennel.`)}}
+      if(m.v<35&&why==='idle'&&R()<.12&&!msgs._bd){msgs._bd=1;msgs.push(pick([`🕳️ ${d.name} dug a hole under the kennel run out of boredom. Work or play with ${d.sex==='M'?'him':'her'}.`,`🌙 ${d.name} barked half the night. A restless dog needs a job.`]))}}
+    const list=a=>a.length>4?a.slice(0,4).join(', ')+` and ${a.length-4} more`:a.join(', ');if(msgs._tk)msgs.push(`🪲 Ticks from dirty kennels: ${list(msgs._tk)}. Clean the kennels and treat them.`);if(msgs._sk)msgs.push(`🤒 Sick from filthy kennels: ${list(msgs._sk)}.`)},
+  // ---- the hunt: mood and kennel on the dog ----
+  hunt(S2){for(const g of S2.dogs){const d=g.d;if(!d||!d.kennel)continue;const m=d.mood?d.mood.v:60,T=KY_TIERS[d.kennel.tier]||{};g.at.end*=1+(T.fresh||0);
+    if(m>=70){g.at.grit*=1.05;g.at.obd*=1.05}else if(m<25){if(d.mood.why==='idle')g.at.obd*=.96;else g.at.grit*=.95}}},
+  // ---- chores ----
+  chore(id,what){const L=id?S.dogs.filter(d=>d.id===id):KL.order();let n=0;for(const d of L){const k=KL.k(d);if(what==='water'){if(k.water<100){k.water=100;n++}}else if(what==='clean'){if(k.clean<100){k.clean=100;n++}}else if(what==='pet'){if(d.petted!==S.day){d.petted=S.day;const m=KL.moodOf(d);m.v=Math.min(100,m.v+8);n++}}}
+    toast(what==='water'?`Watered ${n} kennel${n===1?'':'s'}.`:what==='clean'?`Cleaned ${n} kennel${n===1?'':'s'}.`:`Played with ${n} dog${n===1?'':'s'}.`);if(n)sfx.ok();save();render();if(id&&document.querySelector('#sheet:not(.hidden)'))KY.edit(id)},
+  move(id,dir){const L=KL.order(),i=L.findIndex(d=>d.id===id),j=i+dir;if(i<0||j<0||j>=L.length)return;const a=L[i].kennel,b=L[j].kennel;[a.slot,b.slot]=[b.slot,a.slot];save();render();KY.edit(id)},
+  bars(d){const k=KL.k(d),m=KL.moodOf(d),[w,ic]=KL.word(m.v,m.why),bar=(v,c)=>`<i style="display:block;height:4px;border-radius:2px;background:linear-gradient(90deg,${c} ${v}%,#0004 ${v}%)"></i>`;
+    return`<div class="kl-bars" title="Water ${Math.round(k.water)} · Clean ${Math.round(k.clean)} · ${w}"><span>💧</span>${bar(k.water,'#4aa3ff')}<span>🧹</span>${bar(k.clean,'#c9a45c')}<span class="kl-mood">${ic}</span></div>`},
+  warn(d){return KL.neighbors(d).some(n=>KL.dom(d)&&KL.dom(n))?'<span class="kl-warn" title="Two dominant males side by side">⚠️</span>':''},
+  // ---- the ranch map: a doghouse per dog ----
+  spots(P){const key=[P.id,P.ver,S.dogs.map(d=>d.id).join(',')].join('|');if(KL._key===key)return KL._spots;const G=landGen(P),n=G.n,occ=landOcc(P),used=new Set(),out=[];
+    const ok=(x,y)=>x>=1&&y>=1&&x<n-1&&y<n-1&&!occ[y*n+x]&&!used.has(y*n+x)&&NAV.dog[G.t[y*n+x]];
+    const homes=[];for(const b of P.buildings){const d=BLD[b.type];if(d.kennel||b.type==='dogrun'||b.type==='puppen'){const[w,h]=bSize(b);homes.push({x:b.x,y:b.y,w,h})}}
+    for(const r of landPens(P))if(r.ok&&r.type==='dogyard')homes.push({cells:r.sample});
+    if(!homes.length){const hb=P.buildings.find(b=>b.type==='house');if(hb){const[w,h]=bSize(hb);homes.push({x:hb.x,y:hb.y,w,h})}}
+    const cand=[];for(const H of homes){if(H.cells){for(const i of H.cells)cand.push([i%n,(i/n)|0]);continue}for(let ring=1;ring<=7;ring+=2){for(let x=H.x-ring;x<H.x+H.w+ring;x+=2){cand.push([x,H.y+H.h+ring-1]);cand.push([x,H.y-ring])}for(let y=H.y-ring;y<H.y+H.h+ring;y+=2){cand.push([H.x-ring,y]);cand.push([H.x+H.w+ring-1,y])}}}
+    for(const d of KL.order()){let s=null;for(const[x,y]of cand){if(ok(x,y)){s=[x,y];break}}if(!s)for(let t=0;t<200&&!s;t++){const x=ri(2,n-3),y=ri(2,n-3);if(ok(x,y))s=[x,y]}if(!s)continue;used.add(s[1]*n+s[0]);out.push({d,x:s[0],y:s[1]})}
+    KL._key=key;KL._spots=out;return out},
+  drawMap(){const cv=LV.cv,P=LV.P;if(!cv||!P||P!==S.land)return;const z=LV.cam.z;if(z<2.2)return;const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1,{x0,y0}=landView();ctx.setTransform(dpr,0,0,dpr,0,0);
+    const sx=x=>(x-x0)*z,sy=y=>(y-y0)*z,lab=[];for(const s of KL.spots(P)){const X=sx(s.x),Y=sy(s.y),w=z*1;if(X<-w||Y<-w||X>cv.clientWidth+w||Y>cv.clientHeight+w)continue;const pnt=KY_PAINT[s.d.kennel&&s.d.kennel.paint]||KY_PAINT.red;
+      ctx.fillStyle=pnt[1];ctx.fillRect(X+w*.12,Y+w*.42,w*.76,w*.5);ctx.fillStyle=pnt[2];ctx.beginPath();ctx.moveTo(X+w*.02,Y+w*.46);ctx.lineTo(X+w*.5,Y+w*.08);ctx.lineTo(X+w*.98,Y+w*.46);ctx.fill();ctx.fillStyle='#1c140d';ctx.fillRect(X+w*.38,Y+w*.62,w*.24,w*.3);
+      if(z>=10){ctx.font='600 10px system-ui';const tw=ctx.measureText(s.d.name).width,r=[X+w/2-tw/2-2,Y-13,tw+4,13];if(!lab.some(q=>r[0]<q[0]+q[2]&&q[0]<r[0]+r[2]&&r[1]<q[1]+q[3]&&q[1]<r[1]+r[3])){lab.push(r);ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.8)';ctx.strokeText(s.d.name,X+w/2,Y-2);ctx.fillStyle='#fff';ctx.fillText(s.d.name,X+w/2,Y-2)}}}},
+  homeFor(d){const s=(KL._spots||[]).find(x=>x.d===d);return s?{rect:[s.x-2,s.y-1,5,4]}:null}
+};
+document.head.insertAdjacentHTML('beforeend',`<style>.kl-bars{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:3px;font-size:11px;margin-top:3px}.kl-mood{font-size:15px}.kl-warn{position:absolute;left:4px;top:4px;font-size:14px}</style>`);
+const KL_ACTIONS={klWater:d=>KL.chore(d.id,'water'),klClean:d=>KL.chore(d.id,'clean'),klPet:d=>KL.chore(d.id,'pet'),klMove:d=>KL.move(d.id,+d.k)};
+// kennel hand: waters and cleans every kennel each day
+R21_STAFF.chores={n:'Kennel hand',ic:'🧹',wage:60,d:'Waters and cleans every kennel every day.'};
+// wiring
+{const o=WE.daily;WE.daily=function(msgs){o.call(WE,msgs);try{KL.daily(msgs)}catch(e){console.warn('kl',e)}}}
+KY.daily=function(){};// the old per-kennel energy bonus is replaced (energy refills every morning anyway): see KL.daily
+{const o=endDay;endDay=function(){const f0=S.inv.feed,need=Math.max(0,S.dogs.length-(S.land?landStats().feedSave:0));const r=o.apply(this,arguments);try{if(f0<need){const short=need-f0;S.dogs.slice(0,short).forEach(d=>d.hungry=S.day)}}catch(e){}return r}}
+{const o=huntWorldStart;huntWorldStart=function(a,bay,ctch,lh,own,opts){const S2=o(a,bay,ctch,lh,own,opts);try{KL.hunt(S2)}catch(e){}return S2}}
+KY.sorted=(function(o){return function(){const s=UI.kySort||'arrive';if(s==='arrive')return KL.order();return o()}})(KY.sorted);
+{const o=KY.cell;KY.cell=function(d,small){let h=o(d,small);try{KL.k(d);h=h.replace('<div class="ky-chips">',KL.warn(d)+'<div class="ky-chips">');if(!small)h=h.replace('<div class="ky-foot">',KL.bars(d)+'<div class="ky-foot">');else h=h.replace('</button>',`</button>${KL.bars(d)}`)}catch(e){}return h}}
+{const o=KY.screen;KY.screen=function(){const L=KL.order(),dry=L.filter(d=>d.kennel.water<50).length,dirty=L.filter(d=>d.kennel.clean<50).length,hand=S.staff&&S.staff.chores;
+  return o().replace('<div class="seg" style="margin-bottom:8px">',`<div class="panel small" style="margin-bottom:8px"><div class="row" style="gap:6px"><button class="btn sm" data-act="klWater">💧 Water all${dry?` (${dry})`:''}</button><button class="btn sm" data-act="klClean">🧹 Clean all${dirty?` (${dirty})`:''}</button><button class="btn sm alt" data-act="klPet">🤲 Play with all</button></div>
+    <div class="muted" style="margin-top:4px">${hand?'Your kennel hand waters and cleans every kennel each morning.':'Dry or dirty kennels mean sick dogs, fleas and ticks. Hire a kennel hand (More → Kennel staff) to do chores every day.'} Neighbors matter: dogs that know each other settle in side by side; two dominant males next door (⚠️) may fight.</div></div><div class="seg" style="margin-bottom:8px">`)}}
+{const o=KY.edit;KY.edit=function(id){o(id);try{const d=S.dogs.find(x=>x.id===id),el=document.getElementById('sheetInner');if(!d||!el)return;const k=KL.k(d),m=KL.moodOf(d),[w,ic]=KL.word(m.v,m.why),N=KL.neighbors(d);
+  const why={idle:'needs work: hunt or train',hurt:'hurting',neighbor:'on edge next to another dominant male'}[m.why]||'';
+  const h3=[...el.querySelectorAll('h3')].find(x=>x.textContent==='Kennel');const html=`<h3>Care</h3><div class="panel small">${PAPERS.row('Mood',`${ic} ${w}${why?' · '+why:''}`)}${PAPERS.row('Water',Math.round(k.water)+'%')}${PAPERS.row('Clean',Math.round(k.clean)+'%')}${d.hungry===S.day?PAPERS.row('Fed','<b style="color:var(--bad)">Went hungry today</b>'):PAPERS.row('Fed','Yes (feed bags)')}
+    <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm" data-act="klWater" data-id="${d.id}">💧 Water</button><button class="btn sm" data-act="klClean" data-id="${d.id}">🧹 Clean</button><button class="btn sm alt" data-act="klPet" data-id="${d.id}">🤲 Play</button></div></div>
+    <h3>Neighbors</h3><div class="panel small">${N.length?N.map(n=>`<div>${esc(n.name)}${KL.buddies(d,n)?' · 🤝 buddies':''}${KL.dom(d)&&KL.dom(n)?' · ⚠️ two dominant males':''}</div>`).join(''):'No neighbors.'}
+    <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm ghost" data-act="klMove" data-id="${d.id}" data-k="-1">◀ Move left</button><button class="btn sm ghost" data-act="klMove" data-id="${d.id}" data-k="1">Move right ▶</button></div></div>`;
+  if(h3)h3.insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}catch(e){console.warn('kl',e)}}}
+// the ranch map: doghouses, and each dog walks its own run
+{const o=landDraw;landDraw=function(){o();try{KL.drawMap()}catch(e){}}}
+{const o=landSprites;landSprites=function(P,G){const pool=o(P,G);try{if(P===S.land){const sp=KL.spots(P);let i=0;for(const s of pool){if(s.kind!=='dog')continue;const d=S.dogs[i++];if(!d)break;const h=KL.homeFor(d);if(h&&s.home!==h&&(!s.home||!s.home.kl)){s.home={...h,kl:1}}}}}catch(e){}return pool}}
+Object.assign(A,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
