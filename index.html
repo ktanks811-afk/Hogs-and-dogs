@@ -8510,22 +8510,21 @@ try{(S.kyPaints||[]).forEach(p=>{if(S2_PAINTS[p])KY_PAINT[p]=S2_PAINTS[p]})}catc
 // guide check after each day, and gifts/friends when online data loads
 {const o=endDay;endDay=function(){const r=o.apply(this,arguments);try{GUIDE.check()}catch(e){}return r}}
 setTimeout(()=>{try{if(signedIn())FR.load().then(()=>{if((FR.inbox||[]).length)toast(`🎁 You have ${FR.inbox.length} gift${FR.inbox.length>1?'s':''} waiting (More → Friends).`)})}catch(e){}},4000);
-// ---- catching vest art: an equipment layer painted onto any rendered dog ----
-// The build follows the reference vest (Snow Camo): padded shell, grey webbing straps with black side-release buckles,
-// a hook-and-loop ID patch on the side, a black ribbed grab handle on top, a D-ring at the chest and dark binding.
-// The dog pictures come from the coat engine (a side view, head to the left). The vest is fitted from the picture itself:
-// the legs are the columns that reach the ground, the barrel is the widest gap between them, the back line and belly
-// come from the outline. So it sits right on every breed, size and mix without per-breed tuning.
+// ---- catching vest art: a padded harness-vest drawn onto any rendered dog ----
+// Built like the reference vests: a padded chest plate under the neck, shoulder and rib panels ending behind the ribs,
+// MOLLE webbing rows, a black ribbed grab handle on the withers, black belly straps with side-release buckles just
+// behind the front leg and at the back of the vest (they wrap under the chest), a D-ring, thick binding and a padded
+// collar edge. The front legs stay free under it. It's fitted from the dog's own picture (the legs, the gap under the
+// belly, the back line, the chest front), so it sits right on every breed, size, mix and pose.
 const CV_VARIANTS={
-  black:{n:'Standard Black',base:'#232427',sp:[],web:'#3d4045',bind:'#111214',weave:1},
-  brown:{n:'Brown',base:'#6e4c2f',sp:[],web:'#4a3526',bind:'#24180f',weave:1},
-  forest:{n:'Forest Camo',base:'#5a6a3c',sp:['#35432a','#7b6b45','#1f2717'],web:'#5b5e45',bind:'#1f2218'},
-  mud:{n:'Mud Camo',base:'#7b6349',sp:['#58442f','#9d8666','#382a1f'],web:'#6b5a45',bind:'#2a2018'},
-  // the reference design: white snow with brown branches and olive needle sprigs, grey webbing, black hardware
-  snow:{n:'Snow Camo',base:'#e4e7ea',sp:[],pat:'branch',web:'#8e9195',bind:'#4a4d52'},
-  swamp:{n:'Swamp Camo',base:'#4e5934',sp:['#6f6d3d','#2c351e','#8e7d4c'],web:'#5b5e45',bind:'#1f2218'},
-  desert:{n:'Desert Camo',base:'#c9b18a',sp:['#a98d62','#87694a','#e1d0aa'],web:'#a38d68',bind:'#5a4834'},
-  winter:{n:'Winter White',base:'#f2f2ee',sp:[],web:'#c3c6c9',bind:'#9ea2a6',weave:1}};
+  black:{n:'Standard Black',base:'#1f2023',sp:[],web:'#2a2b2f',bind:'#0e0f10',weave:1},
+  brown:{n:'Brown',base:'#6a4a2c',sp:[],web:'#5a3e25',bind:'#1d140c',weave:1},
+  forest:{n:'Forest Camo',base:'#5b6b3b',sp:[['#3a4a28',.7,.5],['#7c6a44',.55,.42],['#1c1f16',.45,.26],['#a39a6a',.3,.2]],web:'#4a5731',bind:'#15170f'},
+  mud:{n:'Mud Camo',base:'#6d5a44',sp:[['#4b3b2a',.7,.48],['#8c7654',.55,.4],['#3b3a26',.45,.3],['#a8946e',.25,.2]],web:'#5b4a37',bind:'#1c150f'},
+  snow:{n:'Snow Camo',base:'#e8eaed',sp:[['#a4abb2',.6,.42],['#4a4e53',.45,.3],['#c9cdd1',.5,.36],['#2c2f33',.2,.18]],web:'#b9bec4',bind:'#141516'},
+  swamp:{n:'Swamp Camo',base:'#4b4a2c',sp:[['#2f2d1c',.7,.48],['#6a6238',.55,.42],['#7a5a36',.35,.3],['#1b1a12',.3,.2]],web:'#403f26',bind:'#131209'},
+  desert:{n:'Desert Camo',base:'#c8b28a',sp:[['#a6906a',.65,.46],['#8a7453',.45,.34],['#e0cfaa',.45,.36],['#6e5c42',.2,.2]],web:'#b09a74',bind:'#2e2519'},
+  winter:{n:'Winter White',base:'#eff0f1',sp:[['#d9dcdf',.35,.5]],web:'#dfe2e5',bind:'#8f959b',weave:1}};
 const CVA={
   // find the torso in a rendered dog
   fit(cv){const W=cv.width,H=cv.height,a=cv.getContext('2d').getImageData(0,0,W,H).data,op=(x,y)=>a[(y*W+x)*4+3]>60;
@@ -8533,79 +8532,97 @@ const CVA={
     for(let x=0;x<W;x++){for(let y=0;y<H;y++)if(op(x,y)){top[x]=y;break}if(top[x]<0)continue;let y=top[x];while(y<H&&op(x,y))y++;run[x]=y-top[x];for(let z=H-1;z>=0;z--)if(op(x,z)){bot[x]=z;break}
       xL=Math.min(xL,x);xR=Math.max(xR,x);gY=Math.max(gY,bot[x]);tY=Math.min(tY,top[x])}
     if(xR<0)return null;const DH=gY-tY,DW=xR-xL,leg=x=>bot[x]>=gY-DH*.1;
-    // widest gap between leg columns in the middle of the dog = the barrel
     let best=null,last=-1;for(let x=Math.round(xL+DW*.12);x<=xR-DW*.05;x++){if(!leg(x))continue;if(last>=0&&x-last>(best?best[1]-best[0]:DW*.08))best=[last,x];last=x}
     let fL,fR,hL;
     if(best&&best[1]-best[0]>=DW*.16&&best[1]-best[0]<=DW*.62){[fR,hL]=best;fL=fR;while(fL>xL&&(leg(fL-1)||leg(fL-2)||leg(fL-3)))fL--;fL=Math.max(fL,fR-DW*.2)}
     else{// odd poses (a lunge, a crouch): place it by where the body's mass is, ignoring the thin tail
-      const m=[];let tot=0;for(let x=0;x<W;x++){const v=bot[x]<0?0:Math.max(0,run[x]-DH*.12);m.push(v);tot+=v}if(!tot)return null;let c=0;const at=q=>{c=0;for(let x=0;x<W;x++){c+=m[x];if(c>=tot*q)return x}return xR};
-      fL=at(.2);fR=at(.3);hL=at(.72)}
+      // the torso is the longest stretch of thick body columns (the tail and legs are thin, the head is set apart by the neck)
+      let mr=0;for(let x=0;x<W;x++)mr=Math.max(mr,run[x]);let bs=0,be=-1,cs=-1;for(let x=0;x<=W;x++){const th=x<W&&run[x]>=mr*.5;if(th&&cs<0)cs=x;if(!th&&cs>=0){if(x-cs>be-bs){bs=cs;be=x}cs=-1}}
+      if(be-bs<DW*.15)return null;fL=bs;hL=be-Math.round((be-bs)*.04);fR=fL+Math.round((hL-fL)*.18)}
+    // sanity for any pose: the vest's front can't start behind the withers (the back's high point between head and tail),
+    // and it ends at the rump, never out along the tail
+    {let wX=-1,wy=1e9;for(let x=Math.round(xL+DW*.25);x<=xL+DW*.6;x++)if(top[x]>=0&&top[x]<wy){wy=top[x];wX=x}const br=[];for(let x=fR;x<hL;x++)if(top[x]>=0)br.push(run[x]);br.sort((p,q)=>p-q);const bm=br[br.length>>1]||0;let tE=xR;while(tE>hL-(hL-fR)*.5&&!(run[tE]>=bm*.6))tE--;
+      if(wX>0&&fL-(hL-fR)*.13>wX+DW*.05){const sh=fL-(wX-DW*.03);fL-=sh;fR-=sh*.6}if(hL>tE)hL=tE}
     const D=Math.max(4,hL-fR);const dl=[];for(let x=Math.round(fR+D*.15);x<hL-D*.15;x++)if(top[x]>=0)dl.push(run[x]);dl.sort((p,q)=>p-q);const depth=Math.min(dl[dl.length>>1]||DH*.3,DH*.45);
-    const xs=Math.max(xL,Math.round(fL-D*.14)),xe=Math.min(xR,Math.round(hL-D*.02));
-    const tf=top[Math.round((fL+fR)/2)],th=top[Math.min(xR,Math.round(hL))];const back=x=>tf+(th-tf)*(x-(fL+fR)/2)/Math.max(1,hL-(fL+fR)/2);
-    const T=[],B=[];for(let x=xs;x<=xe;x++){const t=Math.max(top[x]<0?back(x):top[x],back(x)-depth*.1);let dd=depth*1.08;const k=(x-(hL-D*.25))/(D*.23);if(k>0)dd*=1-.4*Math.min(1,k);
-      const b=Math.min(top[x]+run[x],t+dd);T.push([x,t]);B.push([x,Math.max(t+depth*.35,b)])}
-    const sm=L=>L.map((p,i)=>{let s=0,n=0;for(let k=-3;k<=3;k++){const q=L[i+k];if(q){s+=q[1];n++}}return[p[0],s/n]});
-    return{T:sm(T),B:sm(B),xs,xe,depth,D,fL,fR,hL,W,H}},
-  // seeded randomness so a vest keeps its pattern
+    // the withers: just behind the shoulders (above the front legs a dog's neck can stand much higher)
+    const wx=Math.round(fR+D*.1),tf=top[wx]>=0?top[wx]:top[fR],th=top[Math.min(xR,Math.round(hL))];const back=x=>tf+(th-tf)*(x-wx)/Math.max(1,hL-wx);
+    // the near front leg and the front of the chest (where the vest starts, below the neck)
+    const legX=Math.round(fL+(fR-fL)*.45),cy=Math.round(back(legX)+depth*.6);let cf=legX;while(cf>xL&&cf>legX-D*.45&&a[(Math.min(H-1,cy)*W+cf-1)*4+3]>60)cf--;
+    const xs=Math.max(xL,Math.round(cf+D*.01)),xe=Math.min(xR,Math.round(fR+D*.64));
+    const T=[],B=[];for(let x=xs;x<=xe;x++){const t=top[x]<0?back(x):x<wx?Math.max(top[x],back(x)-depth*.03):top[x];let dd=depth*1.1;const k=(x-(hL-D*.25))/(D*.27);if(k>0)dd*=1-.3*Math.min(1,k);
+      const b=Math.min(top[x]+run[x],t+dd);T.push([x,t]);B.push([x,Math.max(t+depth*.45,b),top[x]+run[x]>=t+dd])}
+    // where a leg runs straight down from the body there's no belly edge to read: carry the chest/belly line across it
+    // from the nearest columns that do show one, so the vest never hangs down the front of a leg
+    {const n=B.length;for(let i=0;i<n;i++){if(!B[i][2])continue;let a=i,z=i;while(a>=0&&B[a][2])a--;while(z<n&&B[z][2])z++;
+      const ya=a>=0?B[a][1]:null,yz=z<n?B[z][1]:null;for(let k=Math.max(0,a+1);k<Math.min(n,z);k++){const v=ya!=null&&yz!=null?ya+(yz-ya)*(k-a)/(z-a):ya!=null?ya:yz!=null?yz:B[k][1];B[k]=[B[k][0],Math.min(B[k][1],Math.max(T[k][1]+depth*.45,v)),false]}i=z}}
+    const sm=L=>L.map((p,i)=>{let s=0,n=0;for(let k=-4;k<=4;k++){const q=L[i+k];if(q){s+=q[1];n++}}return[p[0],s/n]});
+    return{T:sm(T),B:sm(B),xs,xe,depth,D,fL,fR,hL,legX,W,H}},
   rng(seed){let s=seed>>>0||1;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}},
   blob(g,x,y,r,rnd){g.beginPath();const n=9,pts=[];for(let i=0;i<n;i++){const a=i/n*6.283,rr=r*(.55+rnd()*.7);pts.push([x+Math.cos(a)*rr*1.5,y+Math.sin(a)*rr*.8])}
     g.moveTo((pts[0][0]+pts[n-1][0])/2,(pts[0][1]+pts[n-1][1])/2);for(let i=0;i<n;i++){const p=pts[i],q=pts[(i+1)%n];g.quadraticCurveTo(p[0],p[1],(p[0]+q[0])/2,(p[1]+q[1])/2)}g.fill()},
-  // snow camo: speckled snow, then wandering brown branches with twigs and olive needle sprigs
-  branches(g,x0,y0,w,h,unit,rnd){const sp=Math.max(.6,unit*.035);for(let i=0,n=Math.round(w*h/(sp*sp)*.05);i<n;i++){g.fillStyle=rnd()<.55?'#ffffff':'#b9bfc6';g.globalAlpha=.7;g.fillRect(x0+rnd()*w,y0+rnd()*h,sp,sp)}g.globalAlpha=1;
-    g.lineCap='round';const nb=Math.max(8,Math.round(w*h/(unit*unit)*4));
-    for(let b=0;b<nb;b++){let x=x0+rnd()*w,y=y0+rnd()*h,a=rnd()*6.283;const len=unit*(.5+rnd()*1.1),steps=7,lw=Math.max(.6,unit*(.025+rnd()*.03));const col=['#4a3a2c','#5e4b39','#3a3129','#6f604f'][Math.floor(rnd()*4)];
-      for(let k=0;k<steps;k++){const nx=x+Math.cos(a)*len/steps,ny=y+Math.sin(a)*len/steps;g.strokeStyle=col;g.lineWidth=lw*(1-k/steps*.6);g.beginPath();g.moveTo(x,y);g.lineTo(nx,ny);g.stroke();
-        if(rnd()<.45){const ta=a+(rnd()<.5?1:-1)*(.5+rnd()*.6),tl=len*(.12+rnd()*.18);g.lineWidth=lw*.5;g.beginPath();g.moveTo(nx,ny);g.lineTo(nx+Math.cos(ta)*tl,ny+Math.sin(ta)*tl);g.stroke()}
-        if(rnd()<.3){g.strokeStyle=rnd()<.6?'#5b6440':'#3e4a2c';g.lineWidth=Math.max(.5,lw*.45);for(let q=0;q<5;q++){const qa=a+(q-2)*.5+(rnd()-.5)*.3,ql=unit*(.05+rnd()*.06);g.beginPath();g.moveTo(nx,ny);g.lineTo(nx+Math.cos(qa)*ql,ny+Math.sin(qa)*ql);g.stroke()}}
-        x=nx;y=ny;a+=(rnd()-.5)*.7}}},
   fill(g,V,x0,y0,w,h,unit,seed){g.fillStyle=V.base;g.fillRect(x0,y0,w,h);const rnd=CVA.rng(seed);
-    if(V.pat==='branch')CVA.branches(g,x0,y0,w,h,unit,rnd);
-    if(V.sp.length){V.sp.forEach((c,li)=>{g.fillStyle=c;const n=Math.round(w*h/(unit*unit)*(li===2?.5:.8));for(let i=0;i<n;i++)CVA.blob(g,x0+rnd()*w,y0+rnd()*h,unit*(li===2?.28:.45)*(.6+rnd()*.8),rnd)})}
-    if(V.weave){g.globalAlpha=.08;g.strokeStyle='#fff';g.lineWidth=Math.max(.5,unit*.02);for(let x=x0;x<x0+w;x+=unit*.12){g.beginPath();g.moveTo(x,y0);g.lineTo(x+h*.3,y0+h);g.stroke()}g.globalAlpha=1}},
-  path(g,F){g.beginPath();const T=F.T,B=F.B;g.moveTo(T[0][0],(T[0][1]+B[0][1])/2);
-    // rounded front edge up to the shoulder, along the back, down the rear edge and forward along the belly
-    g.quadraticCurveTo(T[0][0]-F.depth*.06,T[0][1],T[3][0],T[3][1]);for(let i=3;i<T.length;i+=2)g.lineTo(T[i][0],T[i][1]);
-    const e=T.length-1;g.quadraticCurveTo(T[e][0]+F.depth*.05,(T[e][1]+B[e][1])/2,B[e][0]-F.depth*.12,B[e][1]);
-    for(let i=e-3;i>=2;i-=2)g.lineTo(B[i][0],B[i][1]);g.quadraticCurveTo(B[0][0],B[0][1],T[0][0],(T[0][1]+B[0][1])/2);g.closePath()},
-  // hardware
-  buckle(g,x,y,u){const w=u*.24,h=u*.2;g.fillStyle='#1b1c1e';g.fillRect(x-w/2,y-h/2,w,h*.46);g.fillRect(x-w*.42,y,w*.84,h*.5);g.fillStyle='#3a3c40';g.fillRect(x-w*.3,y-h*.38,w*.6,h*.12);g.fillRect(x-w*.26,y+h*.12,w*.52,h*.1);
-    g.fillStyle='rgba(255,255,255,.18)';g.fillRect(x-w/2,y-h/2,w,h*.07)},
-  slider(g,x,y,u){g.fillStyle='#1b1c1e';g.fillRect(x-u*.12,y-u*.035,u*.24,u*.07)},
-  strap(g,x,y0,y1,u,V){const w=u*.15;g.fillStyle=V.web;g.fillRect(x-w/2,y0,w,y1-y0);g.fillStyle='rgba(0,0,0,.18)';for(let y=y0;y<y1;y+=u*.05)g.fillRect(x-w/2,y,w,u*.012);g.fillStyle='rgba(255,255,255,.14)';g.fillRect(x-w/2,y0,w*.18,y1-y0)},
-  dring(g,x,y,u,lw){g.strokeStyle='#161719';g.lineWidth=lw*1.3;g.beginPath();g.moveTo(x-u*.09,y-u*.03);g.lineTo(x-u*.09,y+u*.04);g.arc(x,y+u*.04,u*.09,Math.PI,0,true);g.lineTo(x+u*.09,y-u*.03);g.stroke();g.lineWidth=lw*1.1;g.beginPath();g.moveTo(x-u*.1,y-u*.03);g.lineTo(x+u*.1,y-u*.03);g.stroke()},
-  handle(g,x,y,u,lw,V){g.fillStyle=V.web;g.fillRect(x-u*.34,y-u*.06,u*.1,u*.12);g.fillRect(x+u*.24,y-u*.06,u*.1,u*.12);
-    g.strokeStyle='#141516';g.lineCap='round';g.lineWidth=u*.1;g.beginPath();g.moveTo(x-u*.29,y);g.bezierCurveTo(x-u*.27,y-u*.34,x+u*.27,y-u*.34,x+u*.29,y);g.stroke();
-    g.strokeStyle='#2c2e31';g.lineWidth=u*.025;for(let k=1;k<6;k++){const t=k/6,bx=(1-t)**3*(x-u*.29)+3*(1-t)**2*t*(x-u*.27)+3*(1-t)*t*t*(x+u*.27)+t**3*(x+u*.29),by=(1-t)**3*y+3*(1-t)**2*t*(y-u*.34)+3*(1-t)*t*t*(y-u*.34)+t**3*y;g.beginPath();g.moveTo(bx,by-u*.05);g.lineTo(bx,by+u*.05);g.stroke()}
-    g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=lw*.4;g.beginPath();g.moveTo(x-u*.22,y-u*.1);g.bezierCurveTo(x-u*.2,y-u*.29,x+u*.2,y-u*.29,x+u*.22,y-u*.1);g.stroke()},
-  patch(g,x,y,w,h,V){g.fillStyle=V.web;g.fillRect(x,y,w,h);g.fillStyle='rgba(0,0,0,.14)';for(let k=1;k<4;k++)g.fillRect(x+w*.06,y+h*k/4-h*.03,w*.88,h*.06);g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=Math.max(.5,h*.05);g.strokeRect(x,y,w,h)},
-  at(F,x,k){const i=Math.max(0,Math.min(F.T.length-1,Math.round(x-F.xs)));return F.T[i][1]+(F.B[i][1]-F.T[i][1])*k},
-  // paint the vest onto a rendered dog canvas (in place)
-  paint(cv,variant,seed=7){const F=CVA.fit(cv);if(!F)return false;const V=CV_VARIANTS[variant]||CV_VARIANTS.black,W=cv.width,H=cv.height;
-    const L=document.createElement('canvas');L.width=W;L.height=H;const g=L.getContext('2d'),u=F.depth,lw=Math.max(1,u*.07);
-    const T0=Math.min(...F.T.map(p=>p[1])),B0=Math.max(...F.B.map(p=>p[1]));g.save();CVA.path(g,F);g.clip();CVA.fill(g,V,F.xs-u*.2,T0-u*.2,F.xe-F.xs+u*.4,B0-T0+u*.4,u*.55,seed);
-    // form shading: light on the back, dark under the belly, darker toward the edges
-const gr=g.createLinearGradient(0,T0,0,B0);gr.addColorStop(0,'rgba(255,255,255,.18)');gr.addColorStop(.35,'rgba(255,255,255,0)');gr.addColorStop(.75,'rgba(0,0,0,.12)');gr.addColorStop(1,'rgba(0,0,0,.4)');g.fillStyle=gr;g.fillRect(0,0,W,H);
-    const gx=g.createLinearGradient(F.xs,0,F.xe,0);gx.addColorStop(0,'rgba(0,0,0,.22)');gx.addColorStop(.12,'rgba(0,0,0,0)');gx.addColorStop(.9,'rgba(0,0,0,0)');gx.addColorStop(1,'rgba(0,0,0,.25)');g.fillStyle=gx;g.fillRect(0,0,W,H);
-    // the ID patch between the straps, and a short chest strap at the front
-    const s1=F.fR+F.D*.08,s2=F.hL-F.D*.3,px=s1+u*.2,pw=Math.max(u*.4,s2-s1-u*.4),py=CVA.at(F,(s1+s2)/2,.2);CVA.patch(g,px,py,pw,u*.26,V);
-    const cy=CVA.at(F,F.xs+u*.3,.3);g.fillStyle=V.web;g.fillRect(F.xs,cy,u*.55,u*.13);CVA.buckle(g,F.xs+u*.62,cy+u*.065,u);
-    // two belly straps with side-release buckles
-    for(const sx of[s1,s2]){const t=CVA.at(F,sx,0),bt=CVA.at(F,sx,1);CVA.strap(g,sx,t,bt,u,V);CVA.slider(g,sx,t+(bt-t)*.2,u);CVA.buckle(g,sx,t+(bt-t)*.62,u)}
-    g.restore();
-    // binding around the edge
-    g.save();CVA.path(g,F);g.strokeStyle=V.bind;g.lineWidth=lw*1.6;g.stroke();g.restore();
-    // everything above stays on the dog's outline
-    g.globalCompositeOperation='destination-in';g.drawImage(cv,0,0);g.globalCompositeOperation='source-over';
-    // the ribbed grab handle on the back, just behind the shoulders, and the D-ring at the chest
-    const hx=F.fR+F.D*.3;CVA.handle(g,hx,CVA.at(F,hx,0)+lw*.4,u,lw,V);CVA.dring(g,F.xs+u*.2,CVA.at(F,F.xs+u*.2,.45),u,lw);
-    const c=cv.getContext('2d');c.drawImage(L,0,0);return true},
-  // a flat product picture of the vest for the shop (side view, like the reference)
-  icon(variant,w=120){const V=CV_VARIANTS[variant]||CV_VARIANTS.black,h=Math.round(w*.62),cv=document.createElement('canvas');cv.width=w*2;cv.height=h*2;const g=cv.getContext('2d');g.scale(2,2);const u=h*.62,lw=Math.max(1,u*.06);
-    const P=()=>{g.beginPath();g.moveTo(w*.1,h*.42);g.quadraticCurveTo(w*.08,h*.18,w*.26,h*.2);g.lineTo(w*.86,h*.24);g.quadraticCurveTo(w*.95,h*.28,w*.93,h*.44);g.lineTo(w*.9,h*.8);g.quadraticCurveTo(w*.6,h*.9,w*.32,h*.86);g.quadraticCurveTo(w*.12,h*.8,w*.1,h*.42);g.closePath()};
-    g.save();P();g.clip();CVA.fill(g,V,0,0,w,h,w*.2,11);const gr=g.createLinearGradient(0,h*.1,0,h*.9);gr.addColorStop(0,'rgba(255,255,255,.2)');gr.addColorStop(.5,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(0,0,0,.32)');g.fillStyle=gr;g.fillRect(0,0,w,h);
-    CVA.patch(g,w*.4,h*.32,w*.26,h*.13,V);for(const sx of[w*.32,w*.74]){CVA.strap(g,sx,0,h,u,V);CVA.slider(g,sx,h*.4,u);CVA.buckle(g,sx,h*.66,u)}g.fillStyle=V.web;g.fillRect(w*.08,h*.5,w*.12,h*.07);g.restore();
-    P();g.strokeStyle=V.bind;g.lineWidth=lw*1.4;g.stroke();CVA.handle(g,w*.5,h*.22,u,lw,V);CVA.dring(g,w*.16,h*.36,u,lw);return cv.toDataURL('image/png')}
+    for(const [c,dn,sz] of V.sp){g.fillStyle=c;const n=Math.round(w*h/(unit*unit)*dn);for(let i=0;i<n;i++)CVA.blob(g,x0+rnd()*w,y0+rnd()*h,unit*sz*(.6+rnd()*.8),rnd)}
+    if(V.weave){g.globalAlpha=.06;g.strokeStyle='#fff';g.lineWidth=Math.max(.5,unit*.02);for(let x=x0;x<x0+w;x+=Math.max(2,unit*.08)){g.beginPath();g.moveTo(x,y0);g.lineTo(x+h*.3,y0+h);g.stroke()}g.globalAlpha=1}},
+  mk(W,H){const c=document.createElement('canvas');c.width=W;c.height=H;return c},
+  noise(){if(CVA._nz)return CVA._nz;const c=CVA.mk(48,48),g=c.getContext('2d'),d=g.createImageData(48,48),r=CVA.rng(99);for(let i=0;i<d.data.length;i+=4){const v=r()<.5?0:255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=Math.round(r()*110)}g.putImageData(d,0,0);return CVA._nz=c},
+  // the vest's outline over the dog's torso: top on the back, chest plate down to the breastbone, lifted over the front
+  // leg to clear the armpit, down over the ribs, rounded at the back
+  shape(F){const u=F.depth,n=F.T.length,sm=t=>t<=0?0:t>=1?1:t*t*(3-2*t),pad=u*.04,tp=[],bp=[],cx=F.legX-F.D*.02,lx=F.fR+F.D*.1;
+    for(let i=0;i<n;i++){const x=F.T[i][0];let t=F.T[i][1]-pad;const Bl=F.B[i][1],bc=Bl-u*.02,bl=t+u*.8,br=Math.min(Bl-u*.04,t+u*1.02);
+      const tq=sm((x-(F.fR+F.D*.12))/Math.max(1,F.xe-(F.fR+F.D*.12))),bR=br*(1-tq*.55)+(t+u*.62)*tq*.55,sb=sm((x-F.legX)/Math.max(1,F.fR-F.legX));let b=bc*(1-sb)+bR*sb;
+      // the armpit: a smooth scoop up over the front leg
+      const xc=(F.legX+F.fR)/2,hw=(F.fR-F.legX)/2+u*.28,w=(x-xc)/hw;if(Math.abs(w)<1){const lift=(1+Math.cos(Math.PI*w))/2;b=b-lift*Math.max(0,b-bl)}
+      // the chest plate rounds under at the front
+      const fb=(x-F.xs)/(u*.4);if(fb<1)b=t+(b-t)*Math.sqrt(Math.max(.12,1-(1-fb)*(1-fb)));
+      const fr=(x-F.xs)/(u*.22);if(fr<1)t+=u*.16*(1-fr)*(1-fr);const rr=(x-(F.xe-u*.4))/(u*.4);if(rr>0){const k=Math.min(1,rr);t+=u*.06*k*k;b=t+(b-t)*Math.sqrt(Math.max(.05,1-k*k))}
+      tp.push(t);bp.push(Math.max(t+u*.3,b))}return{tp,bp}},
+  path(g,F,S){const n=S.tp.length,X=i=>F.T[i][0];g.beginPath();g.moveTo(X(0),(S.tp[0]+S.bp[0])/2);for(let i=0;i<n;i++)g.lineTo(X(i),S.tp[i]);for(let i=n-1;i>=0;i--)g.lineTo(X(i),S.bp[i]);g.closePath()},
+  at(F,S,x,f){const i=Math.max(0,Math.min(S.tp.length-1,Math.round(x-F.xs)));return S.tp[i]+(S.bp[i]-S.tp[i])*f},
+  buckle(g,x,y,u){const w=u*.2,h=u*.17;g.fillStyle='#161719';g.beginPath();g.roundRect?g.roundRect(x-w/2,y-h/2,w,h*.48,h*.08):g.rect(x-w/2,y-h/2,w,h*.48);g.fill();g.beginPath();g.moveTo(x-w*.42,y);g.lineTo(x+w*.42,y);g.lineTo(x+w*.3,y+h*.5);g.lineTo(x-w*.3,y+h*.5);g.closePath();g.fill();
+    g.fillStyle='#34363a';g.fillRect(x-w*.32,y-h*.36,w*.64,h*.1);g.fillRect(x-w*.24,y+h*.14,w*.48,h*.09);g.fillStyle='rgba(255,255,255,.22)';g.fillRect(x-w/2,y-h/2,w,Math.max(.5,h*.06))},
+  strap(g,x,y0,y1,u,col){const w=u*.13;g.fillStyle=col;g.fillRect(x-w/2,y0,w,y1-y0);g.fillStyle='rgba(255,255,255,.1)';g.fillRect(x-w/2,y0,w*.2,y1-y0);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(x+w*.3,y0,w*.2,y1-y0);
+    g.strokeStyle='rgba(255,255,255,.18)';g.lineWidth=Math.max(.4,u*.008);g.setLineDash([Math.max(1,u*.03),Math.max(1,u*.025)]);g.beginPath();g.moveTo(x-w*.32,y0);g.lineTo(x-w*.32,y1);g.moveTo(x+w*.32,y0);g.lineTo(x+w*.32,y1);g.stroke();g.setLineDash([])},
+  // draw the vest (in the dog's picture coordinates) onto its own layer
+  draw(W,H,F,V,seed){const u=F.depth,S=CVA.shape(F),n=S.tp.length,X=i=>F.T[i][0],L=CVA.mk(W,H),g=L.getContext('2d'),T0=Math.min(...S.tp),B0=Math.max(...S.bp),seam=F.fR-F.D*.04;
+    g.save();CVA.path(g,F,S);g.clip();CVA.fill(g,V,F.xs-u*.2,T0-u*.2,F.xe-F.xs+u*.4,B0-T0+u*.4,u*.3,seed);
+    // padding: each panel is puffed (dark toward its edges and seams), the body round (lit on the back, dark under)
+    for(let i=0;i<n;i++){const gr=g.createLinearGradient(0,S.tp[i],0,S.bp[i]);gr.addColorStop(0,'rgba(255,255,255,.24)');gr.addColorStop(.12,'rgba(255,255,255,.08)');gr.addColorStop(.45,'rgba(0,0,0,0)');gr.addColorStop(.8,'rgba(0,0,0,.14)');gr.addColorStop(1,'rgba(0,0,0,.42)');g.fillStyle=gr;g.fillRect(X(i),S.tp[i],1.02,S.bp[i]-S.tp[i])}
+    const gx=g.createLinearGradient(F.xs,0,F.xe,0);gx.addColorStop(0,'rgba(0,0,0,.34)');gx.addColorStop(.1,'rgba(0,0,0,.04)');gx.addColorStop(.85,'rgba(0,0,0,0)');gx.addColorStop(1,'rgba(0,0,0,.3)');g.fillStyle=gx;g.fillRect(0,0,W,H);
+    // the shoulder seam between the chest plate and the side panel, puffed on both sides
+    g.filter=`blur(${Math.max(.8,u*.05)}px)`;g.strokeStyle='rgba(0,0,0,.45)';g.lineWidth=u*.09;g.beginPath();g.moveTo(seam,CVA.at(F,S,seam,0));g.quadraticCurveTo(seam+u*.06,CVA.at(F,S,seam,.5),seam,CVA.at(F,S,seam,1));g.stroke();g.filter='none';
+    g.strokeStyle='rgba(0,0,0,.6)';g.lineWidth=Math.max(.5,u*.015);g.stroke();
+    // MOLLE webbing: rows of stitched strips on the side panel, the back and the chest plate
+    const row=(xa,xb,f,h)=>{if(xb-xa<u*.25)return;for(let x=xa;x<xb;x+=1){const y=CVA.at(F,S,x,f);g.fillStyle='rgba(0,0,0,.35)';g.fillRect(x,y+h*.8,1.02,h*.35);g.fillStyle=V.web;g.fillRect(x,y,1.02,h);g.fillStyle='rgba(255,255,255,.14)';g.fillRect(x,y,1.02,Math.max(.4,h*.18))}
+      g.fillStyle='rgba(0,0,0,.55)';for(let x=xa+u*.11;x<xb-u*.04;x+=u*.13){const y=CVA.at(F,S,x,f);g.fillRect(x,y-h*.1,Math.max(.6,u*.018),h*1.2)}};
+    const mh=u*.075;for(const f of[.3,.45,.6])row(seam+u*.1,F.xe-u*.32,f,mh);row(seam+u*.62,F.xe-u*.3,.08,mh*.9);for(const f of[.32,.48])row(F.xs+u*.16,seam-u*.1,f,mh*.9);
+    // Cordura grain
+    g.globalAlpha=.1;g.fillStyle=g.createPattern(CVA.noise(),'repeat');g.fillRect(0,0,W,H);g.globalAlpha=1;g.restore();
+    // binding all round, heavier at the collar
+    g.save();CVA.path(g,F,S);g.strokeStyle=V.bind;g.lineWidth=u*.045;g.stroke();g.strokeStyle='rgba(255,255,255,.12)';g.lineWidth=Math.max(.4,u*.012);g.stroke();
+    g.beginPath();for(let i=0;i<Math.min(n,Math.round(u*.3));i++)i?g.lineTo(X(i),S.tp[i]):g.moveTo(X(i),(S.tp[0]+S.bp[0])/2);g.strokeStyle=V.bind;g.lineWidth=u*.09;g.lineCap='round';g.stroke();g.restore();
+    // straps: one on the chest plate, one just behind the front leg and one at the back of the vest; the belly straps
+    // carry on under the chest and wrap round (the part under the dog falls into shadow)
+    const SC='#1b1c1e';{const xa=F.xs,xb=F.legX-u*.18;if(xb-xa>u*.2){for(let x=xa;x<xb;x++){const y=CVA.at(F,S,x,.58);g.fillStyle=SC;g.fillRect(x,y,1.02,u*.1);g.fillStyle='rgba(255,255,255,.1)';g.fillRect(x,y,1.02,u*.02)}const bx=xa+(xb-xa)*.45,by=CVA.at(F,S,bx,.58)+u*.05;g.save();g.translate(bx,by);g.rotate(Math.PI/2);CVA.buckle(g,0,0,u*.85);g.restore()}}
+    for(const x of[F.fR+F.D*.14,F.xe-u*.3]){const i=Math.max(0,Math.min(n-1,Math.round(x-F.xs))),yb=Math.max(S.bp[i],F.B[i][1]-u*.02);CVA.strap(g,x,CVA.at(F,S,x,.42),yb,u*.8,SC);CVA.buckle(g,x,S.bp[i]-u*.12,u*.85);
+      const gr=g.createLinearGradient(0,yb-u*.03,0,yb+u*.06);gr.addColorStop(0,'#2a2b2e');gr.addColorStop(1,'#0d0e0f');g.fillStyle=gr;g.beginPath();g.moveTo(x-u*.065,yb-u*.01);g.lineTo(x+u*.065,yb-u*.01);g.quadraticCurveTo(x+u*.05,yb+u*.05,x-u*.02,yb+u*.06);g.quadraticCurveTo(x-u*.08,yb+u*.04,x-u*.065,yb-u*.01);g.fill()}
+    // the ribbed grab handle sits on the withers, stitched down with two webbing tabs; a D-ring at the collar
+    const hx=F.fR+F.D*.12,hy=CVA.at(F,S,hx,0)+u*.02,hw=u*.3;g.fillStyle=SC;g.fillRect(hx-hw-u*.05,hy-u*.04,u*.1,u*.1);g.fillRect(hx+hw-u*.05,hy-u*.04,u*.1,u*.1);
+    g.strokeStyle='#141516';g.lineCap='round';g.lineWidth=u*.09;g.beginPath();g.moveTo(hx-hw,hy);g.bezierCurveTo(hx-hw*.9,hy-u*.3,hx+hw*.9,hy-u*.3,hx+hw,hy);g.stroke();
+    g.strokeStyle='#2e3033';g.lineWidth=Math.max(.5,u*.02);for(let k=1;k<7;k++){const t=k/7,bx=(1-t)**3*(hx-hw)+3*(1-t)**2*t*(hx-hw*.9)+3*(1-t)*t*t*(hx+hw*.9)+t**3*(hx+hw),by=(1-t)**3*hy+3*(1-t)**2*t*(hy-u*.3)+3*(1-t)*t*t*(hy-u*.3)+t**3*hy;g.beginPath();g.moveTo(bx,by-u*.04);g.lineTo(bx,by+u*.04);g.stroke()}
+    g.strokeStyle='rgba(255,255,255,.22)';g.lineWidth=Math.max(.4,u*.015);g.beginPath();g.moveTo(hx-hw*.8,hy-u*.08);g.bezierCurveTo(hx-hw*.7,hy-u*.25,hx+hw*.7,hy-u*.25,hx+hw*.8,hy-u*.08);g.stroke();
+    const dx=F.xs+u*.5,dy=CVA.at(F,S,dx,.08);g.strokeStyle='#1a1b1d';g.lineWidth=Math.max(.8,u*.035);g.beginPath();g.moveTo(dx-u*.07,dy);g.lineTo(dx+u*.07,dy);g.moveTo(dx-u*.07,dy);g.quadraticCurveTo(dx,dy-u*.16,dx+u*.07,dy);g.stroke();
+    return L},
+  // paint the vest onto a rendered dog canvas (in place): a contact shadow on the fur, the padding's thickness under the
+  // edges, a fine outline like the dog's own, then the vest
+  paint(cv,variant,seed=7){const F=CVA.fit(cv);if(!F)return false;const V=CV_VARIANTS[variant]||CV_VARIANTS.black,W=cv.width,H=cv.height,u=F.depth,L=CVA.draw(W,H,F,V,seed),c=cv.getContext('2d');
+    const O=CVA.mk(W,H),og=O.getContext('2d');og.drawImage(L,0,0);og.globalCompositeOperation='source-in';og.fillStyle='#000';og.fillRect(0,0,W,H);
+    const sh=CVA.mk(W,H),sg=sh.getContext('2d');sg.filter=`blur(${Math.max(1,u*.06)}px)`;sg.globalAlpha=.55;sg.drawImage(O,0,u*.05);sg.filter='none';sg.globalAlpha=1;sg.globalCompositeOperation='destination-in';sg.drawImage(cv,0,0);c.drawImage(sh,0,0);
+    c.globalAlpha=.85;c.drawImage(O,0,Math.max(.8,u*.035));c.globalAlpha=.5;const ow=Math.max(.5,u*.012);for(const [dx,dy] of[[ow,0],[-ow,0],[0,-ow]])c.drawImage(O,dx,dy);c.globalAlpha=1;c.drawImage(L,0,0);return true},
+  // a product picture of the vest for the shop, on a plain torso shape
+  icon(variant,w=120){const V=CV_VARIANTS[variant]||CV_VARIANTS.black,h=Math.round(w*.62),W=w*2,H=h*2,u=H*.58,xs=Math.round(W*.08),xe=Math.round(W*.94),T=[],B=[];
+    for(let x=xs;x<=xe;x++){const k=(x-xs)/(xe-xs);T.push([x,H*.3+Math.sin(k*3.14)*-H*.04]);B.push([x,H*.3+u*(1.05-.1*k)])}
+    const F={T,B,xs,xe,depth:u,D:(xe-xs)*1.05,fL:xs+(xe-xs)*.05,fR:xs+(xe-xs)*.22,legX:xs+(xe-xs)*.14,hL:xe,W,H};const L=CVA.draw(W,H,F,V,11);
+    const c=CVA.mk(W,H),g=c.getContext('2d');g.drawImage(L,0,0);return c.toDataURL('image/png')}
 };
 // ---------- DOG EQUIPMENT: CATCHING VEST ----------
 // Dog Equipment → Hunting Gear → Catching Vest. A padded vest a catch dog wears on hog hunts: it takes some of the tusk cuts
