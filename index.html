@@ -1283,7 +1283,7 @@ function gameCoat(d){const k=coatKeyBase(d);if(COAT_MEMO.has(k))return COAT_MEMO
 const coatName=d=>Coat.describe(gameCoat(d)),coatRar=c=>Coat.rarity(c),describeCoat=c=>Coat.describe(c);
 const geneticId=d=>Coat.encodeId(coatBreed(d),d.genes,dogMods(d));
 const COAT_IMG={},COAT_PENDING={};
-const coatKey=(d,sc)=>coatKeyBase(d)+'|'+sc;
+const coatKey=(d,sc)=>coatKeyBase(d)+'|'+sc+(typeof CV!=='undefined'?CV.artKey(d):'');
 function dogArt(d,w=120){
   if(!hasBody(d))return dogSVG(d,w);
   const sc=w>220?.5:w>150?.3:.2,src=COAT_IMG[coatKey(d,sc)];
@@ -1302,7 +1302,7 @@ function hydrateCoats(){
     if(COAT_IMG[key]){img.src=COAT_IMG[key];return}
     if(COAT_PENDING[key]){if(urgent.has(img)){const i=COAT_JOBS.findIndex(j=>j.key===key);if(i>0)COAT_JOBS.unshift(...COAT_JOBS.splice(i,1))}return}
     COAT_PENDING[key]=1;const spec0=gameCoat(d),st=pupStage(d),spec=st<6&&spec0.coatLen?{...spec0,coatLen:spec0.coatLen*(.25+.75*st/6)}:spec0,vm=pupMorph(d);
-    const job={key,run:async()=>{const c=vm?await Coat.renderMorph(spec,vm,sc):await Coat.render(spec,sc);COAT_IMG[key]=c.toDataURL('image/png');delete COAT_PENDING[key];
+    const job={key,run:async()=>{const c=vm?await Coat.renderMorph(spec,vm,sc):await Coat.render(spec,sc);try{if(typeof CV!=='undefined')CV.paintDog(c,d)}catch(e){console.warn('vest art',e)}COAT_IMG[key]=c.toDataURL('image/png');delete COAT_PENDING[key];
       document.querySelectorAll(`img.coatimg[data-cid="${id}"][data-sc="${sc}"]`).forEach(i=>{if(coatKey(findDog(id)||d,sc)===key)i.src=COAT_IMG[key]})}};
     if(urgent.has(img))COAT_JOBS.unshift(job);else COAT_JOBS.push(job)});
   coatPump();
@@ -2188,7 +2188,7 @@ SCREENS.hunt=()=>{
   const sel=UI.huntSel,elig=S.dogs.filter(d=>isAdult(d)&&!d.retired&&!d.blind);
   const maxBay=3+VEH.box(),maxCatch=(landLevel(S.land,'gear')>=2?3:2)+VEH.box();
   const card=(d,role)=>{const on=sel[role].includes(d.id),other=sel[role==='bay'?'catch':'bay'].includes(d.id);const ok=d.energy>=35&&d.health>=40;
-    return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span></button>`};
+    return `<button data-act="hpick" data-role="${role}" data-id="${d.id}" class="${on?'sel':''}" ${(!ok||other)?'disabled':''}>${dogArt(d,104)}<b>${esc(d.name)}</b><br>${role==='bay'?'Bay':'Catch'} ${Math.round(role==='bay'?bayScore(d):catchScore(d))}<br><span class="muted">${ok?'Ready':d.health<40?'Hurt':'Tired'}</span>${typeof CV!=='undefined'?CV.chip(d):''}</button>`};
   const byBay=[...elig].sort((a,b)=>bayScore(b)-bayScore(a)),byCatch=[...elig].sort((a,b)=>catchScore(b)-catchScore(a));
   return `<h2>${UI.huntMode==='night'?'Night hog hunt':'Hog hunt'}</h2>${RB.modeSeg()}${UI.huntMode==='night'?NIGHT.panel():''}<p class="sub">Turn your dogs out on ${HW_ACRES.toLocaleString()} acres of hunting grounds. Bay dogs cast, strike a track and run it down; you follow on the map. When the hog is bayed, you decide when to release the catch dogs.</p>${WE.huntPanel()}${JB.panel()}${S.land&&(S.land.trainHogs||[]).length?`<button class="btn sm alt" style="margin-bottom:8px" data-act="tab" data-t="practice">Train on your kept hog${S.land.trainHogs.length>1?'s':''}</button>`:''}
   ${(()=>{const c=UI.camHunt&&TCAM.ensure().list.find(x=>x.id===UI.camHunt);const b=c&&TCAM.best(c);return c?`<div class="panel spread" style="margin-bottom:8px;border-color:#8e44ad"><span>📷 Starting at your <b>${esc(c.name)}</b> camera${b?`: ~${b.w} lb ${b.key==='giant'?'GIANT BOAR':HOGS[b.key].name.toLowerCase()} seen`:''}</span><button class="btn sm ghost" data-act="camCancel">Cancel</button></div>`:''})()}
@@ -2203,7 +2203,7 @@ SCREENS.hunt=()=>{
    <div class="seg" style="margin-top:6px"><button class="${UI.guestRole==='bay'?'on':''}" data-act="guestRole" data-k="bay">Bay dog</button><button class="${UI.guestRole==='catch'?'on':''}" data-act="guestRole" data-k="catch">Catch dog</button></div></div>`:`<button class="btn sm ghost" data-act="borrowGuest">Borrow a dog from your hunting group</button>`}
   ${HR.setup()}
   <div style="margin-top:12px"><button class="btn big" data-act="hstart" ${(sel.bay.length||(UI.guest&&UI.guestRole==='bay'))&&(sel.catch.length||(UI.guest&&UI.guestRole==='catch'))?'':'disabled'}>Turn out the dogs</button>${(()=>{const L=UI.searchFor&&WE.ensure().lost.find(l=>l.dog.id===UI.searchFor);return L?`<button class="btn big alt" style="margin-left:6px" data-act="hsearch" ${sel.bay.length&&sel.area===L.area?'':'disabled'}>Search for ${esc(L.dog.name)}</button><p class="small muted">Pick at least one bay dog to trail ${esc(L.dog.name)}; catch dogs are optional.</p>`:''})()}
-  <p class="small muted">Each dog spends 35 energy. Vests on hand: ${S.inv.vest}. GPS collar: ${S.inv.collar?'yes':'no'}.</p></div>`;
+  <p class="small muted">Each dog spends 35 energy. Vests on hand: ${S.inv.vest}. GPS collar: ${S.inv.collar?'yes':'no'}.</p>${typeof CV!=='undefined'?CV.prepLine():''}</div>`;
 };
 function huntStart(opts={}){PR.flush();
   if(UI.huntMode==='night'&&!opts.search)opts={...opts,night:true};
@@ -2257,7 +2257,9 @@ function finishHunt(win,lines){
       if(g&&g.m.catchT>0){xp+=win?12:5;notes.push(`on the hog ${Math.round(g.m.catchT)} s`)}if(g)notes.push(`${yd(g.dist).toLocaleString()} yd covered`);
       let risk=(win?.12:.32)*(1-landLevel(S.land,'gear')*.1)*(1+landHunt(h.area.id).injury)*(d.temp==='Hot-headed'?1.5:1)*(h.hog.w/180)*(1-blOf(d).hardy*.04)*(1+(d.frail||0));
       if(vests>0){risk*=.4;vests--}
-      if(R()<risk){const dmg=ri(10,28);WE.injure(d,'tusk cut',dmg);lines.push(`${d.name} got cut by a tusk (−${dmg} health).`);notes.push('cut')}}
+      // a catching vest: a little less chance of a cut, and less damage when there is one (it wears as it works)
+      const cv=typeof CV!=='undefined'?CV.of(d):null,cvOn=cv&&CV.on(cv),cvT=cvOn&&EQ.def(cv.type);if(cvOn){risk*=1-cvT.safety;CV.wear(cv,3,S2,g||d)}
+      if(R()<risk){let dmg=ri(10,28);if(cvOn){dmg=Math.max(1,Math.round(dmg*(1-cvT.prot/100)));CV.wear(cv,4+dmg*.3,S2,g||d)}WE.injure(d,'tusk cut',dmg);lines.push(`${d.name} got cut by a tusk (−${dmg} health)${cvOn?', the vest took some of it':''}.`);notes.push('cut')}}
     else notes.push('stayed on the leash');
     H.xp=(H.xp||0)+xp;perf.push({name:d.name,role:'Catch',xp,note:notes.join(', ')})});
   let pay=0,bonus=0,pxp=8;
@@ -4694,8 +4696,14 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.7.0';
-const PATCH_NOTES=[{v:'2.7.0',title:'Friends & Season 2',items:[
+const GAME_VERSION='2.8.0';
+const PATCH_NOTES=[{v:'2.8.0',title:'Catching Vest',items:[
+  ['Catching Vest','New dog equipment for catch dogs (Inventory → Hunting equipment, $2,500). Protection +15 (hog hits do 15% less damage), Catch safety +8% (a little less chance of a cut in the catch, and about 1 hit in 12 is turned), Durability 100, Weight moderate, Movement −1%. It never changes a dog’s stats or genes, and a dog wearing one can still get hurt.'],
+  ['8 colors','Standard Black, Brown, Forest Camo, Mud Camo, Snow Camo, Swamp Camo, Desert Camo and Winter White. Colors are cosmetic, and you can preview any of them on your own dog before buying or change them any time.'],
+  ['Fits every dog','The vest is drawn on your dog’s picture, fitted to its own body, whatever the breed, size or mix.'],
+  ['Equip, repair','Equip and unequip a vest from the dog’s profile (Equipment). Hunts wear it down, and at 0% it gives no protection until you repair it. The dog’s vest shows on the hunt screen and on its Dog Papers.'],
+  ['Cut vests','The disposable Cut vest is still sold and still works; a catch dog can have both.']]},
+{v:'2.7.0',title:'Friends & Season 2',items:[
   ['Your first week','New players get a coach card that walks them through the ranch a day at a time: meet the dogs, read papers, hunt, do chores, train, read sign, catch a hog, breed, hire help, compete and build. “Show me” takes you to the right button. Each step earns a reward you collect from the card, and finishing the week pays $2,000 and 2 vitamins. See it any time under More → Your first week.'],
   ['Hunt tips','Your first 10 hunts show a short tip for what to do right now: cast, strike, lost trail, bay, send the catch dog, tie up. Tap ✕ to turn them off.'],
   ['Friends','More → Friends: search for a ranch by name, add friends, visit their ranch and walk their kennel yard. You can also add a friend from any ranch visit.'],
@@ -8502,7 +8510,207 @@ try{(S.kyPaints||[]).forEach(p=>{if(S2_PAINTS[p])KY_PAINT[p]=S2_PAINTS[p]})}catc
 // guide check after each day, and gifts/friends when online data loads
 {const o=endDay;endDay=function(){const r=o.apply(this,arguments);try{GUIDE.check()}catch(e){}return r}}
 setTimeout(()=>{try{if(signedIn())FR.load().then(()=>{if((FR.inbox||[]).length)toast(`🎁 You have ${FR.inbox.length} gift${FR.inbox.length>1?'s':''} waiting (More → Friends).`)})}catch(e){}},4000);
-Object.assign(A,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---- catching vest art: an equipment layer painted onto any rendered dog ----
+// The build follows the reference vest (Snow Camo): padded shell, grey webbing straps with black side-release buckles,
+// a hook-and-loop ID patch on the side, a black ribbed grab handle on top, a D-ring at the chest and dark binding.
+// The dog pictures come from the coat engine (a side view, head to the left). The vest is fitted from the picture itself:
+// the legs are the columns that reach the ground, the barrel is the widest gap between them, the back line and belly
+// come from the outline. So it sits right on every breed, size and mix without per-breed tuning.
+const CV_VARIANTS={
+  black:{n:'Standard Black',base:'#232427',sp:[],web:'#3d4045',bind:'#111214',weave:1},
+  brown:{n:'Brown',base:'#6e4c2f',sp:[],web:'#4a3526',bind:'#24180f',weave:1},
+  forest:{n:'Forest Camo',base:'#5a6a3c',sp:['#35432a','#7b6b45','#1f2717'],web:'#5b5e45',bind:'#1f2218'},
+  mud:{n:'Mud Camo',base:'#7b6349',sp:['#58442f','#9d8666','#382a1f'],web:'#6b5a45',bind:'#2a2018'},
+  // the reference design: white snow with brown branches and olive needle sprigs, grey webbing, black hardware
+  snow:{n:'Snow Camo',base:'#e4e7ea',sp:[],pat:'branch',web:'#8e9195',bind:'#4a4d52'},
+  swamp:{n:'Swamp Camo',base:'#4e5934',sp:['#6f6d3d','#2c351e','#8e7d4c'],web:'#5b5e45',bind:'#1f2218'},
+  desert:{n:'Desert Camo',base:'#c9b18a',sp:['#a98d62','#87694a','#e1d0aa'],web:'#a38d68',bind:'#5a4834'},
+  winter:{n:'Winter White',base:'#f2f2ee',sp:[],web:'#c3c6c9',bind:'#9ea2a6',weave:1}};
+const CVA={
+  // find the torso in a rendered dog
+  fit(cv){const W=cv.width,H=cv.height,a=cv.getContext('2d').getImageData(0,0,W,H).data,op=(x,y)=>a[(y*W+x)*4+3]>60;
+    const top=new Int32Array(W).fill(-1),run=new Int32Array(W),bot=new Int32Array(W).fill(-1);let xL=W,xR=-1,gY=0,tY=H;
+    for(let x=0;x<W;x++){for(let y=0;y<H;y++)if(op(x,y)){top[x]=y;break}if(top[x]<0)continue;let y=top[x];while(y<H&&op(x,y))y++;run[x]=y-top[x];for(let z=H-1;z>=0;z--)if(op(x,z)){bot[x]=z;break}
+      xL=Math.min(xL,x);xR=Math.max(xR,x);gY=Math.max(gY,bot[x]);tY=Math.min(tY,top[x])}
+    if(xR<0)return null;const DH=gY-tY,DW=xR-xL,leg=x=>bot[x]>=gY-DH*.1;
+    // widest gap between leg columns in the middle of the dog = the barrel
+    let best=null,last=-1;for(let x=Math.round(xL+DW*.12);x<=xR-DW*.05;x++){if(!leg(x))continue;if(last>=0&&x-last>(best?best[1]-best[0]:DW*.08))best=[last,x];last=x}
+    let fL,fR,hL;
+    if(best&&best[1]-best[0]>=DW*.16&&best[1]-best[0]<=DW*.62){[fR,hL]=best;fL=fR;while(fL>xL&&(leg(fL-1)||leg(fL-2)||leg(fL-3)))fL--;fL=Math.max(fL,fR-DW*.2)}
+    else{// odd poses (a lunge, a crouch): place it by where the body's mass is, ignoring the thin tail
+      const m=[];let tot=0;for(let x=0;x<W;x++){const v=bot[x]<0?0:Math.max(0,run[x]-DH*.12);m.push(v);tot+=v}if(!tot)return null;let c=0;const at=q=>{c=0;for(let x=0;x<W;x++){c+=m[x];if(c>=tot*q)return x}return xR};
+      fL=at(.2);fR=at(.3);hL=at(.72)}
+    const D=Math.max(4,hL-fR);const dl=[];for(let x=Math.round(fR+D*.15);x<hL-D*.15;x++)if(top[x]>=0)dl.push(run[x]);dl.sort((p,q)=>p-q);const depth=Math.min(dl[dl.length>>1]||DH*.3,DH*.45);
+    const xs=Math.max(xL,Math.round(fL-D*.14)),xe=Math.min(xR,Math.round(hL-D*.02));
+    const tf=top[Math.round((fL+fR)/2)],th=top[Math.min(xR,Math.round(hL))];const back=x=>tf+(th-tf)*(x-(fL+fR)/2)/Math.max(1,hL-(fL+fR)/2);
+    const T=[],B=[];for(let x=xs;x<=xe;x++){const t=Math.max(top[x]<0?back(x):top[x],back(x)-depth*.1);let dd=depth*1.08;const k=(x-(hL-D*.25))/(D*.23);if(k>0)dd*=1-.4*Math.min(1,k);
+      const b=Math.min(top[x]+run[x],t+dd);T.push([x,t]);B.push([x,Math.max(t+depth*.35,b)])}
+    const sm=L=>L.map((p,i)=>{let s=0,n=0;for(let k=-3;k<=3;k++){const q=L[i+k];if(q){s+=q[1];n++}}return[p[0],s/n]});
+    return{T:sm(T),B:sm(B),xs,xe,depth,D,fL,fR,hL,W,H}},
+  // seeded randomness so a vest keeps its pattern
+  rng(seed){let s=seed>>>0||1;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}},
+  blob(g,x,y,r,rnd){g.beginPath();const n=9,pts=[];for(let i=0;i<n;i++){const a=i/n*6.283,rr=r*(.55+rnd()*.7);pts.push([x+Math.cos(a)*rr*1.5,y+Math.sin(a)*rr*.8])}
+    g.moveTo((pts[0][0]+pts[n-1][0])/2,(pts[0][1]+pts[n-1][1])/2);for(let i=0;i<n;i++){const p=pts[i],q=pts[(i+1)%n];g.quadraticCurveTo(p[0],p[1],(p[0]+q[0])/2,(p[1]+q[1])/2)}g.fill()},
+  // snow camo: speckled snow, then wandering brown branches with twigs and olive needle sprigs
+  branches(g,x0,y0,w,h,unit,rnd){const sp=Math.max(.6,unit*.035);for(let i=0,n=Math.round(w*h/(sp*sp)*.05);i<n;i++){g.fillStyle=rnd()<.55?'#ffffff':'#b9bfc6';g.globalAlpha=.7;g.fillRect(x0+rnd()*w,y0+rnd()*h,sp,sp)}g.globalAlpha=1;
+    g.lineCap='round';const nb=Math.max(8,Math.round(w*h/(unit*unit)*4));
+    for(let b=0;b<nb;b++){let x=x0+rnd()*w,y=y0+rnd()*h,a=rnd()*6.283;const len=unit*(.5+rnd()*1.1),steps=7,lw=Math.max(.6,unit*(.025+rnd()*.03));const col=['#4a3a2c','#5e4b39','#3a3129','#6f604f'][Math.floor(rnd()*4)];
+      for(let k=0;k<steps;k++){const nx=x+Math.cos(a)*len/steps,ny=y+Math.sin(a)*len/steps;g.strokeStyle=col;g.lineWidth=lw*(1-k/steps*.6);g.beginPath();g.moveTo(x,y);g.lineTo(nx,ny);g.stroke();
+        if(rnd()<.45){const ta=a+(rnd()<.5?1:-1)*(.5+rnd()*.6),tl=len*(.12+rnd()*.18);g.lineWidth=lw*.5;g.beginPath();g.moveTo(nx,ny);g.lineTo(nx+Math.cos(ta)*tl,ny+Math.sin(ta)*tl);g.stroke()}
+        if(rnd()<.3){g.strokeStyle=rnd()<.6?'#5b6440':'#3e4a2c';g.lineWidth=Math.max(.5,lw*.45);for(let q=0;q<5;q++){const qa=a+(q-2)*.5+(rnd()-.5)*.3,ql=unit*(.05+rnd()*.06);g.beginPath();g.moveTo(nx,ny);g.lineTo(nx+Math.cos(qa)*ql,ny+Math.sin(qa)*ql);g.stroke()}}
+        x=nx;y=ny;a+=(rnd()-.5)*.7}}},
+  fill(g,V,x0,y0,w,h,unit,seed){g.fillStyle=V.base;g.fillRect(x0,y0,w,h);const rnd=CVA.rng(seed);
+    if(V.pat==='branch')CVA.branches(g,x0,y0,w,h,unit,rnd);
+    if(V.sp.length){V.sp.forEach((c,li)=>{g.fillStyle=c;const n=Math.round(w*h/(unit*unit)*(li===2?.5:.8));for(let i=0;i<n;i++)CVA.blob(g,x0+rnd()*w,y0+rnd()*h,unit*(li===2?.28:.45)*(.6+rnd()*.8),rnd)})}
+    if(V.weave){g.globalAlpha=.08;g.strokeStyle='#fff';g.lineWidth=Math.max(.5,unit*.02);for(let x=x0;x<x0+w;x+=unit*.12){g.beginPath();g.moveTo(x,y0);g.lineTo(x+h*.3,y0+h);g.stroke()}g.globalAlpha=1}},
+  path(g,F){g.beginPath();const T=F.T,B=F.B;g.moveTo(T[0][0],(T[0][1]+B[0][1])/2);
+    // rounded front edge up to the shoulder, along the back, down the rear edge and forward along the belly
+    g.quadraticCurveTo(T[0][0]-F.depth*.06,T[0][1],T[3][0],T[3][1]);for(let i=3;i<T.length;i+=2)g.lineTo(T[i][0],T[i][1]);
+    const e=T.length-1;g.quadraticCurveTo(T[e][0]+F.depth*.05,(T[e][1]+B[e][1])/2,B[e][0]-F.depth*.12,B[e][1]);
+    for(let i=e-3;i>=2;i-=2)g.lineTo(B[i][0],B[i][1]);g.quadraticCurveTo(B[0][0],B[0][1],T[0][0],(T[0][1]+B[0][1])/2);g.closePath()},
+  // hardware
+  buckle(g,x,y,u){const w=u*.24,h=u*.2;g.fillStyle='#1b1c1e';g.fillRect(x-w/2,y-h/2,w,h*.46);g.fillRect(x-w*.42,y,w*.84,h*.5);g.fillStyle='#3a3c40';g.fillRect(x-w*.3,y-h*.38,w*.6,h*.12);g.fillRect(x-w*.26,y+h*.12,w*.52,h*.1);
+    g.fillStyle='rgba(255,255,255,.18)';g.fillRect(x-w/2,y-h/2,w,h*.07)},
+  slider(g,x,y,u){g.fillStyle='#1b1c1e';g.fillRect(x-u*.12,y-u*.035,u*.24,u*.07)},
+  strap(g,x,y0,y1,u,V){const w=u*.15;g.fillStyle=V.web;g.fillRect(x-w/2,y0,w,y1-y0);g.fillStyle='rgba(0,0,0,.18)';for(let y=y0;y<y1;y+=u*.05)g.fillRect(x-w/2,y,w,u*.012);g.fillStyle='rgba(255,255,255,.14)';g.fillRect(x-w/2,y0,w*.18,y1-y0)},
+  dring(g,x,y,u,lw){g.strokeStyle='#161719';g.lineWidth=lw*1.3;g.beginPath();g.moveTo(x-u*.09,y-u*.03);g.lineTo(x-u*.09,y+u*.04);g.arc(x,y+u*.04,u*.09,Math.PI,0,true);g.lineTo(x+u*.09,y-u*.03);g.stroke();g.lineWidth=lw*1.1;g.beginPath();g.moveTo(x-u*.1,y-u*.03);g.lineTo(x+u*.1,y-u*.03);g.stroke()},
+  handle(g,x,y,u,lw,V){g.fillStyle=V.web;g.fillRect(x-u*.34,y-u*.06,u*.1,u*.12);g.fillRect(x+u*.24,y-u*.06,u*.1,u*.12);
+    g.strokeStyle='#141516';g.lineCap='round';g.lineWidth=u*.1;g.beginPath();g.moveTo(x-u*.29,y);g.bezierCurveTo(x-u*.27,y-u*.34,x+u*.27,y-u*.34,x+u*.29,y);g.stroke();
+    g.strokeStyle='#2c2e31';g.lineWidth=u*.025;for(let k=1;k<6;k++){const t=k/6,bx=(1-t)**3*(x-u*.29)+3*(1-t)**2*t*(x-u*.27)+3*(1-t)*t*t*(x+u*.27)+t**3*(x+u*.29),by=(1-t)**3*y+3*(1-t)**2*t*(y-u*.34)+3*(1-t)*t*t*(y-u*.34)+t**3*y;g.beginPath();g.moveTo(bx,by-u*.05);g.lineTo(bx,by+u*.05);g.stroke()}
+    g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=lw*.4;g.beginPath();g.moveTo(x-u*.22,y-u*.1);g.bezierCurveTo(x-u*.2,y-u*.29,x+u*.2,y-u*.29,x+u*.22,y-u*.1);g.stroke()},
+  patch(g,x,y,w,h,V){g.fillStyle=V.web;g.fillRect(x,y,w,h);g.fillStyle='rgba(0,0,0,.14)';for(let k=1;k<4;k++)g.fillRect(x+w*.06,y+h*k/4-h*.03,w*.88,h*.06);g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=Math.max(.5,h*.05);g.strokeRect(x,y,w,h)},
+  at(F,x,k){const i=Math.max(0,Math.min(F.T.length-1,Math.round(x-F.xs)));return F.T[i][1]+(F.B[i][1]-F.T[i][1])*k},
+  // paint the vest onto a rendered dog canvas (in place)
+  paint(cv,variant,seed=7){const F=CVA.fit(cv);if(!F)return false;const V=CV_VARIANTS[variant]||CV_VARIANTS.black,W=cv.width,H=cv.height;
+    const L=document.createElement('canvas');L.width=W;L.height=H;const g=L.getContext('2d'),u=F.depth,lw=Math.max(1,u*.07);
+    const T0=Math.min(...F.T.map(p=>p[1])),B0=Math.max(...F.B.map(p=>p[1]));g.save();CVA.path(g,F);g.clip();CVA.fill(g,V,F.xs-u*.2,T0-u*.2,F.xe-F.xs+u*.4,B0-T0+u*.4,u*.55,seed);
+    // form shading: light on the back, dark under the belly, darker toward the edges
+const gr=g.createLinearGradient(0,T0,0,B0);gr.addColorStop(0,'rgba(255,255,255,.18)');gr.addColorStop(.35,'rgba(255,255,255,0)');gr.addColorStop(.75,'rgba(0,0,0,.12)');gr.addColorStop(1,'rgba(0,0,0,.4)');g.fillStyle=gr;g.fillRect(0,0,W,H);
+    const gx=g.createLinearGradient(F.xs,0,F.xe,0);gx.addColorStop(0,'rgba(0,0,0,.22)');gx.addColorStop(.12,'rgba(0,0,0,0)');gx.addColorStop(.9,'rgba(0,0,0,0)');gx.addColorStop(1,'rgba(0,0,0,.25)');g.fillStyle=gx;g.fillRect(0,0,W,H);
+    // the ID patch between the straps, and a short chest strap at the front
+    const s1=F.fR+F.D*.08,s2=F.hL-F.D*.3,px=s1+u*.2,pw=Math.max(u*.4,s2-s1-u*.4),py=CVA.at(F,(s1+s2)/2,.2);CVA.patch(g,px,py,pw,u*.26,V);
+    const cy=CVA.at(F,F.xs+u*.3,.3);g.fillStyle=V.web;g.fillRect(F.xs,cy,u*.55,u*.13);CVA.buckle(g,F.xs+u*.62,cy+u*.065,u);
+    // two belly straps with side-release buckles
+    for(const sx of[s1,s2]){const t=CVA.at(F,sx,0),bt=CVA.at(F,sx,1);CVA.strap(g,sx,t,bt,u,V);CVA.slider(g,sx,t+(bt-t)*.2,u);CVA.buckle(g,sx,t+(bt-t)*.62,u)}
+    g.restore();
+    // binding around the edge
+    g.save();CVA.path(g,F);g.strokeStyle=V.bind;g.lineWidth=lw*1.6;g.stroke();g.restore();
+    // everything above stays on the dog's outline
+    g.globalCompositeOperation='destination-in';g.drawImage(cv,0,0);g.globalCompositeOperation='source-over';
+    // the ribbed grab handle on the back, just behind the shoulders, and the D-ring at the chest
+    const hx=F.fR+F.D*.3;CVA.handle(g,hx,CVA.at(F,hx,0)+lw*.4,u,lw,V);CVA.dring(g,F.xs+u*.2,CVA.at(F,F.xs+u*.2,.45),u,lw);
+    const c=cv.getContext('2d');c.drawImage(L,0,0);return true},
+  // a flat product picture of the vest for the shop (side view, like the reference)
+  icon(variant,w=120){const V=CV_VARIANTS[variant]||CV_VARIANTS.black,h=Math.round(w*.62),cv=document.createElement('canvas');cv.width=w*2;cv.height=h*2;const g=cv.getContext('2d');g.scale(2,2);const u=h*.62,lw=Math.max(1,u*.06);
+    const P=()=>{g.beginPath();g.moveTo(w*.1,h*.42);g.quadraticCurveTo(w*.08,h*.18,w*.26,h*.2);g.lineTo(w*.86,h*.24);g.quadraticCurveTo(w*.95,h*.28,w*.93,h*.44);g.lineTo(w*.9,h*.8);g.quadraticCurveTo(w*.6,h*.9,w*.32,h*.86);g.quadraticCurveTo(w*.12,h*.8,w*.1,h*.42);g.closePath()};
+    g.save();P();g.clip();CVA.fill(g,V,0,0,w,h,w*.2,11);const gr=g.createLinearGradient(0,h*.1,0,h*.9);gr.addColorStop(0,'rgba(255,255,255,.2)');gr.addColorStop(.5,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(0,0,0,.32)');g.fillStyle=gr;g.fillRect(0,0,w,h);
+    CVA.patch(g,w*.4,h*.32,w*.26,h*.13,V);for(const sx of[w*.32,w*.74]){CVA.strap(g,sx,0,h,u,V);CVA.slider(g,sx,h*.4,u);CVA.buckle(g,sx,h*.66,u)}g.fillStyle=V.web;g.fillRect(w*.08,h*.5,w*.12,h*.07);g.restore();
+    P();g.strokeStyle=V.bind;g.lineWidth=lw*1.4;g.stroke();CVA.handle(g,w*.5,h*.22,u,lw,V);CVA.dring(g,w*.16,h*.36,u,lw);return cv.toDataURL('image/png')}
+};
+// ---------- DOG EQUIPMENT: CATCHING VEST ----------
+// Dog Equipment → Hunting Gear → Catching Vest. A padded vest a catch dog wears on hog hunts: it takes some of the tusk cuts
+// and slashes (less damage, a small chance a hit is turned), weighs a little, and wears out until it's repaired. It never
+// touches a dog's genes or stats; training, health, experience, the hog and the conditions still decide the hunt.
+// EQUIP_TYPES is the reusable base: a later vest only needs {base:'catchVest', name, price, and whatever it changes}.
+// Items live in S.equip ({id,type,v,dur,dog}); the dog wearing one is item.dog, so a sold or lost dog simply frees its vest.
+// The disposable Cut vest from the Inventory stays as it was and still works alongside (the two stack).
+const EQUIP_TYPES={
+  catchVest:{name:'Catching Vest',cat:['Dog Equipment','Hunting Gear','Catching Vest'],role:'catch',slot:'vest',ic:'🦺',price:2500,
+    prot:15,safety:.08,weight:'Moderate',dur:100,move:-.01,repair:12,variants:Object.keys(CV_VARIANTS),dflt:'black',
+    desc:'A padded, puncture-resistant vest for catch dogs. It takes some of the cuts of a catch, but a dog wearing one can still get hurt.'}};
+// hog-hunt injuries a vest covers (not snakes, gators, trucks, fences or heat)
+const CV_HITS=/tusk|slash|cut|hit by the|charged|grabb?ing the hog|kicked|bitten in a fight|gored/i;
+const EQ={
+  def(t){const T=EQUIP_TYPES[t];if(!T)return null;return T.base?{...EQ.def(T.base),...T,key:t}:{...T,key:t}},
+  list(){return S.equip||(S.equip=[])},
+  get(id){return EQ.list().find(x=>x.id===id)},
+  on(d,slot='vest'){if(!d)return null;return EQ.list().find(x=>x.dog===d.id&&(EQ.def(x.type)||{}).slot===slot)||null},
+  free(type){return EQ.list().filter(x=>!x.dog&&(!type||x.type===type))},
+  clean(){for(const it of EQ.list())if(it.dog&&!S.dogs.some(d=>d.id===it.dog&&!d.arch))it.dog=null},
+  add(type,v){const T=EQ.def(type);S.eqN=(S.eqN||0)+1;const it={id:'EQ'+S.eqN,type,v:T.variants.includes(v)?v:T.dflt,dur:T.dur,dog:null,day:S.day};EQ.list().push(it);return it}
+};
+const CV={
+  of:d=>EQ.on(d,'vest'),
+  vn:it=>(CV_VARIANTS[it&&it.v]||CV_VARIANTS.black).n,
+  on:it=>!!it&&it.dur>0,
+  // the vest a dog on the hunt is wearing, if it still protects
+  live(g){const it=CV.of({id:g.id});return CV.on(it)?it:null},
+  wear(it,n,S2,g){if(!it||n<=0)return;const was=it.dur;it.dur=Math.max(0,Math.round((it.dur-n)*10)/10);
+    if(was>0&&it.dur<=0){const t=`${g?g.name:'A dog'}'s catching vest is worn through: no protection until it's repaired.`;if(S2&&S2.events)hwEvent(S2,'cvtorn'+it.id,t,1);addLog(t)}},
+  // a hit on a dog wearing a working vest: a small chance it's turned, otherwise less damage
+  absorb(S2,g,what,dmg){const it=CV.live(g);if(!it||!CV_HITS.test(what||''))return dmg;const T=EQ.def(it.type);
+    if(R()<T.safety){CV.wear(it,4+dmg*.2,S2,g);if(S2&&S2.events)hwEvent(S2,'cvsave'+g.id,`${g.name}'s catching vest turned the hit.`,20);return 0}
+    const d2=Math.max(1,Math.round(dmg*(1-T.prot/100)));CV.wear(it,4+dmg*.3,S2,g);return d2},
+  artKey(d){const it=CV.of(d);return it?'|cv:'+it.v:''},
+  paintDog(cv,d){const it=CV.of(d);if(it&&isAdult(d))CVA.paint(cv,it.v,hashStr(it.id)%9973)},
+  icon(v){const k='i'+v;return CV._ic[k]||(CV._ic[k]=CVA.icon(v,120))},_ic:{},
+  sw(v,sel,act,extra=''){const V=CV_VARIANTS[v];return`<button class="cv-sw${sel?' on':''}" data-act="${act}" data-k="${v}" ${extra} title="${esc(V.n)}" aria-label="${esc(V.n)}" style="background:${V.sp.length?`linear-gradient(135deg,${V.base} 0 35%,${V.sp[0]} 35% 55%,${V.sp[1]} 55% 75%,${V.base} 75%)`:V.base}"></button>`},
+  bar(it){const c=it.dur>50?'var(--good,#4c9a4c)':it.dur>20?'var(--gold)':'var(--bad,#c0392b)';return`<div class="meter" style="height:7px"><i style="width:${clamp(it.dur,0,100)}%;background:${c}"></i></div>`},
+  fx(it){const T=EQ.def(it.type);return CV.on(it)?`Protection +${T.prot} · Catch safety +${Math.round(T.safety*100)}% · Movement ${Math.round(T.move*100)}%`:`<span style="color:var(--bad)">Worn through: no protection until repaired</span> · Movement ${Math.round(T.move*100)}%`},
+  repairCost(it){return Math.ceil((EQ.def(it.type).dur-it.dur)*EQ.def(it.type).repair)},
+  // ---- actions ----
+  buy(v){const T=EQ.def('catchVest');if(S.money<T.price)return toast(`A catching vest costs ${fmt(T.price)}.`);S.money-=T.price;const it=EQ.add('catchVest',v);
+    addLog(`Bought a ${CV.vn(it)} catching vest for ${fmt(T.price)}.`);toast(`🦺 ${CV.vn(it)} catching vest bought. Equip it from a dog's profile or below.`);sfx.coin&&sfx.coin();save();render()},
+  equip(id,dogId){const it=EQ.get(id),d=S.dogs.find(x=>x.id===dogId);if(!it||!d)return;if(!isAdult(d))return toast('Pups are too small for a catching vest.');
+    const old=CV.of(d);if(old&&old!==it)old.dog=null;it.dog=d.id;addLog(`${d.name} now wears the ${CV.vn(it)} catching vest.`);toast(`🦺 ${d.name} is wearing the ${CV.vn(it)} vest.`);save();CV.refresh(d)},
+  unequip(id){const it=EQ.get(id);if(!it||!it.dog)return;const d=S.dogs.find(x=>x.id===it.dog);it.dog=null;toast(`Vest back in the tack room.`);save();CV.refresh(d)},
+  repair(id){const it=EQ.get(id);if(!it)return;const c=CV.repairCost(it);if(c<=0)return toast('That vest is in good shape.');if(S.money<c)return toast(`Repair costs ${fmt(c)}.`);
+    S.money-=c;it.dur=EQ.def(it.type).dur;addLog(`Repaired a ${CV.vn(it)} catching vest for ${fmt(c)}.`);toast(`🧵 Vest repaired (${fmt(c)}).`);save();CV.refresh(it.dog&&S.dogs.find(x=>x.id===it.dog))},
+  color(id,v){const it=EQ.get(id);if(!it||!CV_VARIANTS[v])return;it.v=v;save();CV.refresh(it.dog&&S.dogs.find(x=>x.id===it.dog))},
+  // redraw whatever is open: a dog profile, the papers, or the screen
+  refresh(d){const sh=document.getElementById('sheet');if(sh&&!sh.classList.contains('hidden')){if(UI.cvSheet==='dog'&&d)return dogProfile(d.id);if(UI.cvSheet==='papers'&&d)return PAPERS.open(d.id);if(UI.cvSheet==='gear')return CV.gearSheet()}render()},
+  // see a vest color on one of your dogs before you buy
+  async preview(v,dogId){v=CV_VARIANTS[v]?v:(UI.cvV||'snow');UI.cvV=v;const d=S.dogs.find(x=>x.id===dogId)||S.dogs.filter(isAdult).sort((a,b)=>catchScore(b)-catchScore(a))[0]||S.dogs[0];
+    openSheet(`<h2>Catching Vest preview</h2><p class="small muted">${d?`On ${esc(d.name)}.`:''} Colors are cosmetic: every vest has the same protection.</p><div id="cvPrev" style="min-height:180px;text-align:center"><span class="small muted">Fitting the vest…</span></div>
+      <div class="row cv-sws" style="justify-content:center;margin:8px 0">${Object.keys(CV_VARIANTS).map(k=>CV.sw(k,k===v,'cvPreview',d?`data-id="${d.id}"`:'')).join('')}</div><div style="text-align:center"><b>${esc(CV_VARIANTS[v].n)}</b></div>
+      <div class="row" style="justify-content:center;margin-top:8px;gap:6px"><button class="btn" data-act="cvBuy" data-k="${v}" ${S.money>=EQ.def('catchVest').price?'':'disabled'}>Buy for ${fmt(EQ.def('catchVest').price)}</button>${d&&S.dogs.filter(isAdult).length>1?`<select id="cvPrevDog">${S.dogs.filter(isAdult).map(x=>`<option value="${x.id}" ${x===d?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`:''}</div>`);
+    UI.cvSheet='preview';if(!d||!hasBody(d)){document.getElementById('cvPrev').innerHTML=`<img src="${CV.icon(v)}" style="width:240px">`;return}
+    try{const c=await Coat.render(gameCoat(d),.5);CVA.paint(c,v,11);const el=document.getElementById('cvPrev');if(el&&UI.cvV===v)el.innerHTML=`<img src="${c.toDataURL('image/png')}" style="width:100%;max-width:460px" alt="${esc(d.name)} in a ${esc(CV_VARIANTS[v].n)} catching vest">`}catch(e){console.warn('cv preview',e)}},
+  // ---- UI pieces ----
+  card(){const T=EQ.def('catchVest'),v=UI.cvV||'snow';
+    return`<div class="panel cv-card"><div class="spread"><b>🦺 CATCHING VEST</b><b class="num">${fmt(T.price)}</b></div><div class="small muted">Dog Equipment → Hunting Gear → Catching Vest · for catch dogs</div>
+      <div class="row" style="gap:10px;align-items:center;margin:6px 0"><img src="${CV.icon(v)}" width="120" alt="${esc(CV_VARIANTS[v].n)} catching vest" style="border-radius:8px;background:#0002">
+      <div class="small">Protection <b>+${T.prot}</b><br>Catch safety <b>+${Math.round(T.safety*100)}%</b><br>Durability <b>${T.dur}%</b><br>Weight <b>${T.weight}</b><br>Movement <b>${Math.round(T.move*100)}%</b></div></div>
+      <div class="small muted">${esc(T.desc)}</div><div class="row cv-sws" style="margin:6px 0">${T.variants.map(k=>CV.sw(k,k===v,'cvPick')).join('')}</div><div class="small"><b>${esc(CV_VARIANTS[v].n)}</b></div>
+      <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm" data-act="cvBuy" data-k="${v}" ${S.money>=T.price?'':'disabled'}>Buy</button><button class="btn sm ghost" data-act="cvPreview" data-k="${v}">👁 Preview</button>${EQ.list().length?`<button class="btn sm ghost" data-act="cvGear">Your vests (${EQ.list().length})</button>`:''}</div></div>`},
+  row(it,ctx){const d=it.dog&&S.dogs.find(x=>x.id===it.dog),rc=CV.repairCost(it),ad=S.dogs.filter(x=>isAdult(x)&&x!==d);
+    return`<div class="panel cv-item" style="margin-bottom:6px"><div class="row" style="gap:8px;align-items:center"><img src="${CV.icon(it.v)}" width="64" alt="" style="border-radius:6px">
+      <div style="flex:1"><b>${esc(CV_VARIANTS[it.v].n)} Catching Vest</b><div class="small muted">${d?`Worn by ${esc(d.name)}`:'In the tack room'}</div><div class="spread small"><span>Durability</span><b class="num">${Math.round(it.dur)}%</b></div>${CV.bar(it)}<div class="small" style="margin-top:2px">${CV.fx(it)}</div></div></div>
+      <div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${d?`<button class="btn sm ghost" data-act="cvUnequip" data-id="${it.id}">Unequip</button>`:(ad.length?`<select id="cvDog_${it.id}">${ad.map(x=>`<option value="${x.id}">${esc(x.name)}${CV.of(x)?' (has a vest)':''}</option>`).join('')}</select><button class="btn sm" data-act="cvEquip" data-id="${it.id}">Equip</button>`:'')}
+        <button class="btn sm ghost" data-act="cvRepair" data-id="${it.id}" ${rc>0&&S.money>=rc?'':'disabled'}>🧵 Repair${rc>0?' '+fmt(rc):''}</button>
+        <span class="cv-sws">${Object.keys(CV_VARIANTS).map(k=>CV.sw(k,k===it.v,'cvColor',`data-id="${it.id}"`)).join('')}</span></div></div>`},
+  gearSheet(){EQ.clean();UI.cvSheet='gear';openSheet(`<h2>🦺 Your catching vests</h2><p class="small muted">Equip one on each catch dog. Hunts wear them down; at 0% a vest gives no protection until it's repaired. Tap a color to change it.</p>${EQ.list().map(it=>CV.row(it)).join('')||'<p class="small muted">No vests yet.</p>'}`)},
+  // the Equipment section on a dog profile and on the papers
+  section(d,papers){if(!isAdult(d))return papers?PAPERS.row('Catching Vest','— (pups can’t wear one)'):'';const it=CV.of(d),free=EQ.free('catchVest');
+    if(papers){if(!it)return PAPERS.row('Catching Vest','None equipped');return PAPERS.row('Catching Vest',`${esc(CV_VARIANTS[it.v].n)} · ${Math.round(it.dur)}% durability`)+`<div class="small" style="margin:2px 0 6px">${CV.fx(it)}</div>`}
+    return`<h3>Equipment</h3><div class="panel cv-eq"><div class="small muted">Dog Equipment → Hunting Gear → Catching Vest</div>${it?`<div class="row" style="gap:8px;align-items:center;margin-top:4px"><img src="${CV.icon(it.v)}" width="64" alt="" style="border-radius:6px"><div style="flex:1"><b>${esc(CV_VARIANTS[it.v].n)} Catching Vest</b><div class="spread small"><span>Durability</span><b class="num">${Math.round(it.dur)}%</b></div>${CV.bar(it)}<div class="small">${CV.fx(it)}</div></div></div>
+      <div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap"><button class="btn sm ghost" data-act="cvUnequip" data-id="${it.id}">Unequip</button><button class="btn sm ghost" data-act="cvRepair" data-id="${it.id}" ${CV.repairCost(it)>0&&S.money>=CV.repairCost(it)?'':'disabled'}>🧵 Repair${CV.repairCost(it)>0?' '+fmt(CV.repairCost(it)):''}</button><span class="cv-sws">${Object.keys(CV_VARIANTS).map(k=>CV.sw(k,k===it.v,'cvColor',`data-id="${it.id}"`)).join('')}</span></div>`
+      :free.length?`<div class="small" style="margin:4px 0">No vest on. ${free.length} in the tack room.</div><div class="row" style="gap:4px;flex-wrap:wrap">${free.slice(0,4).map(x=>`<button class="btn sm" data-act="cvEquip" data-id="${x.id}" data-dog="${d.id}">Equip ${esc(CV_VARIANTS[x.v].n)} (${Math.round(x.dur)}%)</button>`).join('')}</div>`
+      :`<div class="small" style="margin:4px 0">No vest on.</div><button class="btn sm ghost" data-act="cvPreview" data-id="${d.id}">👁 Preview a catching vest on ${esc(d.name)}</button> <button class="btn sm ghost" data-act="tab" data-t="inventory">Buy one (${fmt(EQ.def('catchVest').price)})</button>`}</div>`},
+  chip(d){const it=CV.of(d);return it?`<br><span class="small" title="Catching vest">🦺 ${CV.on(it)?Math.round(it.dur)+'%':'worn out'}</span>`:''},
+  prepLine(){EQ.clean();const L=EQ.list();if(!L.length)return'';const on=L.filter(x=>x.dog).map(x=>{const d=S.dogs.find(z=>z.id===x.dog);return`${esc(d?d.name:'?')} ${CV.on(x)?Math.round(x.dur)+'%':'(worn out)'}`}),fr=EQ.free().length;
+    const bare=(UI.huntSel.catch||[]).map(id=>S.dogs.find(z=>z.id===id)).filter(z=>z&&!CV.of(z));
+    return`<p class="small muted">🦺 Catching vests: ${on.join(', ')||'none equipped'}${fr?` · ${fr} in the tack room`:''}${bare.length&&fr?` · <button class="linkbtn" data-act="cvGear">equip ${esc(bare[0].name)}</button>`:''}</p>`}
+};
+const CV_ACTIONS={
+  cvBuy:d=>CV.buy(d.k),cvPick:d=>{UI.cvV=d.k;render()},cvPreview:d=>CV.preview(d.k,d.id),cvEquip:d=>{const dog=d.dog||((document.getElementById('cvDog_'+d.id)||{}).value);CV.equip(d.id,dog)},cvUnequip:d=>CV.unequip(d.id),cvRepair:d=>CV.repair(d.id),cvColor:d=>CV.color(d.id,d.k),cvGear:()=>CV.gearSheet()};
+document.head.insertAdjacentHTML('beforeend',`<style>.cv-sw{width:22px;height:22px;border-radius:50%;border:2px solid #0006;padding:0;margin:0 2px;cursor:pointer;vertical-align:middle}.cv-sw.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}.cv-sws{display:inline-flex;flex-wrap:wrap;gap:2px}</style>`);
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='cvPrevDog')CV.preview(UI.cvV,e.target.value)});
+// ---- wiring into the existing systems ----
+// hunting: in-hunt hits go through WE.hurt; the boar's charge at the bay writes its cut directly, so it's softened after
+{const o=WE.hurt;WE.hurt=function(S2,g,what,dmg){try{if(g&&CV_HITS.test(what||'')){dmg=CV.absorb(S2,g,what,dmg);if(!dmg)return}}catch(e){console.warn('cv',e)}return o.call(this,S2,g,what,dmg)}}
+{const o=HOGAI.charge;HOGAI.charge=function(S2,g,h,dt){const h0=g.m.hurt,c0=g.m.cutOnce;o.apply(this,arguments);try{if(!c0&&g.m.cutOnce&&g.m.hurt&&g.m.hurt!==h0&&CV.live(g)){const n=CV.absorb(S2,g,g.m.hurt.what,g.m.hurt.dmg);if(!n)g.m.hurt=h0;else g.m.hurt.dmg=n}}catch(e){console.warn('cv',e)}}}
+// a vest weighs a little: 1% off a dog's hunting speed while it wears one (its stats are untouched)
+{const o=huntAttrs;huntAttrs=function(d,lh){const a=o(d,lh);try{const it=d&&CV.of(d);if(it)a.spd*=1+EQ.def(it.type).move}catch(e){}return a}}
+// brush and briars wear a vest a little every hunt it's worn
+{const o=hwStep;hwStep=function(S2,dt){o(S2,dt);try{if(S2.over&&!S2.cvWorn&&!S2.practice){S2.cvWorn=1;for(const g of S2.dogs){const it=CV.of({id:g.id});if(it)CV.wear(it,1,S2,g)}}}catch(e){}}}
+// the papers, the dog profile and the shop
+{const o=PAPERS.t_overview;PAPERS.t_overview=function(d,r,st){let h=o.apply(this,arguments);try{if(PAPERS.mine(d)&&!d.arch)h+=`<h3>Equipment</h3>${CV.section(d,true)}`}catch(e){}return h}}
+{const o=PAPERS.open;PAPERS.open=function(id,tab){o(id,tab);UI.cvSheet='papers'}}
+{const o=dogProfile;dogProfile=function(id){o(id);UI.cvSheet='dog';try{const d=S.dogs.find(x=>x.id===id),el=document.getElementById('sheetInner');if(d&&el){const p=el.querySelector('.panel');if(p)p.insertAdjacentHTML('afterend',CV.section(d,false))}}catch(e){console.warn('cv',e)}}}
+{const o=SCREENS.inventory;SCREENS.inventory=function(){return o()+`<h3 style="margin-top:14px">Hunting equipment</h3><div class="grid wide">${CV.card()}</div>`}}
+{const o=closeSheet;closeSheet=function(){UI.cvSheet=null;return o.apply(this,arguments)}}
+Object.assign(A,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
