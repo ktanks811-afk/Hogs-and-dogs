@@ -4700,8 +4700,10 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.10.0';
-const PATCH_NOTES=[{v:'2.10.0',title:'Hunting partners',items:[
+const GAME_VERSION='2.10.1';
+const PATCH_NOTES=[{v:'2.10.1',title:'Real hound voices',items:[
+  ['Bay dogs sound like real hounds','Your bay dogs now bawl with a real bloodhound recording instead of the made-up bark. Each dog’s voice is pitched a little different, bigger dogs deeper.'],
+  ['Still fades with distance','The bawls still get quieter and more muffled the further off the dogs are, come from the side they’re on, and echo off the woods. Catch dogs still growl when they hold a hog.']]},{v:'2.10.0',title:'Hunting partners',items:[
   ['Hunting partners','Ask one of the parish kennel owners to hunt with you (Hunt tab → Hunting partner). They bring a bay dog and a catch dog from their own kennel and walk the woods as a second hunter.'],
   ['They work the hunt','When the dogs bay, your partner heads for the bay. If they get there before you, they turn their catch dogs loose once the bay is set, help hold the hog, and tie it.'],
   ['Each one is different','Some are patient and wait for a set bay, some are pushy and turn dogs loose early. They walk at their own pace and take their own cut of the hogs.'],
@@ -8933,17 +8935,28 @@ const BK={
   voiceOf(g){const d=g.d||{},kg=d.kg||25,base=clamp(560-kg*5.2,260,520),own=((hashStr(String(g.id))%60)-30);return{f0:base+own,mouth:d.mouth||'chop',rough:.25+((hashStr(String(g.id))>>3)%10)/30}},
   // what a dog is saying right now, and how soon it barks again
   say(g){if(g.m&&g.m.dead)return null;const v=BK.voiceOf(g),silent=(g.d&&(g.d.traits||[]).includes('silent'));
-    if(g.st==='bay')return{k:'chop',n:2+Math.floor(Math.random()*3),gap:[.55,1.2]};
+    if(g.st==='bay')return g.role==='bay'?{k:'chop',n:1,gap:[1.1,2.2]}:{k:'chop',n:2+Math.floor(Math.random()*3),gap:[.55,1.2]};
     if(g.st==='treed')return{k:v.mouth==='bawl'?'bawl':'chop',n:2,gap:[.8,1.6]};
     if(g.st==='hold'&&g.role==='catch')return{k:'growl',n:1,gap:[1.6,3]};
     if(silent)return null;
     if(g.st==='hot'||g.st==='run')return{k:v.mouth==='bawl'?'bawl':v.mouth==='squall'?'squall':'chop',n:v.mouth==='chop'?2:1,gap:[1,2.4]};
     if(g.st==='track')return{k:v.mouth==='bawl'?'bawl':v.mouth==='squall'?'squall':'chop',n:1,gap:[2.6,5.5]};
     return null},
+  // ---- the bay dogs' voice: a real bloodhound recording, cut into its five bawls ----
+  // loaded once on the first hunt with sound on; until it's ready (or if it can't load) the dogs use the synth voice
+  SAMPLE:'/assets/audio/bloodhound-bawl-39482d1f80.mp3',SEGS:[[.15,.58],[1.55,.82],[3.45,.92],[4.95,1.98],[8.25,.5]],
+  load(){if(BK.buf||BK._ld||!BK.ctx())return;BK._ld=fetch(BK.SAMPLE).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer()}).then(a=>new Promise((ok,no)=>BK.ac.decodeAudioData(a,ok,no)))
+    .then(b=>{let pk=0;for(let c=0;c<b.numberOfChannels;c++){const d=b.getChannelData(c);for(let i=0;i<d.length;i+=4)pk=Math.max(pk,Math.abs(d[i]))}BK.buf=b;BK.norm=pk>0?.8/pk:1}).catch(e=>{console.warn('bk sample',e);setTimeout(()=>{BK._ld=null},30000)})},
+  // one bawl from the recording: short ones at the bay, the long drawn-out one on a hot track; each dog's pitch is its own
+  hound(kind,v,vol,pan,cut,wet){const ac=BK.ac,b=BK.buf,S=BK.SEGS,k=kind==='bawl'&&Math.random()<.6?3:[0,1,2,4][Math.floor(Math.random()*4)],[st,du]=S[k],rate=clamp(1+(v.f0-400)/900,.84,1.14)*(1+(Math.random()-.5)*.04),t0=ac.currentTime+.01,len=du/rate;
+    const src=ac.createBufferSource(),g=ac.createGain(),lp=ac.createBiquadFilter(),pn=ac.createStereoPanner?ac.createStereoPanner():null;src.buffer=b;src.playbackRate.value=rate;lp.type='lowpass';lp.frequency.value=cut;
+    const top=vol*BK.norm*.62;g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(top,t0+.02);g.gain.setValueAtTime(top,t0+Math.max(.03,len-.08));g.gain.exponentialRampToValueAtTime(.0001,t0+len);
+    src.connect(lp);lp.connect(g);if(pn){pn.pan.value=clamp(pan,-1,1);g.connect(pn);pn.connect(BK.master)}else g.connect(BK.master);if(wet>0&&BK.echo){const e=ac.createGain();e.gain.value=wet;g.connect(e);e.connect(BK.echo)}
+    src.start(t0,st,du);src.stop(t0+len+.05);return k},
   // ---- the sound itself ----
   noise(ac){if(BK._nb)return BK._nb;const n=ac.sampleRate*1,b=ac.createBuffer(1,n,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return BK._nb=b},
   // one bark, howl, yelp or growl, through two mouth resonances, then distance and direction
-  play(kind,v,vol,pan,cut,wet){const ac=BK.ctx();if(!ac||vol<.004)return;const t0=ac.currentTime+.01,out=ac.createGain(),lp=ac.createBiquadFilter(),pn=ac.createStereoPanner?ac.createStereoPanner():null,f1=ac.createBiquadFilter(),f2=ac.createBiquadFilter(),mix=ac.createGain();
+  play(kind,v,vol,pan,cut,wet){const ac=BK.ctx();if(!ac||vol<.004)return;if(v.hound&&BK.buf&&kind!=='growl')return BK.hound(kind,v,vol,pan,cut,wet);const t0=ac.currentTime+.01,out=ac.createGain(),lp=ac.createBiquadFilter(),pn=ac.createStereoPanner?ac.createStereoPanner():null,f1=ac.createBiquadFilter(),f2=ac.createBiquadFilter(),mix=ac.createGain();
     lp.type='lowpass';lp.frequency.value=cut;f1.type='bandpass';f2.type='bandpass';f1.Q.value=3.5;f2.Q.value=5;mix.gain.value=1;f1.connect(mix);f2.connect(mix);mix.connect(lp);lp.connect(out);out.gain.value=vol*.55;
     if(pn){pn.pan.value=clamp(pan,-1,1);out.connect(pn);pn.connect(BK.master)}else out.connect(BK.master);if(wet>0&&BK.echo){const e=ac.createGain();e.gain.value=wet;out.connect(e);e.connect(BK.echo)}
     const src=(st,du,fa,fb,noiseAmt,shape)=>{const o=ac.createOscillator(),g=ac.createGain(),n=ac.createBufferSource(),ng=ac.createGain(),am=ac.createOscillator(),amg=ac.createGain();o.type='sawtooth';
@@ -8961,7 +8974,7 @@ const BK={
   // every step of the live hunt: each dog barks on its own schedule
   tick(S2){if(!BK.on()||document.hidden||UI.tab!=='hunt'||!S2||S2.over||S2.mode==='blood')return;const now=performance.now()/1000,P=S2.player,R=BK.range(S2);let n=0;
     for(const g of S2.dogs){const s=BK.say(g);if(!s){g.bkNext=null;continue}if(g.bkNext==null){g.bkNext=now+Math.random()*s.gap[1];continue}if(now<g.bkNext)continue;g.bkNext=now+s.gap[0]+Math.random()*(s.gap[1]-s.gap[0]);
-      const d=Math.hypot(g.x-P.x,g.y-P.y),vol=BK.vol(d,R);if(vol<.004||n>=3)continue;n++;const v={...BK.voiceOf(g),n:s.n};BK.play(s.k,v,vol,(g.x-P.x)/Math.max(40,d),BK.cut(d,R),clamp(d/R,0,.8)*.5)}}
+      const d=Math.hypot(g.x-P.x,g.y-P.y),vol=BK.vol(d,R);if(vol<.004||n>=3)continue;n++;const v={...BK.voiceOf(g),n:s.n,hound:g.role==='bay'};if(v.hound)BK.load();BK.play(s.k,v,vol,(g.x-P.x)/Math.max(40,d),BK.cut(d,R),clamp(d/R,0,.8)*.5)}}
 };
 const BK_ACTIONS={bkMute:()=>{S.dogSound=S.dogSound===false;save();const el=document.getElementById('ihPanel');if(el)el.dataset.k='';try{IH.hud(UI.hunt.sim)}catch(e){}toast(S.dogSound===false?'Dog sounds off.':'Dog sounds on.')}};
 // the new voices take over from the old beeps; a speaker button next to 👂 Listen
