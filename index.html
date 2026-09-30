@@ -1546,6 +1546,9 @@ function visualMorph(d){
   const H=topOf(m.reg.head),Bd=topOf(m.reg.body),Lg=topOf(m.reg.legs),Tl=topOf(m.reg.tail),q=v=>Math.round(v*100)/100;
   const k={tx:q(clamp(1+(t.bodyLength-nat(Bd).bodyLength)*.8,.88,1.15)),ty:q(clamp(1+(t.chestWidth-nat(Bd).chestWidth)*.18,.93,1.08)),leg:q(clamp(1+(t.legLength-nat(Lg).legLength)*.6,.85,1.2)),head:q(clamp(1+(t.muzzleLength-nat(H).muzzleLength)*.35,.88,1.14))};
   const mo={parts:{torso:body(Bd),head:body(H),front:body(Lg),hind:body(Lg),tail:body(Tl)},k};
+  // every part has to come from dogs standing the same way: the plain Pit Bull master is lunging, so a cross that mixes it
+  // with any standing breed takes its Pit parts from the standing Pit Bull master instead (no twisted bodies or extra legs)
+  {const v=Object.values(mo.parts);if(v.includes('pit_bull_terrier_stack_v1')&&v.some(b=>b!=='pit_bull_terrier_stack_v1'))for(const q in mo.parts)if(mo.parts[q]==='pit_bull_terrier_stack_v1')mo.parts[q]='apbt_stack_v1'}
   const same=Object.values(mo.parts).every(p=>p===mo.parts.torso)&&Object.values(k).every(v=>Math.abs(v-1)<.01);
   return same?null:mo;
 }
@@ -4822,8 +4825,9 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.12.0';
-const PATCH_NOTES=[{v:'2.12.0',title:'A whole new look',items:[
+const GAME_VERSION='2.12.1';
+const PATCH_NOTES=[{v:'2.12.1',title:'Every cross looks right',items:[
+  ['Crossbred dogs look like real dogs','Crosses with a Pit Bull used to come out twisted, with the Pit’s lunging body stitched to another breed’s standing legs. Now every crossbred dog is drawn standing as one whole dog, head to tail, with the looks it got from each parent. Your dogs already in the kennel get their new pictures too.']]},{v:'2.12.0',title:'A whole new look',items:[
   ['New logo','The new Hogs & Dogs logo is on the loading screen, the ranch page and the header, with a new boar-head app icon.'],
   ['Swamp at dusk','The whole game has a new look: near-black swamp with a sunset glow, stamped steel headings, blaze-orange buttons, rounded panels, pill filters and a new floating tab bar.'],
   ['Credits','Creator: Kimari Tanks. Tester: Lawrance.']]},{v:'2.11.0',title:'Every bay is different',items:[
