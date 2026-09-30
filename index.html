@@ -4700,8 +4700,12 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.10.1';
-const PATCH_NOTES=[{v:'2.10.1',title:'Real hound voices',items:[
+const GAME_VERSION='2.11.0';
+const PATCH_NOTES=[{v:'2.11.0',title:'Every bay is different',items:[
+  ['Hogs bay their own way','When the dogs bay a hog, it shows what it is. A standing bay backs into cover and holds. A walking bay keeps walking off with the dogs on it until it finds a thicket. A running bay breaks and runs again and again until it’s winded. A fighting boar charges the dogs and cuts them.'],
+  ['Bay dogs have a style','Every bay dog has its own bay style, shown on its profile. Tight dogs work in the hog’s face and hold hard but get cut more. Loose dogs bay wide and safe but let walkers and runners go. Rough dogs grab the hog’s rear: they stop a walking hog but push a standing one to run. Honest dogs bay steady.'],
+  ['Reading the bay','A new panel on the hunt screen shows what kind of bay it is, the bay’s strength, which dogs are on it and their styles, how far a walking hog has gone and which way, and how many times a runner has broken. The hunt summary tells you how the bay went.'],
+  ['Pick your pack for the hog','Mixing styles matters now: a rough dog with a tight dog stops walkers, loose dogs keep your dogs from getting cut on a fighting boar, and your catch dogs need to get there fast on a fighter.']]},{v:'2.10.1',title:'Real hound voices',items:[
   ['Bay dogs sound like real hounds','Your bay dogs now bawl with a real bloodhound recording instead of the made-up bark. Each dog’s voice is pitched a little different, bigger dogs deeper.'],
   ['Still fades with distance','The bawls still get quieter and more muffled the further off the dogs are, come from the side they’re on, and echo off the woods. Catch dogs still growl when they hold a hog.']]},{v:'2.10.0',title:'Hunting partners',items:[
   ['Hunting partners','Ask one of the parish kennel owners to hunt with you (Hunt tab → Hunting partner). They bring a bay dog and a catch dog from their own kennel and walk the woods as a second hunter.'],
@@ -8980,6 +8984,82 @@ const BK_ACTIONS={bkMute:()=>{S.dogSound=S.dogSound===false;save();const el=docu
 // the new voices take over from the old beeps; a speaker button next to 👂 Listen
 IH.audio=function(S2){try{BK.tick(S2)}catch(e){}};
 {const o=IH.panel;IH.panel=function(S2){return o.apply(this,arguments).replace('<button class="btn sm" data-act="ihListen">',`<button class="btn sm ghost" data-act="bkMute" aria-label="Dog sounds on or off">${S.dogSound===false?'🔇':'🔊'}</button><button class="btn sm" data-act="ihListen">`)}}
+// ---------- HOW THE BAY PLAYS OUT: hog bay types and dog bay styles ----------
+// Not every hog bays the same. When the dogs bay it, a hog shows what it is:
+//  - Standing bay: backs into cover and holds. The easy one.
+//  - Walking bay: keeps walking off with the dogs on it, until it finds a thicket to back into.
+//  - Running bay: won't stand long, breaks and runs again and again until it's winded.
+//  - Fighting hog: a big boar that charges the dogs; the bay holds but dogs get cut.
+// Bay dogs have a style too, from their temperament and build:
+//  - Tight: works in the hog's face. Holds hogs hard, gets cut more.
+//  - Loose: bays wide and safe. Hard to cut, but walkers and runners get away from it.
+//  - Rough: grabs at the hog's rear. Stops a walker, but pushes a standing hog to run.
+//  - Honest: a steady, even bay.
+// A panel on the hunt screen reads the bay as it happens. Nothing here replaces the bay: it works through the
+// existing bay hold, bay breaks, hog movement and tusk-cut code.
+const AB={
+  TYPES:{stand:{n:'Standing bay',ico:'🛑',tip:'Backed into cover and holding. Walk in quiet and turn the catch dogs loose.',hold:.75},
+    walk:{n:'Walking bay',ico:'🚶',tip:'Walking off with the dogs on it. Close the distance before it gets to thick cover.',hold:1},
+    run:{n:'Running bay',ico:'💨',tip:'It won’t stand long. It breaks and runs until it’s winded; the dogs have to stay with it.',hold:1.15},
+    fight:{n:'Fighting hog',ico:'⚔️',tip:'Charging the dogs. Get the catch dogs in fast before it cuts somebody.',hold:.65}},
+  STYLES:{tight:{n:'Tight',tip:'works in the hog’s face'},loose:{n:'Loose',tip:'bays wide and safe'},rough:{n:'Rough',tip:'grabs at the hog’s rear'},honest:{n:'Honest',tip:'a steady, even bay'}},
+  // what kind of hog this is, decided the first time it's bayed
+  type(h){if(h.bt)return h.bt;const a=h.aggr||0,sz=(h.w||120)/180,boar=h.sex==='M'&&h.w>=120,
+      w={fight:boar?.12+a*.55:0,run:(1-a)*.45*(h.w<120?1.4:.8),walk:.35,stand:.28+sz*.22};let tot=0;for(const k in w)tot+=w[k];let r=R()*tot;
+    for(const k in w){r-=w[k];if(r<=0)return h.bt=k}return h.bt='stand'},
+  // a runner that's run itself out stands like any other hog; a walker that found its thicket too
+  eff(h){const t=h&&h.bt;return(t==='run'&&h.spent)||(t==='walk'&&h.settled)?'stand':t},
+  // a dog's bay style: from its temperament first, then its build
+  style(d){if(!d)return'honest';const s=d.stats||{},t=d.temp,sc={tight:(s.str||50)/110+(t==='Bold'||t==='Gritty'?.55:0),loose:(t==='Calm'||t==='Loyal'?.55:0)+(s.int||50)/170+(100-(s.str||50))/400,
+      rough:(s.grip||40)/85-(s.trk||50)/150+(t==='Hot-headed'?.6:0),honest:.5+(s.obd||50)/300+(t==='Steady'||t==='Sharp'?.25:0)};let best='honest';for(const k in sc)if(sc[k]>sc[best])best=k;return best},
+  atBay(S2,h){return S2.dogs.filter(g=>g.role==='bay'&&g.st==='bay'&&g.hog===h)},
+  // how fast the bay wears down: the hog's type, then each dog's style against it
+  holdMult(S2,h){const t=AB.eff(h),T=AB.TYPES[t];if(!T)return 1;let m=T.hold;
+    for(const g of AB.atBay(S2,h)){const st=AB.style(g.d);if(st==='tight')m*=.88;else if(st==='loose'&&(t==='walk'||t==='run'))m*=1.12;else if(st==='rough'&&t==='stand')m*=1.22}return clamp(m,.45,1.7)},
+  // how likely a dog is to get cut: fighters charge far more; tight and rough dogs take more of it
+  cutMult(S2,g,h){const t=AB.eff(h),st=AB.style(g.d);return(t==='fight'?3:t==='stand'?.8:1)*(st==='tight'?1.7:st==='rough'?1.4:st==='loose'?.4:1)},
+  // a walker's pace: rough dogs grabbing its rear slow it right down, tight ones hem it in, loose ones let it go
+  walkMult(S2,h){let m=1;for(const g of AB.atBay(S2,h)){const st=AB.style(g.d);m*=st==='rough'?.55:st==='tight'?.8:st==='loose'?1.15:1}return clamp(m,.25,1.4)},
+  dir(a){return['east','southeast','south','southwest','west','northwest','north','northeast'][((Math.round(a/(Math.PI/4))%8)+8)%8]},
+  // ---- on the map ----
+  started(S2,h){if(!h||h.rabbit||h.coon||h.deer||h.pen||S2.mode||S2.practice)return;const t=AB.type(h),T=AB.TYPES[t];if(S2.abShown===h.id+t)return;S2.abShown=h.id+t;S2.ab=S2.ab||{};S2.ab[h.id]=S2.ab[h.id]||{walk:0,breaks:0,t0:S2.t,type:t};
+    hwEvent(S2,'abtype',`${T.ico} ${T.n}: ${T.tip}`,1)},
+  hog(S2,h,dt){if(!h.bt||h.rabbit||h.coon||h.deer||S2.target!==h||S2.phase!=='bay'||h.st!=='stand')return;const t=AB.eff(h);if(t!=='walk'||!AB.atBay(S2,h).length)return;const P=S2.player,A=S2.ab[h.id];
+    if(h.wd==null||S2.t>h.wdT){const away=Math.atan2(h.y-P.y,h.x-P.x);h.wd=h.wd==null?away+(R()-.5)*1.2:Math.atan2(Math.sin(away)*.4+Math.sin(h.wd)*.6,Math.cos(away)*.4+Math.cos(h.wd)*.6)+(R()-.5)*.5;h.wdT=S2.t+20}
+    const x0=h.x,y0=h.y;hwMove(h,Math.cos(h.wd)*10,Math.sin(h.wd)*10,.26*(h.sp||1)*AB.walkMult(S2,h),dt,'hog');const d=Math.hypot(h.x-x0,h.y-y0);A.walk+=d;if(d>0)A.hd=Math.atan2(h.y-y0,h.x-x0);if(h.k>=0)hsLay(S2,h.k,h.x,h.y,S2.t);
+    // it walks until it finds its thicket, then backs in and stands
+    if(A.walk>(h.walkTo||(h.walkTo=20+R()*40))){h.settled=1;hwEvent(S2,'absettle',`The hog backed into a thicket and stopped. ${AB.TYPES.stand.ico} It’s a standing bay now.`,1)}},
+  step(S2,dt,h,hold0,phase0){if(!h||!h.bt||S2.mode)return;const A=S2.ab&&S2.ab[h.id];if(!A)return;
+    // the bay wears down at this hog's own rate
+    if(phase0==='bay'&&S2.phase==='bay'&&S2.hold<hold0)S2.hold=hold0-(hold0-S2.hold)*AB.holdMult(S2,h);
+    // a runner breaks again and again, each run taking more out of it, until it's winded and stands
+    if(S2.phase==='bay'&&AB.eff(h)==='run'&&h.st==='stand'&&R()<dt*.03*(.4+h.stam)){WE.breakBay(S2,h);h.st='run';h.stam=Math.max(0,h.stam-.28);S2.hold=70;S2.phase='chase';A.breaks++;
+      hwEvent(S2,'break','The runner broke bay and is running again!',5);hwBanner(S2,'HOG BROKE BAY');if(A.breaks>=3||h.stam<.15)h.spent=1}
+    if(phase0!=='bay'&&S2.phase==='bay'&&h.spent&&h.bt==='run'&&!A.spentSaid){A.spentSaid=1;hwEvent(S2,'abspent',`The runner is winded. ${AB.TYPES.stand.ico} It’s standing now.`,1)}},
+  // ---- the hunt screen: reading the bay ----
+  panel(S2){const h=S2&&S2.target;if(!h||!h.bt||!h.rev||S2.mode||!['bay','chase','catch'].includes(S2.phase)||S2.over)return'';const t=AB.eff(h),T=AB.TYPES[t],A=S2.ab&&S2.ab[h.id]||{walk:0,breaks:0},dogs=AB.atBay(S2,h),hold=clamp(Math.round(S2.hold),0,100);
+    const bits=[];if(h.bt==='walk'&&A.walk>3)bits.push(`walked ${yd(A.walk)} yd${!h.settled&&A.hd!=null?`, heading ${AB.dir(A.hd)}`:''}`);if(h.bt==='run'&&A.breaks)bits.push(`broke bay ${A.breaks}×${h.spent?', winded now':''}`);
+    const col=hold>60?'#6fbf5a':hold>30?'#e0a93a':'#d9534f';
+    return`<div class="panel small" style="padding:8px 10px"><div class="spread"><b>${T.ico} ${T.n}</b><span class="muted">${S2.phase==='chase'?'running':S2.phase==='catch'?'catching':'at bay'}</span></div>
+      ${S2.phase==='bay'?`<div style="margin:5px 0 3px;height:7px;border-radius:4px;background:#0006;overflow:hidden" title="Bay strength"><div style="width:${hold}%;height:100%;background:${col}"></div></div><div class="muted">Bay strength ${hold}%${bits.length?' · '+bits.join(' · '):''}</div>`:bits.length?`<div class="muted">${bits.join(' · ')}</div>`:''}
+      ${dogs.length?`<div style="margin-top:3px">${dogs.map(g=>`${esc(g.name)} <span class="muted">(${AB.STYLES[AB.style(g.d)].n})</span>`).join(', ')}</div>`:''}
+      <div class="muted" style="margin-top:3px">${T.tip}</div></div>`},
+  hud(S2){const el=document.getElementById('abPanel');if(!el)return;const html=AB.panel(S2);if(el.dataset.h!==html){el.dataset.h=html;el.innerHTML=html}},
+  // ---- after the hunt ----
+  line(S2){const h=S2&&S2.target;if(!h||!h.bt||!h.rev||S2.mode)return null;const A=S2.ab&&S2.ab[h.id]||{walk:0,breaks:0},T=AB.TYPES[h.bt];
+    return`${T.ico} ${T.n}${h.bt==='walk'&&A.walk>3?`: it walked ${yd(A.walk)} yd with the dogs on it${h.settled?' before backing into a thicket':''}`:h.bt==='run'?`: it broke bay ${A.breaks} time${A.breaks===1?'':'s'}${h.spent?' before it was winded':''}`:h.bt==='fight'?': it came at the dogs the whole bay':': it backed in and held'}.`}
+};
+// wiring
+{const o=hwBayStart;hwBayStart=function(S2,g,h){const r=o.apply(this,arguments);try{AB.started(S2,h)}catch(e){console.warn('ab',e)}return r}}
+{const o=hwHogStep;hwHogStep=function(S2,h,dt){const r=o.apply(this,arguments);try{AB.hog(S2,h,dt)}catch(e){console.warn('ab',e)}return r}}
+{const o=hwStep;hwStep=function(S2,dt){const h=S2.target,hold0=S2.hold,ph=S2.phase;o(S2,dt);try{AB.step(S2,dt,h,hold0,ph)}catch(e){console.warn('ab',e)}}}
+{const o=HOGAI.charge;HOGAI.charge=function(S2,g,h,dt){let k=1;try{if(h&&h.bt)k=AB.cutMult(S2,g,h)}catch(e){}return o.call(this,S2,g,h,dt*k)}}
+{const o=huntPlayLive;huntPlayLive=function(){return o().replace('<div id="ihPanel"','<div id="abPanel" style="margin:6px 0"></div><div id="ihPanel"')}}
+{const o=huntHud;huntHud=function(){const r=o.apply(this,arguments);try{const h=UI.hunt;if(h&&h.sim)AB.hud(h.sim)}catch(e){}return r}}
+{const o=finishHunt;finishHunt=function(win,lines){const r=o.apply(this,arguments);try{const h=UI.hunt,S2=h&&h.sim,L=h&&h.result?h.result.lines:lines,l=AB.line(S2);if(l&&Array.isArray(L)&&!S2.abLine){S2.abLine=1;L.push(l)}}catch(e){console.warn('ab',e)}return r}}
+// the dog's bay style on its profile
+{const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const d=S.dogs.find(x=>x.id===id),b=d&&document.querySelector('#sheetInner .dcard');
+  if(b){const s=AB.STYLES[AB.style(d)];b.insertAdjacentHTML('afterend',`<div class="small" style="margin:8px 0 2px"><b>Bay style:</b> ${s.n} <span class="muted">(${s.tip})</span></div>`)}}catch(e){}return r}}
 Object.assign(A,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
