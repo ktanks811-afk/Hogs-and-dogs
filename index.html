@@ -482,6 +482,14 @@ const BREEDS={
  'Dogo Argentino':{short:'Dogo',role:'catch',group:'Working / Hunting',lvl:3,price:1400,kg:[36,45],ears:'rose',muz:.85,pot:[79,91,83,75,80,79,91],
   range:[[70,88],[85,98],[75,92],[65,85],[70,90],[70,88],[85,98]],whiteBias:.25,speckRate:0,freq:{L:{L:1,l:0},R:{R:0,r:1},B:{B:.95,b:.05},D:{D:.97,d:.03},E:{Em:.03,eg:0,E:.9,e:.07},K:{K:.95,br:0,y:.05},A:{ay:.4,as:.1,at:.3,a:.2},S:{S:0,sp:0,sw:1},M:{M:0,m:1},T:{T:0,t:1}}},
  'Gordon Setter':{short:'Setter',role:'bay',lvl:1,price:1300,kg:[25,36],ears:'hound',muz:1.2,pot:[70,50,76,72,74,72,40],freq:{L:{L:0,l:1},R:{R:.04,r:.96},K:{K:.04,br:0,y:.96},A:{ay:.02,as:.03,at:.95,a:0},E:{Em:0,eg:0,E:.93,e:.07},S:{S:.9,sp:.08,sw:.02},B:{B:.9,b:.1},D:{D:.97,d:.03},M:{M:0,m:1},T:{T:.06,t:.94}}},
+ // hounds, the Lab and the Bully added with the breeding lab (2.13): their coats come from these gene frequencies
+ 'American Bully':{short:'Bully',role:'catch',group:'Bully / Catch',lvl:2,price:1200,kg:[30,55],ears:'rose',muz:.6,pot:[58,86,64,62,42,64,86],freq:{D:{D:.45,d:.55},B:{B:.7,b:.3},E:{Em:.15,eg:0,E:.55,e:.3},A:{ay:.35,as:.05,at:.3,a:.3},K:{K:.45,br:.3,y:.25},S:{S:.3,sp:.5,sw:.2},M:{M:.08,m:.92},T:{T:.05,t:.95}}},
+ 'American English Coonhound':{short:'Coonhound',coatInt:[.6,.85],role:'bay',group:'Coonhound / Bay',lvl:1,price:700,kg:[20,30],ears:'hound',muz:1.2,pot:[74,52,78,60,80,58,42],freq:{T:{T:.7,t:.3},S:{S:.1,sp:.5,sw:.4},K:{K:.3,br:0,y:.7},A:{ay:.3,as:.1,at:.55,a:.05},E:{Em:0,eg:0,E:.8,e:.2},M:{M:0,m:1},B:{B:.95,b:.05},D:{D:.97,d:.03}}},
+ 'Redbone Coonhound':{short:'Redbone',coatInt:[.86,.98],role:'bay',group:'Coonhound / Bay',lvl:1,price:750,kg:[20,32],ears:'hound',muz:1.2,pot:[72,56,78,60,80,58,44],freq:{E:{Em:0,eg:0,E:.03,e:.97},S:{S:.95,sp:.05,sw:0},T:{T:.02,t:.98},B:{B:.9,b:.1},D:{D:.98,d:.02},K:{K:.3,br:0,y:.7},M:{M:0,m:1}}},
+ 'Black and Tan Coonhound':{short:'B&T',coatInt:[.62,.85],role:'bay',group:'Coonhound / Bay',lvl:1,price:700,kg:[25,34],ears:'hound',muz:1.25,pot:[70,58,78,60,84,56,44],freq:{K:{K:.02,br:0,y:.98},A:{ay:0,as:.02,at:.98,a:0},E:{Em:0,eg:0,E:.97,e:.03},S:{S:.95,sp:.05,sw:0},T:{T:.03,t:.97},M:{M:0,m:1},B:{B:.97,b:.03},D:{D:.98,d:.02}}},
+ 'Bluetick Coonhound':{short:'Bluetick',coatInt:[.6,.8],role:'bay',group:'Coonhound / Bay',lvl:2,price:850,kg:[20,36],ears:'hound',muz:1.2,pot:[70,56,78,62,84,56,44],freq:{T:{T:.95,t:.05},R:{R:.6,r:.4},S:{S:.05,sp:.35,sw:.6},K:{K:.9,br:0,y:.1},A:{ay:0,as:.1,at:.9,a:0},E:{Em:0,eg:0,E:.97,e:.03},M:{M:0,m:1},B:{B:.97,b:.03},D:{D:.98,d:.02}}},
+ 'Beagle':{short:'Beagle',coatInt:[.55,.8],role:'bay',group:'Scent hound / Bay',lvl:1,price:400,kg:[9,14],ears:'hound',muz:1.1,pot:[68,40,76,62,84,56,30],freq:{S:{S:.05,sp:.55,sw:.4},K:{K:.05,br:0,y:.95},A:{ay:.1,as:.5,at:.4,a:0},E:{Em:0,eg:0,E:.9,e:.1},T:{T:.3,t:.7},M:{M:0,m:1},B:{B:.95,b:.05},D:{D:.98,d:.02}}},
+ 'Labrador Retriever':{short:'Lab',role:'bay',group:'Retriever / Bay',lvl:1,price:600,kg:[25,36],ears:'drop',muz:.95,pot:[66,64,72,74,70,80,52],freq:{E:{Em:0,eg:0,E:.55,e:.45},B:{B:.6,b:.4},K:{K:.95,br:0,y:.05},S:{S:1,sp:0,sw:0},D:{D:.97,d:.03},M:{M:0,m:1},T:{T:0,t:1}}},
  // Corso: pot is the centre of each range (spd str sta int trk obd grip); int stands for hunting sense, obd for trainability; health sets hardiness
  'Cane Corso':{short:'Corso',role:'catch',group:'Working / Catch / Guard',lvl:4,price:1600,kg:[40,50],ears:'rose',muz:.7,pot:[74,94,86,86,75,81,94],
   range:[[65,82],[88,99],[78,94],[78,94],[65,85],[72,90],[88,99]],health:[78,94],whiteBias:-.12,speckRate:0,noPiebald:true,freq:{B:{B:1,b:0},D:{D:.6,d:.4},E:{Em:.6,eg:0,E:.4,e:0},K:{K:.45,br:.35,y:.2},A:{ay:1,as:0,at:0,a:0},S:{S:.9,sp:.1,sw:0},M:{M:0,m:1},T:{T:0,t:1},L:{L:1,l:0},R:{R:0,r:1}}}
@@ -611,6 +619,7 @@ function makeDog(o){
   const d={id:newId(),name:o.name||'',breed:o.breed,cross:null,sex:o.sex||pick(['M','F']),age,genes:genesFor(b,o.rare),pot,stats:{},
     kg:r1(b.kg[0]+R()*(b.kg[1]-b.kg[0])),ears:b.ears,muz:b.muz,temp:pick(TEMPS),health:100,hcap:100,energy:100,
     hunt:{n:0,bays:0,catches:0,xp:0},trained:0,parents:null,gen:0,base:b.price,mut:!!o.mut,cool:0,lastShow:0,lastTrial:0,whiteMod:Math.round((r1((R()-.5)*.3*10)/10+(b.whiteBias||0))*100)/100,patMod:Math.round(R()*100)/100,coatInt:Math.round((.3+R()*.4)*100)/100,eyes:'Auto',eyes2:'Auto',merleMod:Math.round((.2+R()*.6)*100)/100,tickMod:Math.round((.3+R()*.4)*100)/100,speckMod:R()<(b.speckRate??(o.breed==='Treeing Walker'?.6:.2))?Math.round(R()*70)/100:0,featherMod:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherMod+gauss()*.06,0,1)*100)/100:Math.round((.1+R()*.5)*100)/100,featherDen:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.featherDen+gauss()*.06,0,1)*100)/100:Math.round((.2+R()*.6)*100)/100,texture:(Coat.TEMPLATES[o.breed]&&Coat.TEMPLATES[o.breed].mods)?Math.round(clamp(Coat.TEMPLATES[o.breed].mods.texture+gauss()*.08,0,1)*100)/100:Math.round(R()*35)/100,seed:ri(1,99999)};
+  if(b.coatInt)d.coatInt=Math.round((b.coatInt[0]+R()*(b.coatInt[1]-b.coatInt[0]))*100)/100;   // how deep the red/tan runs in this breed
   if(!d.name)d.name=DOGNAME.make(d.sex);
   const gf=growFactor(age);STATS.forEach(([k])=>d.stats[k]=Math.min(pot[k],Math.round(pot[k]*gf*(.9+R()*.15))));
   d.morph=pureMorph(o.breed);d.kg=d.morph.t.weight;d.bl=foundationBl(d);
@@ -822,7 +831,12 @@ const BODIES={
   corso_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/corso_stack_v1-m1.eace432fa0.webp',m2:'assets/masters/corso_stack_v1-m2.b96a1fbb57.webp',m3:'assets/masters/corso_stack_v1-m3.40fb763b8c.webp'}},
   pit_bull_terrier_all_mastiff_mix_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/pit_bull_terrier_all_mastiff_mix_stack_v1-m1.0e290e88a7.webp',m2:'assets/masters/pit_bull_terrier_all_mastiff_mix_stack_v1-m2.db3c625b24.webp',m3:'assets/masters/pit_bull_terrier_all_mastiff_mix_stack_v1-m3.4473959d2f.webp'}},
   pit_bull_terrier_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/pit_bull_terrier_stack_v1-m1.87a3562c96.webp',m2:'assets/masters/pit_bull_terrier_stack_v1-m2.378e350c57.webp',m3:'assets/masters/pit_bull_terrier_stack_v1-m3.511ba93d9a.webp'}},
-  gordon_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/gordon_stack_v1-m1.ad74ef8e48.webp',m2:'assets/masters/gordon_stack_v1-m2.c279b9eb31.webp',m3:'assets/masters/gordon_stack_v1-m3.4eb81361eb.webp'}}
+  gordon_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/gordon_stack_v1-m1.ad74ef8e48.webp',m2:'assets/masters/gordon_stack_v1-m2.c279b9eb31.webp',m3:'assets/masters/gordon_stack_v1-m3.4eb81361eb.webp'}},
+  // built by tools/breeds/build_hound_masters.py from the reference pictures
+  beagle_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/beagle_stack_v1-m1.6c99e7cf7b.webp',m2:'assets/masters/beagle_stack_v1-m2.1254bdd917.webp',m3:'assets/masters/beagle_stack_v1-m3.412399a62f.webp'}},
+  redbone_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/redbone_stack_v1-m1.9ec8f87b59.webp',m2:'assets/masters/redbone_stack_v1-m2.37507e2bd3.webp',m3:'assets/masters/redbone_stack_v1-m3.1872c8f356.webp'}},
+  bnt_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/bnt_stack_v1-m1.ca36f6a9d3.webp',m2:'assets/masters/bnt_stack_v1-m2.ea02bfeba4.webp',m3:'assets/masters/bnt_stack_v1-m3.87c7016778.webp'}},
+  bully_stack_v1:{w:1536,h:1024,maps:{m1:'assets/masters/bully_stack_v1-m1.a06d4fc1f0.webp',m2:'assets/masters/bully_stack_v1-m2.ed3c168149.webp',m3:'assets/masters/bully_stack_v1-m3.658f510ece.webp'}}
 };
 // Breed templates. Adding a breed = one entry here (+ a body if it needs a new silhouette).
 const TEMPLATES={
@@ -839,7 +853,14 @@ const TEMPLATES={
   'Gordon Setter':{code:'GORD',body:'gordon_stack_v1',lineBase:{L:['l','l']},specDefaults:{longCoat:true,featherLen:.9,featherDen:.85,texture:.55},mods:{featherMod:.9,featherDen:.85,texture:.55},freq:{L:{L:0,l:1},R:{R:.04,r:.96},K:{K:.04,br:0,y:.96},A:{ay:.02,as:.03,at:.95,a:0},E:{Em:0,eg:0,E:.93,e:.07},S:{S:.9,sp:.08,sw:.02},B:{B:.9,b:.1},D:{D:.97,d:.03},M:{M:0,m:1},T:{T:.06,t:.94}}},
   'Mountain Cur':{code:'MTC',body:'cur_stack_v1'},
   'Black Mouth Cur':{code:'BMC',body:'cur_stack_v1'},
-  'Leopard Cur':{code:'LPC',body:'cur_stack_v1'}
+  'Leopard Cur':{code:'LPC',body:'cur_stack_v1'},
+  'Beagle':{code:'BEAG',body:'beagle_stack_v1'},
+  'Redbone Coonhound':{code:'RDBN',body:'redbone_stack_v1',aliases:['Redbone']},
+  'Black and Tan Coonhound':{code:'BTCH',body:'bnt_stack_v1',aliases:['Black and Tan']},
+  'American Bully':{code:'AMBL',body:'bully_stack_v1'},
+  'American English Coonhound':{code:'AECH',body:'bnt_stack_v1',proxy:true,aliases:['Coonhound']},
+  'Bluetick Coonhound':{code:'BLTK',body:'bnt_stack_v1',proxy:true,aliases:['Bluetick']},
+  'Labrador Retriever':{code:'LAB',body:'cur_stack_v1',proxy:true,aliases:['Labrador','Lab']}
 };
 for(const [b,t] of Object.entries({...TEMPLATES}))if(t.body)TEMPLATES[`Mix (${b} build)`]={code:'X'+t.code,body:t.body,mix:true};
 const GLOCI={B:['B','b'],D:['D','d'],E:['Em','eg','E','e'],K:['K','br','y'],A:['ay','as','at','a'],S:['S','sp','sw'],M:['M','m'],T:['T','t'],L:['L','l'],R:['R','r']};
@@ -1181,7 +1202,11 @@ const RIGS={
   dogo_stack_v1:{neck:[[450,150],[290,280]],tail:[[1140,350],[1200,475]],front:[620,300,640],hind:[620,920,1420]},
   corso_stack_v1:{neck:[[545,120],[420,320]],tail:[[1112,300],[1128,395]],front:[630,290,690],hind:[615,880,1400]},
   pit_bull_terrier_stack_v1:{neck:[[335,300],[290,650]],tail:[[1130,318],[1180,372]],front:[650,280,830],hind:[640,900,1530]},
-  pit_bull_terrier_all_mastiff_mix_stack_v1:{neck:[[485,30],[330,305]],tail:[[1165,388],[1228,500]],front:[640,330,680],hind:[650,930,1450]}
+  pit_bull_terrier_all_mastiff_mix_stack_v1:{neck:[[485,30],[330,305]],tail:[[1165,388],[1228,500]],front:[640,330,680],hind:[650,930,1450]},
+  beagle_stack_v1:{neck:[[530,250],[270,330]],tail:[[1040,318],[1100,388]],front:[630,270,660],hind:[600,820,1330]},
+  redbone_stack_v1:{neck:[[560,275],[315,430]],tail:[[1030,335],[1085,400]],front:[620,215,640],hind:[570,830,1310]},
+  bnt_stack_v1:{neck:[[565,280],[315,440]],tail:[[1040,340],[1090,402]],front:[620,220,640],hind:[570,840,1310]},
+  bully_stack_v1:{neck:[[640,290],[300,395]],tail:[[1092,396],[1108,436]],front:[720,185,760],hind:[660,800,1320]}
 };
 const MS=.5,FEATHER=14,RIGC={};
 const aff={
@@ -1496,13 +1521,20 @@ const BREED_PROFILES={
  'Plott Hound':{height:58,weight:25,bodyLength:.55,headShape:.4,muzzleLength:.7,chestWidth:.45,legLength:.68,earType:.8,tailType:.5,muscleBuild:.55,longCoat:0},
  'Treeing Walker':{height:60,weight:28,bodyLength:.58,headShape:.35,muzzleLength:.75,chestWidth:.45,legLength:.72,earType:.9,tailType:.6,muscleBuild:.55,longCoat:0},
  'Gordon Setter':{height:64,weight:30,bodyLength:.6,headShape:.35,muzzleLength:.7,chestWidth:.45,legLength:.68,earType:.95,tailType:.55,muscleBuild:.55,longCoat:1},
- 'Blue Lacy':{height:50,weight:20,bodyLength:.5,headShape:.4,muzzleLength:.6,chestWidth:.4,legLength:.62,earType:.55,tailType:.4,muscleBuild:.5,longCoat:0}
+ 'Blue Lacy':{height:50,weight:20,bodyLength:.5,headShape:.4,muzzleLength:.6,chestWidth:.4,legLength:.62,earType:.55,tailType:.4,muscleBuild:.5,longCoat:0},
+ 'American Bully':{height:46,weight:36,bodyLength:.45,headShape:.9,muzzleLength:.25,chestWidth:.9,legLength:.38,earType:.35,tailType:.3,muscleBuild:.95,longCoat:0},
+ 'American English Coonhound':{height:62,weight:27,bodyLength:.58,headShape:.35,muzzleLength:.75,chestWidth:.45,legLength:.72,earType:.9,tailType:.6,muscleBuild:.55,longCoat:0},
+ 'Redbone Coonhound':{height:62,weight:28,bodyLength:.57,headShape:.4,muzzleLength:.75,chestWidth:.5,legLength:.7,earType:.95,tailType:.6,muscleBuild:.6,longCoat:0},
+ 'Labrador Retriever':{height:57,weight:32,bodyLength:.52,headShape:.6,muzzleLength:.6,chestWidth:.6,legLength:.58,earType:.6,tailType:.35,muscleBuild:.65,longCoat:.02},
+ 'Beagle':{height:38,weight:11,bodyLength:.55,headShape:.45,muzzleLength:.6,chestWidth:.5,legLength:.5,earType:.9,tailType:.6,muscleBuild:.5,longCoat:0},
+ 'Black and Tan Coonhound':{height:64,weight:30,bodyLength:.58,headShape:.4,muzzleLength:.8,chestWidth:.5,legLength:.72,earType:1,tailType:.6,muscleBuild:.58,longCoat:0},
+ 'Bluetick Coonhound':{height:62,weight:30,bodyLength:.57,headShape:.4,muzzleLength:.75,chestWidth:.5,legLength:.7,earType:.95,tailType:.6,muscleBuild:.6,longCoat:0}
 };
 const MORPH_TRAITS=['height','weight','bodyLength','headShape','muzzleLength','chestWidth','legLength','earType','tailType','muscleBuild'];
 const MREGIONS=['head','body','chest','legs','ears','tail'];
 const TRAIT_REGION={headShape:'head',muzzleLength:'head',earType:'ears',tailType:'tail',bodyLength:'body',muscleBuild:'body',chestWidth:'chest',legLength:'legs'};
 const PARTIAL_DOMINANT={headShape:.12,muscleBuild:.1,chestWidth:.08};   // heavier/blockier type shows through a little more
-const NATIVE_OF={apbt_stack_v1:'American Pit Bull Terrier',cur_stack_v1:'Black Mountain Cur',bulldog_stack_v1:'American Bulldog',catahoula_stack_v1:'Catahoula Leopard Dog',walker_stack_v1:'Treeing Walker',gordon_stack_v1:'Gordon Setter',dogo_stack_v1:'Dogo Argentino',corso_stack_v1:'Cane Corso',pit_bull_terrier_stack_v1:'American Pit Bull Terrier',pit_bull_terrier_all_mastiff_mix_stack_v1:'Pit Bull Terrier × All Mastiff Mix'};
+const NATIVE_OF={apbt_stack_v1:'American Pit Bull Terrier',cur_stack_v1:'Black Mountain Cur',bulldog_stack_v1:'American Bulldog',catahoula_stack_v1:'Catahoula Leopard Dog',walker_stack_v1:'Treeing Walker',gordon_stack_v1:'Gordon Setter',dogo_stack_v1:'Dogo Argentino',corso_stack_v1:'Cane Corso',pit_bull_terrier_stack_v1:'American Pit Bull Terrier',pit_bull_terrier_all_mastiff_mix_stack_v1:'Pit Bull Terrier × All Mastiff Mix',beagle_stack_v1:'Beagle',redbone_stack_v1:'Redbone Coonhound',bnt_stack_v1:'Black and Tan Coonhound',bully_stack_v1:'American Bully'};
 const profileOf=b=>BREED_PROFILES[b]||BREED_PROFILES['Black Mountain Cur'];
 const topOf=o=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1])[0]?.[0];
 const normMix=o=>{let s=0;for(const k in o)s+=o[k];const r={};for(const[k,v]of Object.entries(o).sort((a,b)=>b[1]-a[1]))if(v/s>=.005)r[k]=Math.round(v/s*1000)/1000;return r};
@@ -2061,7 +2093,7 @@ function endDay(){
     if(!dam){msgs.push('A litter was lost when the dam left the kennel.');continue}
     const room=dogCap()-S.dogs.length;
     const n=Math.max(1,Math.min(ri(2,litterMax()),Math.round(ri(2,8)*dam.health/100)||1));
-    const pups=[];for(let i=0;i<n;i++)pups.push(makePuppy(sire,dam));
+    const pups=[];for(let i=0;i<n;i++)pups.push(MIX.breedDogs(sire,dam));
     const keep=pups.slice(0,Math.max(0,room)),extra=pups.slice(keep.length);
     S.dogs.push(...keep);let sold=0;for(const x of extra){const v=Math.round(dogValue(x)*.7*repMult());sold+=v}
     if(sold){earn(sold);msgs.push(`${extra.length} pup${extra.length>1?'s':''} sold to neighbors for ${fmt(sold)} (kennel full).`)}
@@ -2069,7 +2101,7 @@ function endDay(){
     const best=pups.reduce((a,b)=>rarTier(b)>rarTier(a)?b:a);
     msgs.push(`${dam.name} whelped ${n} pup${n>1?'s':''}! Best of the litter: ${best.name} (${RAR[rarTier(best)][0]}, ${coatName(best)}).`);sfx.bark();
     const frail=keep.filter(x=>x.frail>0);if(frail.length)msgs.push(`${frail.map(x=>x.name).join(', ')} ${frail.length>1?'have':'has'} a mismatched frame and may not live long.`);
-    litterResearch(pups);
+    litterResearch(pups);try{MIX.born(pups,sire,dam)}catch(e){console.warn('mix',e)}
     {const rv=litterRep(pups,sire,dam);if(Math.abs(rv)>=1)msgs.push(`Reputation ${rv>0?'+':''}${Math.round(rv*10)/10}: ${repTier(repOf()).toLowerCase()}.`)}
     if(sameLine(sire,dam))S.st.sameLitters=(S.st.sameLitters||0)+1;const lh=litterHint(pups,sire,dam);if(lh)msgs.push(lh)}
   landDaily(msgs);try{CAREER.daily(msgs)}catch(e){console.error('career',e)}try{TCAM.daily(msgs)}catch(e){console.error('cams',e)}WE.daily(msgs);PR.daily(msgs);RB.daily();JB.daily(msgs);
@@ -3283,7 +3315,14 @@ const HUNT_STYLE={
  'American Pit Bull Terrier':{nose:.8,air:.3,range:.7,voice:.4,speed:1.05,end:1.05,grit:1.3,catch:1.15,trail:.85,agile:0.95},
  'Pit Bull Terrier × All Mastiff Mix':{nose:.75,air:.28,range:.6,voice:.45,speed:.96,end:1.02,grit:1.3,catch:1.24,trail:.82,agile:0.78},
  'Dogo Argentino':{nose:.95,air:.4,range:.8,voice:.4,speed:1,end:1.2,grit:1.25,catch:1.3,trail:.9,agile:0.82},
- 'Cane Corso':{nose:.7,air:.25,range:.5,voice:.5,speed:.92,end:1.08,grit:1.3,catch:1.22,trail:.8,agile:0.65}};
+ 'Cane Corso':{nose:.7,air:.25,range:.5,voice:.5,speed:.92,end:1.08,grit:1.3,catch:1.22,trail:.8,agile:0.65},
+ 'American Bully':{nose:.7,air:.25,range:.55,voice:.45,speed:.9,end:.92,grit:1.25,catch:1.22,trail:.78,agile:0.7},
+ 'American English Coonhound':{nose:1.18,air:.3,range:1.4,voice:1,speed:1.1,end:1.08,grit:.85,catch:.5,trail:1.12,agile:1.02},
+ 'Redbone Coonhound':{nose:1.2,air:.3,range:1.35,voice:1,speed:1.06,end:1.1,grit:.95,catch:.55,trail:1.15,agile:1},
+ 'Black and Tan Coonhound':{nose:1.28,air:.25,range:1.3,voice:1,speed:.98,end:1.1,grit:.85,catch:.5,trail:1.25,agile:.95},
+ 'Bluetick Coonhound':{nose:1.22,air:.3,range:1.35,voice:1,speed:1.02,end:1.1,grit:.95,catch:.55,trail:1.18,agile:.98},
+ 'Beagle':{nose:1.25,air:.3,range:1.1,voice:1,speed:.92,end:1.05,grit:.7,catch:.3,trail:1.2,agile:1.08},
+ 'Labrador Retriever':{nose:1.05,air:.6,range:.9,voice:.4,speed:1,end:1.05,grit:.9,catch:.75,trail:.95,agile:1}};
 // mixed dogs hunt like the blend of their ancestry
 function huntProfile(d){const anc=(d.morph&&d.morph.anc)||{[d.breed]:1},out={};let w=0;for(const k in HUNT_STYLE._)out[k]=0;
   for(const[b,f]of Object.entries(anc)){const p=HUNT_STYLE[b]||HUNT_STYLE._;for(const k in out)out[k]+=p[k]*f;w+=f}for(const k in out)out[k]/=w||1;return out}
@@ -4825,8 +4864,14 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.12.1';
-const PATCH_NOTES=[{v:'2.12.1',title:'Every cross looks right',items:[
+const GAME_VERSION='2.13.0';
+const PATCH_NOTES=[{v:'2.13.0',title:'The Breeding Lab',items:[
+  ['100 custom mixes to discover','Hog Dog, Swamp Dog, Blue Cur, Tracker, Ghost Hound, Lilac Bully, Legend Cur and 93 more. None of them are for sale: each one comes from breeding the right two breeds, and only when the pup’s own genes fit the recipe (the right coat, pattern or generation) and it beats the odds. A few need several generations of crossing.'],
+  ['Genetic Discovery Book','Every custom mix you breed for the first time is added to your Discovery Book (Breed tab or More): its picture, recipe, genes and your first one. The rest stay locked until you breed them.'],
+  ['Breeding Lab','Pick a sire and a dam to see genetic compatibility, likely size, speed, scent, strength and stamina ranges, coat colors, hunting role, the chance of a rare pup and which discoveries the pair could make. It never tells you exactly what you’ll get.'],
+  ['Rare and Legendary pups','Custom mixes are Rare, Epic or Legendary. Now and then one is born a Legendary variant with much stronger stats. Every dog also has a genetic quality from Poor to Legendary.'],
+  ['Bloodlines that last','Every pup records its father, mother and generation (purebred × purebred is generation 1, a mix × a purebred 2, a mix × a mix 3, and on up). Profiles show the grandparents too, even after dogs are sold.'],
+  ['7 new breeds','Beagle, Redbone Coonhound, Black and Tan Coonhound, American Bully, Bluetick Coonhound, American English Coonhound and Labrador Retriever are in the Market. Beagle, Redbone, Black and Tan and Bully each have their own new body picture.']]},{v:'2.12.1',title:'Every cross looks right',items:[
   ['Crossbred dogs look like real dogs','Crosses with a Pit Bull used to come out twisted, with the Pit’s lunging body stitched to another breed’s standing legs. Now every crossbred dog is drawn standing as one whole dog, head to tail, with the looks it got from each parent. Your dogs already in the kennel get their new pictures too.']]},{v:'2.12.0',title:'A whole new look',items:[
   ['New logo','The new Hogs & Dogs logo is on the loading screen, the ranch page and the header, with a new boar-head app icon.'],
   ['Swamp at dusk','The whole game has a new look: near-black swamp with a sunset glow, stamped steel headings, blaze-orange buttons, rounded panels, pill filters and a new floating tab bar.'],
@@ -5800,7 +5845,7 @@ async function checkAdmin(){
   return UI.admin}
 // admin rights can be granted while the game is open: opening More asks the server again (at most every 20 s)
 {const more=SCREENS.more;SCREENS.more=()=>{if(signedIn()&&!inClaude&&Date.now()-(UI.admChk||0)>20000){UI.admChk=Date.now();const was=!!UI.admin;checkAdmin().then(a=>{if(a!==was&&UI.tab==='more')render()})}return more()+APP.panel()}}
-function adminLegend(o){for(let i=0;i<400;i++){const d=makeDog({...o,boost:25,mut:true});if(isLegend(d))return d}return null}
+function adminLegend(o){for(let i=0;i<400;i++){const d=makeDog({...o,boost:25,mut:true,rare:i>=200&&!(BREEDS[o.breed]||{}).whiteBias});if(isLegend(d))return d}return null}
 function adminMaxUpgrades(){const P=S.land;
   for(let pass=0;pass<3;pass++)for(const k of Object.keys(LAND_UP))while(!Prop.upgradeProblem(k)){const l=landLevel(P,k);
     if(k==='acreage'){const n=landSize(P);P.up[k]=l+1;landReframe(P,n);Prop.addParcel('acreage',0)}else P.up[k]=l+1}
@@ -9193,7 +9238,293 @@ const AB={
 const CREDITS=(card)=>`<div class="credits${card?' card':''}"><span>Creator: <b>Kimari Tanks</b></span><span>Tester: <b>Lawrance</b></span></div>`;
 {const o=SCREENS.home;SCREENS.home=function(){return o.apply(this,arguments)+CREDITS()}}
 {const o=SCREENS.more;SCREENS.more=function(){return o.apply(this,arguments)+`<h3 style="margin-top:22px">Credits</h3>`+CREDITS(true)}}
-Object.assign(A,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- BREEDING LAB: custom mixes, the Genetic Discovery Book, lineage ----------
+// One genetics engine reads a recipe database. A recipe says HOW a named mix is made: which two breeds must be in
+// the pup's ancestry, which coat genes it needs, how rare it is, how many generations of crossing it takes, and what it
+// does to size, build and stats. Nothing here is ever for sale: a named mix only exists when two dogs are bred and the
+// pup's own inherited genes happen to fit a recipe (and it wins the rarity roll). The first time a player breeds one it
+// goes in their Genetic Discovery Book. It extends makePuppy (the existing inheritance of every gene, the build, stats,
+// temperament, health and pedigree) rather than replacing it.
+const MIX={
+  // names on the reference sheet → the game's breeds
+  ALIAS:{'Pitbull':'American Pit Bull Terrier','American Pit Bull Terrier':'American Pit Bull Terrier','American Bully':'American Bully','American Bulldog':'American Bulldog',
+    'Catahoula':'Catahoula Leopard Dog','Black Mouth Cur':'Black Mouth Cur','Plott Hound':'Plott Hound','Coonhound':'American English Coonhound','Redbone':'Redbone Coonhound',
+    'Labrador':'Labrador Retriever','Lab':'Labrador Retriever','Treeing Walker':'Treeing Walker','Beagle':'Beagle','Mountain Cur':'Mountain Cur','Black and Tan':'Black and Tan Coonhound',
+    'Bluetick':'Bluetick Coonhound','Blue Lacy':'Blue Lacy','Cane Corso':'Cane Corso','Dogo Argentino':'Dogo Argentino','Gordon Setter':'Gordon Setter','Leopard Cur':'Leopard Cur',
+    'Black Mountain Cur':'Black Mountain Cur','Pit×Mastiff':'Pit Bull Terrier × All Mastiff Mix'},
+  // #, name, parent A, parent B (a/b = either), required coat traits (+ = all of them), generations of crossing needed.
+  // 1–91 follow tools/breeds/breed_recipes.csv (1–90 are the reference sheet, left to right, top to bottom); 92–100 add
+  // the game's other breeds. Names that would read as a purebred (Mountain Cur, Leopard Cur, Bluetick, Coonhound) get "Cross".
+  RAW:`1|Bully|Pitbull|American Bully/American Bulldog||1
+2|Bully Hound|American Bully|Coonhound||1
+3|Hog Dog|Pitbull|Catahoula||1
+4|Cajun Bully|American Bully|Plott Hound||1
+5|Swamp Dog|Catahoula|Black Mouth Cur||1
+6|Cur Bully|Black Mouth Cur|Pitbull||1
+7|Red Bone Cur|Redbone|Black Mouth Cur||1
+8|Blue Cur|Catahoula|Black Mouth Cur|merle|1
+9|Golden Cur|Labrador|Black Mouth Cur|red|1
+10|Tracker|Treeing Walker|Plott Hound||1
+11|Walker Hound|Treeing Walker|Beagle||1
+12|Plotthound|Plott Hound|Coonhound||1
+13|Mountain Cur Cross|Mountain Cur|Plott Hound||1
+14|Leopard Cur Cross|Catahoula|Mountain Cur|merle|1
+15|Treeing Cur|Treeing Walker|Black Mouth Cur||1
+16|Beagle Hound|Beagle|Plott Hound||1
+17|Redbone Hound|Redbone|Coonhound||1
+18|Hound Lab|Labrador|Coonhound||1
+19|Coonhound Cross|Black and Tan|Redbone||1
+20|Ghost Hound|Catahoula|Treeing Walker|merle+white|1
+21|Bay Dog|Plott Hound|Redbone||1
+22|Dark Bay|Black Mouth Cur|Coonhound||1
+23|Swamp Hound|Catahoula|Redbone||1
+24|River Hound|Treeing Walker|Labrador||1
+25|Brindle Hound|Plott Hound|Catahoula|brindle|1
+26|Ticked Hound|Treeing Walker|Bluetick||1
+27|Bluetick Cross|Bluetick|Treeing Walker|ticked+black|1
+28|Red Tick|Redbone|Bluetick|ticked|1
+29|Saddle Hound|Black and Tan|Treeing Walker|saddle|1
+30|Tri Hound|Beagle|Coonhound|tri|1
+31|Mountain Hound|Mountain Cur|Redbone||1
+32|Blaze Hound|Treeing Walker|Plott Hound|white|1
+33|Iron Hound|Plott Hound|American Bully|dilute|1
+34|Mud Hound|Catahoula|Coonhound||1
+35|White Hound|Treeing Walker|Labrador|white|1
+36|Spotted Hound|Catahoula|Treeing Walker|merle|1
+37|Marsh Hound|Catahoula|Redbone|merle|1
+38|River Cur|Labrador|Black Mouth Cur||1
+39|Wood Hound|Plott Hound|Mountain Cur|brindle|1
+40|Night Hound|Black and Tan|Plott Hound||1
+41|Bulldog Cur|American Bulldog|Black Mouth Cur||1
+42|Merle Bully|American Bully|Catahoula|merle|1
+43|Steel Cur|Catahoula|Pitbull|dilute|1
+44|Titanium Hound|Catahoula|Treeing Walker|merle+dilute|2
+45|Smoke Cur|Blue Lacy|Black Mouth Cur||1
+46|Chocolate Cur|Labrador|Mountain Cur|chocolate|1
+47|Lilac Bully|American Bully|Pitbull|dilute+chocolate|1
+48|Sable Hound|Plott Hound|Black Mouth Cur||1
+49|Saddle Cur|Black Mouth Cur|Catahoula|saddle|1
+50|Cream Tick|Labrador|Treeing Walker|ticked|1
+51|Blue Lacy Cur|Catahoula|Blue Lacy||1
+52|Frost Hound|Catahoula|Labrador|white|1
+53|Night Cur|Black Mouth Cur|Pitbull|black|1
+54|Sand Hound|Labrador|Redbone||1
+55|Ghost Cur|Catahoula|Black Mouth Cur|merle+white|1
+56|Red Cur|Redbone|Mountain Cur|red|1
+57|Ebony Hound|Black and Tan|Redbone|tan|1
+58|Ice Hound|Catahoula|Treeing Walker|xwhite|1
+59|Champagne Bully|American Bully|Labrador|red|1
+60|Buckskin Cur|Labrador|Mountain Cur|red|1
+61|Marble Cur|Catahoula|Mountain Cur|merle+white|1
+62|Rust Hound|Redbone|Plott Hound|red|1
+63|Forest Hound|Plott Hound|Black Mouth Cur|brindle|1
+64|Panda Cur|Black and Tan|Catahoula|black+white|1
+65|Storm Hound|Catahoula|Labrador|merle|1
+66|Honey Cur|Labrador|Redbone|red|1
+67|Midnight Cur|Black Mouth Cur|Pitbull|black|2
+68|Tundra Hound|Catahoula|Blue Lacy|white|1
+69|Mahogany Cur|Redbone|Mountain Cur|red|2
+70|Savannah Hound|Labrador|Coonhound|red|1
+71|Ash Cur|Catahoula|Black Mouth Cur|dilute|1
+72|Copper Tick|Redbone|Treeing Walker|ticked|1
+73|Stone Hound|Catahoula|Plott Hound|merle|1
+74|Timber Hound|Plott Hound|Coonhound|brindle|1
+75|Ranger Cur|Black Mouth Cur|Labrador|black|1
+76|Diamond Cur|Catahoula|Pitbull|merle+white|2
+77|Ebonyset Hound|Redbone|Labrador|red|2
+78|Coal Hound|Black and Tan|Plott Hound|black|1
+79|Maple Cur|Labrador|Mountain Cur||1
+80|River Bully|American Bully|Catahoula||1
+81|Phantom Hound|Catahoula|Treeing Walker|black|2
+82|Lynx Cur|Catahoula|Mountain Cur||1
+83|Bronze Hound|Redbone|Black Mouth Cur|red|1
+84|Sky Hound|Catahoula|Labrador|dilute|1
+85|Copper Bully|American Bully|Plott Hound|red|1
+86|Arctic Hound|Labrador|Treeing Walker|white+red|2
+87|Phoenix Cur|Redbone|Pitbull|red|2
+88|Mocha Hound|Labrador|Coonhound|chocolate|1
+89|Havoc Hound|Catahoula|American Bully||3
+90|Legend Cur|Plott Hound|Black Mouth Cur||3
+91|Legendary Mix 100|American Bully|Redbone||3
+92|Bandog Cur|Cane Corso|Black Mouth Cur||1
+93|Iron Dogo|Dogo Argentino|American Bulldog||1
+94|White Ghost|Dogo Argentino|Catahoula|merle+white|1
+95|Setter Cur|Gordon Setter|Mountain Cur||1
+96|Corso Hound|Cane Corso|Plott Hound||1
+97|Leopard Bully|Leopard Cur|American Bully|merle|1
+98|Mountain Bulldog|Black Mountain Cur|American Bulldog||1
+99|Titan Catch Dog|Pit×Mastiff|Dogo Argentino||1
+100|Hog King|Catahoula|Pitbull||4`,
+  // coat traits read straight off the pup's genes
+  TRAITS:{
+    merle:d=>d.genes.M.includes('M'),
+    dilute:d=>d.genes.D[0]==='d'&&d.genes.D[1]==='d',
+    chocolate:d=>d.genes.B[0]==='b'&&d.genes.B[1]==='b',
+    red:d=>d.genes.E[0]==='e'&&d.genes.E[1]==='e',
+    brindle:d=>!MIX.TRAITS.red(d)&&!d.genes.K.includes('K')&&d.genes.K.includes('br'),
+    black:d=>!MIX.TRAITS.red(d)&&d.genes.K.includes('K'),
+    tan:d=>!MIX.TRAITS.red(d)&&!d.genes.K.includes('K')&&d.genes.A[0]==='at',
+    saddle:d=>!MIX.TRAITS.red(d)&&!d.genes.K.includes('K')&&d.genes.A[0]==='as',
+    ticked:d=>d.genes.T.includes('T'),
+    white:d=>d.genes.S.some(a=>a!=='S'),
+    xwhite:d=>d.genes.S.includes('sw')&&d.genes.S[0]!=='S',
+    tri:d=>(MIX.TRAITS.tan(d)||MIX.TRAITS.saddle(d))&&MIX.TRAITS.white(d)},
+  TRAIT_WORDS:{merle:'merle',dilute:'dilute blue',chocolate:'chocolate',red:'red / yellow',brindle:'brindle',black:'solid black',tan:'tan points',saddle:'saddle',ticked:'ticking',white:'white markings',xwhite:'mostly white',tri:'tri-colour'},
+  HIT:{Rare:.16,Epic:.09,Legendary:.05},PICK:{Rare:1,Epic:.7,Legendary:.5},RCOL:{Rare:'--r2',Epic:'--r3',Legendary:'--r4'},
+  DB:null,
+  build(){if(MIX.DB)return MIX.DB;const role=b=>(BREEDS[b]||{}).role,grp=b=>((BREEDS[b]||{}).group||'')+' '+b;
+    MIX.DB=MIX.RAW.trim().split('\n').map(line=>{const[n,name,a,bs,req,gen]=line.split('|');const Bs=bs.split('/').map(b=>MIX.ALIAS[b]||b),A=MIX.ALIAS[a]||a,B=Bs[0],need=req?req.split('+'):[],g=+gen||1;
+      const bully=/Bull|Bully|Mastiff|Dogo|Corso/.test(A+B),hound=/Coonhound|Walker|Plott|Beagle|Bluetick|Redbone/.test(A+B),bodyType=/Bull|Bully|Mastiff|Dogo|Corso/.test(A)?'bully':/Coonhound|Walker|Plott|Beagle|Bluetick|Redbone/.test(A)?'hound':'cur';
+      const rarity=g>=3?'Legendary':(g>=2||need.length>=2)?'Epic':'Rare';
+      const kA=(BREEDS[A]||{kg:[20,30]}).kg,kB=(BREEDS[B]||{kg:[20,30]}).kg;
+      const statModifiers=bodyType==='bully'?{str:4,grip:4,sta:1}:bodyType==='hound'?{trk:4,sta:3,spd:1}:{spd:2,sta:2,int:2,trk:1};
+      if(rarity==='Legendary')for(const k in statModifiers)statModifiers[k]+=3;
+      return{id:+n,customBreedId:+n,name,parentBreedA:A,parentBreedB:B,altPairs:Bs.slice(1).map(b=>[A,b]),assetPath:MIX.ASSETS[+n]||null,requiredTraits:need,generationRequired:g,rarity,bodyType,
+        coatGenes:need.filter(t=>['white','xwhite','ticked'].includes(t)).map(t=>MIX.TRAIT_WORDS[t]),
+        colorGenes:need.filter(t=>['dilute','chocolate','red','black'].includes(t)).map(t=>MIX.TRAIT_WORDS[t]),
+        patternGenes:need.filter(t=>['merle','brindle','tan','saddle','tri'].includes(t)).map(t=>MIX.TRAIT_WORDS[t]),
+        sizeRange:[Math.round((kA[0]+kB[0])/2),Math.round((kA[1]+kB[1])/2)],
+        appearanceRules:{body:'A',head:'inherited',legs:'inherited',coat:'inherited'},statModifiers,
+        sheet:MIX.ASSETS[+n]?+n:null}});
+    return MIX.DB},
+  get:id=>MIX.build().find(r=>r.id===+id),
+  isMixed:d=>!!d&&d.breed==='Cross',
+  anc:d=>(d&&d.morph&&d.morph.anc)||(d?{[d.breed]:1}:{}),
+  // a pup can become a recipe when both breeds run strongly through its ancestry
+  ancOK(anc,r){return[[r.parentBreedA,r.parentBreedB],...(r.altPairs||[])].some(([A,B])=>{const a=anc[A]||0,b=anc[B]||0;return a>=.2&&b>=.2&&a+b>=.75})},
+  traitsOK:(d,r)=>r.requiredTraits.every(t=>MIX.TRAITS[t]&&MIX.TRAITS[t](d)),
+  xgen(d){return d?d.xgen??(MIX.isMixed(d)?1:0):0},
+  // generation rules: purebred × purebred = 1, a mix × a purebred = 2+, a mix × a mix = 3+, and on from there
+  genOf(pup,A,B){if(!MIX.isMixed(pup))return null;const ga=MIX.xgen(A),gb=MIX.xgen(B),ma=MIX.isMixed(A),mb=MIX.isMixed(B);
+    if(!ma&&!mb)return 1;if(ma&&mb)return Math.max(Math.max(ga,gb)+1,3);return Math.max(2,Math.max(ga,gb)+1)},
+  // recipes this pairing could ever make (from the parents' ancestry, before any pup exists)
+  pairRecipes(A,B){const aa=MIX.anc(A),ab=MIX.anc(B),anc={};for(const[k,v]of Object.entries(aa))anc[k]=(anc[k]||0)+v/2;for(const[k,v]of Object.entries(ab))anc[k]=(anc[k]||0)+v/2;
+    return MIX.build().filter(r=>MIX.ancOK(anc,r))},
+  // pick the recipe this pup fits best (most specific first), then roll for it
+  resolve(pup,A,B,rnd=R){const g=pup.xgen||0,anc=MIX.anc(pup);
+    const fits=MIX.build().filter(r=>MIX.ancOK(anc,r)&&g>=r.generationRequired&&MIX.traitsOK(pup,r)).sort((x,y)=>(y.requiredTraits.length-x.requiredTraits.length)||(y.generationRequired-x.generationRequired)||(x.id-y.id));
+    if(!fits.length)return null;
+    // any recipe the pup's genes fit can be the one (rarer recipes a little less often)
+    let tot=0;for(const f of fits)tot+=MIX.PICK[f.rarity];let x=rnd()*tot,r=fits[0];for(const f of fits){x-=MIX.PICK[f.rarity];if(x<=0){r=f;break}}
+    const pq=(avg(Object.values(A.pot))+avg(Object.values(B.pot)))/2,boost=1+clamp((pq-65)/40,0,.4)+((A.mix||B.mix)?.1:0);
+    if(rnd()>=MIX.HIT[r.rarity]*boost)return null;
+    return{r,legend:rnd()<.04*boost}},
+  apply(pup,hit){const r=hit.r;pup.mix={id:r.id,customBreedId:r.id,name:r.name,rarity:r.rarity,legend:!!hit.legend};pup.cross=r.name;
+    for(const[k,v]of Object.entries(r.statModifiers))pup.pot[k]=clamp(pup.pot[k]+v,15,99);
+    if(hit.legend){for(const[k]of STATS)pup.pot[k]=clamp(pup.pot[k]+ri(6,10),15,99);pup.hcap=100;pup.health=100;pup.frail=0}
+    // size inside the recipe's range, the build from parent A (the recipe's body), ears/head/legs as inherited
+    const[lo,hi]=r.sizeRange;if(pup.morph&&pup.morph.t){pup.morph.t.weight=r1(clamp(pup.morph.t.weight,lo,hi));pup.kg=pup.morph.t.weight}else pup.kg=r1(clamp(pup.kg,lo,hi));
+    if(pup.morph&&pup.morph.reg&&r.appearanceRules.body==='A'){const A=r.parentBreedA,B=r.parentBreedB;pup.morph.reg.body={[A]:.75,[B]:.25};pup.bodyOf=tplBreed(A)}
+    STATS.forEach(([k])=>pup.stats[k]=Math.round(pup.pot[k]*.3))},
+  // ---- the engine ----
+  // breedDogs(parentA, parentB): validate, combine DNA (makePuppy: every gene, build, stats, temperament, health), set
+  // the generation and parents, check the recipe book, roll rarity, record the ancestry. Returns the pup.
+  breedDogs(A,B,o={}){const v=MIX.validate(A,B);if(v)throw new Error(v);const sire=A.sex==='M'?A:B,dam=sire===A?B:A;
+    const pup=makePuppy(sire,dam);pup.sireId=sire.id;pup.damId=dam.id;pup.born=S.day;
+    const g=MIX.genOf(pup,sire,dam);if(g!=null){pup.xgen=g;pup.gen=g}
+    if(MIX.isMixed(pup)){const hit=MIX.resolve(pup,sire,dam,o.rnd||R);if(hit)MIX.apply(pup,hit)}
+    if(!o.dry){MIX.lineAdd(sire);MIX.lineAdd(dam);MIX.lineAdd(pup)}
+    return pup},
+  validate(A,B){if(!A||!B)return'Pick two dogs.';if(A.id===B.id)return'A dog can’t be bred to itself.';if(A.sex===B.sex)return'Pick a male and a female.';return''},
+  // ---- lineage: every dog born or bred here, kept even after it's sold or gone, so pedigrees never break ----
+  lineAdd(d){if(!d||!d.id)return;const L=S.lineage||(S.lineage={});if(L[d.id]&&L[d.id].s!==undefined&&d.sireId===undefined)return;
+    L[d.id]={n:d.name,b:breedName(d),s:d.sireId||(d.parents&&d.parents[0]&&d.parents[0].id)||null,m:d.damId||(d.parents&&d.parents[1]&&d.parents[1].id)||null,g:MIX.isMixed(d)?MIX.xgen(d):0,x:d.mix?d.mix.id:0}},
+  line(id){const L=S.lineage||{};return L[id]||(()=>{const d=findDog(id);return d?{n:d.name,b:breedName(d),s:d.sireId||(d.parents&&d.parents[0]&&d.parents[0].id)||null,m:d.damId||(d.parents&&d.parents[1]&&d.parents[1].id)||null,g:MIX.xgen(d)}:null})()},
+  ancestry(id){const me=MIX.line(id)||{},p=[me.s,me.m].map(x=>x?{id:x,...(MIX.line(x)||{})}:null),gp=p.flatMap(q=>q?[q.s,q.m].map(x=>x?{id:x,...(MIX.line(x)||{})}:null):[null,null]);return{p,gp}},
+  // ---- genetic quality: health, genes, stats, pedigree, rare traits, breeding history ----
+  QUAL:['Poor','Average','Good','Excellent','Elite','Legendary'],
+  qscore(d){let q=avg(Object.values(d.pot))*.6+(d.hcap||100)*.12;
+    try{q+=((blOf(d)||{}).q||0)*.08}catch(e){}if(d.mut)q+=4;if(d.mix)q+=d.mix.rarity==='Legendary'?8:d.mix.rarity==='Epic'?5:3;q+=Math.min(6,(d.gen||0));if(d.frail>0)q-=14*d.frail;return q},
+  QCUT:[49.5,52.6,56.1,60.1,64.5],
+  quality(d){if(!d||!d.pot)return'Average';if(d.mix&&d.mix.legend)return'Legendary';const q=MIX.qscore(d),c=MIX.QCUT;return MIX.QUAL[q<c[0]?0:q<c[1]?1:q<c[2]?2:q<c[3]?3:q<c[4]?4:5]},
+  // ---- the Genetic Discovery Book ----
+  book:()=>S.mixBook||(S.mixBook={}),
+  found:id=>!!MIX.book()[id],
+  snapDog(d){const c=JSON.parse(JSON.stringify(d));c.age=Math.max(c.age,24);delete c.hunt;delete c.log;c.bookSnap=true;return c},
+  discover(pup,sire,dam){const B=MIX.book(),r=MIX.get(pup.mix.id);if(B[r.id])return false;
+    B[r.id]={customBreedId:r.id,discovered:true,parentDogAId:sire.id,parentDogBId:dam.id,assetPath:r.assetPath,day:S.day,dog:MIX.snapDog(pup),sire:{id:sire.id,name:sire.name,b:breedName(sire)},dam:{id:dam.id,name:dam.name,b:breedName(dam)},gen:pup.xgen||1,legend:!!pup.mix.legend};
+    addLog(`NEW BREED DISCOVERED: ${r.name} (#${r.id}, ${r.rarity}) from ${sire.name} × ${dam.name}.`);try{TRACK&&TRACK.ev&&TRACK.ev('mix_discover',{id:r.id})}catch(e){}return true},
+  // at whelping: discoveries, then the litter card
+  born(pups,sire,dam){const disc=[];for(const p of pups)if(p.mix&&MIX.discover(p,sire,dam))disc.push(p.mix.id);
+    (UI.mixBorn||(UI.mixBorn=[])).push({pups:pups.map(p=>({id:p.id,snap:MIX.snapDog(p),kept:S.dogs.includes(p)})),sire:{id:sire.id,name:sire.name},dam:{id:dam.id,name:dam.name},disc})},
+  // ---- the Breeding Lab prediction: simulate litters without creating anything ----
+  predict(A,B){const key=A.id+'|'+B.id+'|'+JSON.stringify(A.pot)+JSON.stringify(B.pot);if(MIX._pk===key)return MIX._pv;
+    const keepId=S.nextId,keepLog=(S.nameLog||[]).length,n=40,out={n,hits:{},legend:0,mut:0,kg:[],roles:{bay:0,catch:0},st:{}};
+    try{for(let i=0;i<n;i++){const p=MIX.breedDogs(A,B,{dry:true});if(p.mix){out.hits[p.mix.id]=(out.hits[p.mix.id]||0)+1;if(p.mix.legend)out.legend++}if(p.mut)out.mut++;out.kg.push(p.kg);
+      const bs=avg([p.pot.trk,p.pot.sta,p.pot.int,p.pot.spd]),cs=avg([p.pot.str,p.pot.grip,p.pot.spd]);out.roles[bs>=cs?'bay':'catch']++;for(const[k]of STATS)(out.st[k]||(out.st[k]=[])).push(p.pot[k])}}
+    finally{S.nextId=keepId;if(S.nameLog)S.nameLog.length=keepLog}
+    MIX._pk=key;return MIX._pv=out},
+  compat(A,B){let c=100;const w=[];try{w.push(...pairWarnings(A,B))}catch(e){}
+    const shared=(()=>{const a=MIX.ancestry(A.id),b=MIX.ancestry(B.id),ids=x=>[...x.p,...x.gp].filter(Boolean).map(q=>q.id),sa=new Set(ids(a));return ids(b).filter(i=>sa.has(i)).length+((a.p.some(q=>q&&q.id===B.id)||b.p.some(q=>q&&q.id===A.id))?3:0)})();
+    c-=shared*15;c-=Math.min(30,Math.abs((A.kg||25)-(B.kg||25))*1.2);c-=((100-(A.health||100))+(100-(B.health||100)))*.15;c-=w.length*6;c=clamp(Math.round(c),5,100);
+    return{c,label:c>=85?'Excellent':c>=70?'Good':c>=50?'Fair':'Poor',shared}},
+  labPanel(A,B){const P=MIX.predict(A,B),mixP=Math.round(100*Object.values(P.hits).reduce((s,v)=>s+v,0)/P.n),mutP=Math.round(100*P.mut/P.n),C=MIX.compat(A,B),recipes=MIX.pairRecipes(A,B),range=a=>{const s=a.slice().sort((x,y)=>x-y);return[s[Math.floor(s.length*.1)],s[Math.ceil(s.length*.9)-1]]};
+    const kg=range(P.kg),rare=Math.round(100*(Object.values(P.hits).reduce((s,v)=>s+v,0)+P.mut)/P.n),bayP=Math.round(100*P.roles.bay/P.n),coats=(()=>{try{return predictCoats(A,B).slice(0,6)}catch(e){return[]}})();
+    const statRow=(k,l)=>{const[a,b]=range(P.st[k]);return`<div class="stat"><span>${l}</span><div class="bar"><i class="pot" style="left:${a}%;width:${Math.max(3,b-a)}%;background:linear-gradient(90deg,var(--blaze2),var(--blaze));opacity:.9"></i></div><span class="num small">${a}–${b}</span></div>`};
+    const gen=MIX.isMixed(A)||MIX.isMixed(B)||A.breed!==B.breed?(()=>{const t={breed:'Cross'};return MIX.genOf(t,A,B)})():0;
+    return`<div class="panel" id="mixLab" style="margin-top:10px"><div class="spread"><b>🧬 BREEDING LAB</b><button class="btn sm ghost" data-act="tab" data-t="mixbook">📖 Discovery Book ${Object.keys(MIX.book()).length}/${MIX.build().length}</button></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">${[A,B].map((d,i)=>`<div class="small"><b>${i?'PARENT B':'PARENT A'}</b><div>${esc(d.name)} ${d.sex==='M'?'♂':'♀'}</div><div class="muted">${esc(breedName(d))}${d.mix?` · <span style="color:var(${MIX.RCOL[d.mix.rarity]})">${d.mix.rarity}</span>`:''} · Gen ${MIX.xgen(d)||'purebred'}</div><div class="muted">${esc(coatName(d))} · ${MIX.quality(d)}</div><div class="muted num">Spd ${d.stats.spd} · Nose ${d.stats.trk} · Str ${d.stats.str}</div></div>`).join('')}</div>
+      <div style="text-align:center;margin:6px 0" class="muted">↓ POSSIBLE OFFSPRING ${gen?`· Generation ${gen}`:'· purebred litter'}</div>
+      <div class="small"><b>Genetic compatibility:</b> <span style="color:${C.c>=70?'var(--good)':C.c>=50?'var(--gold)':'var(--bad)'}">${C.c}% · ${C.label}</span>${C.shared?` <span class="muted">(${C.shared} shared ancestor${C.shared>1?'s':''})</span>`:''}</div>
+      <div class="small"><b>Size:</b> ${kg[0]}–${kg[1]} kg · ${sizeLabel((kg[0]+kg[1])/2)}</div>
+      <div class="small"><b>Hunting role:</b> ${bayP>=65?'Bay dogs':bayP<=35?'Catch dogs':'Mixed: bay and catch'} <span class="muted">(${bayP}% bay)</span></div>
+      <div class="small" style="margin-top:4px"><b>Coat prediction:</b> ${coats.map(c=>`${esc(c.n)} <span class="muted">${Math.round(c.p*100)}%</span>`).join(' · ')||'—'}</div>
+      <div style="margin-top:6px">${statRow('spd','Speed')}${statRow('trk','Scent')}${statRow('str','Strength')}${statRow('sta','Stamina')}${statRow('grip','Catch')}</div>
+      <div class="small"><b>Rare trait chance:</b> ~${mixP}% per pup for a named custom mix${P.legend?' (Legendary variants possible)':''} · ~${mutP}% for a gene mutation</div>
+      <div class="small" style="margin-top:6px"><b>Possible discoveries:</b> ${recipes.length?recipes.map(r=>MIX.found(r.id)?`<span class="tag r" style="--rc:var(${MIX.RCOL[r.rarity]})">#${r.id} ${esc(r.name)}</span>`:`<span class="tag">#${r.id} ??? · ${r.rarity}</span>`).join(' '):'<span class="muted">none from these breeds. Named mixes need two of the right breeds in the pups’ ancestry.</span>'}</div>
+      ${recipes.some(r=>!MIX.found(r.id))?`<div class="small muted" style="margin-top:4px">Not every pup is a named mix: the pup’s own genes have to fit the recipe (colour, pattern, generation) and it still has to beat the odds.</div>`:''}</div>`},
+  // ---- screens ----
+  tile(r,on,size=150){const H=Math.round(size*112/150);if(r.sheet==null){const e=MIX.book()[r.id];return on&&e?`<div style="width:${size}px;height:${H}px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:#0e0c0a">${dogArt(e.dog,size)}</div>`:`<div style="width:${size}px;height:${H}px;border-radius:8px;background:#0e0c0a;display:flex;align-items:center;justify-content:center;font-size:${size/3}px;opacity:.5">?</div>`}
+    return`<img src="${r.assetPath}" alt="${on?esc(r.name):'Undiscovered custom mix'}" loading="lazy" width="${size}" height="${H}" style="display:block;width:${size}px;max-width:100%;height:auto;aspect-ratio:150/112;border-radius:8px;background:#0e0c0a;${on?'':'filter:grayscale(1) blur(5px) brightness(.35)'}">`},
+  // one picture per mix, cut from the reference sheet by tools/breeds/cut_mix_assets.py
+  ASSETS:{1:'/assets/mixes/001_bully.e9332b15.webp',2:'/assets/mixes/002_bully_hound.d08d02e7.webp',3:'/assets/mixes/003_hog_dog.bbbab953.webp',4:'/assets/mixes/004_cajun_bully.9478a64b.webp',5:'/assets/mixes/005_swamp_dog.19510c57.webp',6:'/assets/mixes/006_cur_bully.7630c561.webp',7:'/assets/mixes/007_red_bone_cur.b0a77c11.webp',8:'/assets/mixes/008_blue_cur.950f4eb3.webp',9:'/assets/mixes/009_golden_cur.849ce3ff.webp',10:'/assets/mixes/010_tracker.b3b7a334.webp',11:'/assets/mixes/011_walker_hound.5049ed3f.webp',12:'/assets/mixes/012_plotthound.01fa653e.webp',13:'/assets/mixes/013_mountain_cur.e82148b5.webp',14:'/assets/mixes/014_leopard_cur.be7a055e.webp',15:'/assets/mixes/015_treeing_cur.a312023e.webp',16:'/assets/mixes/016_beagle_hound.421b48d3.webp',17:'/assets/mixes/017_redbone_hound.d3f79152.webp',18:'/assets/mixes/018_hound_lab.ad3c34cb.webp',19:'/assets/mixes/019_coonhound.8804432a.webp',20:'/assets/mixes/020_ghost_hound.ec3be258.webp',21:'/assets/mixes/021_bay_dog.6ae81de8.webp',22:'/assets/mixes/022_dark_bay.0a3dc0e3.webp',23:'/assets/mixes/023_swamp_hound.19c44804.webp',24:'/assets/mixes/024_river_hound.af8ff58f.webp',25:'/assets/mixes/025_brindle_hound.52f21e58.webp',26:'/assets/mixes/026_ticked_hound.b1c4189a.webp',27:'/assets/mixes/027_bluetick.9f29457e.webp',28:'/assets/mixes/028_red_tick.d7ccac49.webp',29:'/assets/mixes/029_saddle_hound.db168413.webp',30:'/assets/mixes/030_tri_hound.7e7562ec.webp',31:'/assets/mixes/031_mountain_hound.b0149554.webp',32:'/assets/mixes/032_blaze_hound.4b56f003.webp',33:'/assets/mixes/033_iron_hound.ce210393.webp',34:'/assets/mixes/034_mud_hound.08266e4e.webp',35:'/assets/mixes/035_white_hound.a159ef12.webp',36:'/assets/mixes/036_spotted_hound.273fdbaf.webp',37:'/assets/mixes/037_marsh_hound.ca8b4134.webp',38:'/assets/mixes/038_river_cur.530ffc69.webp',39:'/assets/mixes/039_wood_hound.4392d9fb.webp',40:'/assets/mixes/040_night_hound.3c01e5af.webp',41:'/assets/mixes/041_bulldog_cur.a40b8b0e.webp',42:'/assets/mixes/042_merle_bully.c4a1739a.webp',43:'/assets/mixes/043_steel_cur.333ffedd.webp',44:'/assets/mixes/044_titanium_hound.45a5fefd.webp',45:'/assets/mixes/045_smoke_cur.afa711c2.webp',46:'/assets/mixes/046_chocolate_cur.2e613980.webp',47:'/assets/mixes/047_lilac_bully.6f8cc258.webp',48:'/assets/mixes/048_sable_hound.c697c609.webp',49:'/assets/mixes/049_shadle_cur.aa92dc2f.webp',50:'/assets/mixes/050_cream_tick.9c4af170.webp',51:'/assets/mixes/051_blue_cur.a48205af.webp',52:'/assets/mixes/052_frost_hound.afd6c24b.webp',53:'/assets/mixes/053_night_cur.a24111de.webp',54:'/assets/mixes/054_sand_hound.feac2a95.webp',55:'/assets/mixes/055_ghost_cur.e649715c.webp',56:'/assets/mixes/056_red_cur.42062c78.webp',57:'/assets/mixes/057_ebony_hound.7dc7650c.webp',58:'/assets/mixes/058_ice_hound.99d61c60.webp',59:'/assets/mixes/059_champagne_bully.4668ea9d.webp',60:'/assets/mixes/060_buckskin_cur.efb97096.webp',61:'/assets/mixes/061_marble_cur.77218c20.webp',62:'/assets/mixes/062_rust_hound.a70fed7d.webp',63:'/assets/mixes/063_forest_hound.76f238e4.webp',64:'/assets/mixes/064_panda_cur.63f98c6d.webp',65:'/assets/mixes/065_storm_hound.135d04f8.webp',66:'/assets/mixes/066_honey_cur.c86292a8.webp',67:'/assets/mixes/067_midnight_cur.2e2fc9c0.webp',68:'/assets/mixes/068_tundra_hound.b8cc61c8.webp',69:'/assets/mixes/069_mahogany_cur.60f76720.webp',70:'/assets/mixes/070_savannah_hound.c492759e.webp',71:'/assets/mixes/071_ash_cur.5bdd6705.webp',72:'/assets/mixes/072_copper_tick.eb448aa3.webp',73:'/assets/mixes/073_stone_hound.675fdd73.webp',74:'/assets/mixes/074_timber_hound.d8b08f0c.webp',75:'/assets/mixes/075_ranger_cur.de3a8a15.webp',76:'/assets/mixes/076_diamond_cur.70ae41e3.webp',77:'/assets/mixes/077_ebonyset_hound.eceb62d2.webp',78:'/assets/mixes/078_coal_hound.d5ca70e2.webp',79:'/assets/mixes/079_maple_cur.d04b2a62.webp',80:'/assets/mixes/080_river_bully.a6b3239c.webp',81:'/assets/mixes/081_phantom_hound.5d7af1ff.webp',82:'/assets/mixes/082_lynx_cur.22911e6b.webp',83:'/assets/mixes/083_bronze_hound.6eb7bfa8.webp',84:'/assets/mixes/084_sky_hound.4569ff5e.webp',85:'/assets/mixes/085_copper_bully.78123172.webp',86:'/assets/mixes/086_arctic_hound.cd3afabc.webp',87:'/assets/mixes/087_phoenix_cur.55f9dee0.webp',88:'/assets/mixes/088_mocha_hound.8e45f28e.webp',89:'/assets/mixes/089_havoc_hound.2eddc14c.webp',90:'/assets/mixes/090_legend_cur.71b78856.webp'},
+  screen(){const B=MIX.book(),all=MIX.build(),f=UI.mbf||'all',list=all.filter(r=>f==='all'||(f==='found'?B[r.id]:f==='locked'?!B[r.id]:r.rarity===f));
+    return`<h2>Genetic Discovery Book</h2><p class="sub">${Object.keys(B).length} of ${all.length} custom mixes discovered. They can’t be bought: breed the right parents, and the pups’ own genes decide.</p>
+      <div class="seg">${[['all','All'],['found','Discovered'],['locked','Locked'],['Rare','Rare'],['Epic','Epic'],['Legendary','Legendary']].map(([k,l])=>`<button class="${f===k?'on':''}" data-act="mbf" data-k="${k}">${l}</button>`).join('')}</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">${list.map(r=>{const on=!!B[r.id];return`<button class="panel" style="text-align:left;padding:8px" data-act="mbv" data-id="${r.id}">${MIX.tile(r,on,150)}
+        <div class="small" style="margin-top:6px"><span class="muted">#${r.id}</span> <b>${on?esc(r.name):'???'}</b></div><div class="small"><span class="tag r" style="--rc:var(${MIX.RCOL[r.rarity]})">${r.rarity}</span>${r.generationRequired>1?` <span class="tag">Gen ${r.generationRequired}+</span>`:''}</div>
+        <div class="small muted">${on?`${esc(shortOf(r.parentBreedA))} × ${esc(shortOf(r.parentBreedB))}`:'Breed the correct parents to discover this dog.'}</div></button>`}).join('')}</div>`},
+  view(id){const r=MIX.get(id),e=MIX.book()[id];if(!r)return;
+    if(!e)return openSheet(`<div class="small muted">#${r.id} · LOCKED</div><h2>???</h2>${MIX.tile(r,false,300)}<p>Breed the correct parents to discover this dog.</p><div class="small"><span class="tag r" style="--rc:var(${MIX.RCOL[r.rarity]})">${r.rarity}</span>${r.generationRequired>1?` <span class="tag">Takes ${r.generationRequired}+ generations of crossing</span>`:''}</div>`);
+    const d=e.dog,st=STATS.map(([k,l])=>`${l} ${d.pot[k]}`).join(' · ');
+    openSheet(`<div class="small muted">#${r.id} · Discovered day ${e.day}</div><h2>${esc(r.name)}</h2>
+      <div class="row" style="gap:10px;align-items:flex-start;flex-wrap:wrap">${r.sheet!=null?`<div><div class="small muted">Reference</div>${MIX.tile(r,true,220)}</div>`:''}<div><div class="small muted">Your first ${esc(r.name)}</div><div style="width:220px">${dogArt(d,220)}</div></div></div>
+      <div class="small" style="margin-top:8px"><span class="tag r" style="--rc:var(${MIX.RCOL[r.rarity]})">${r.rarity}</span>${e.legend?' <span class="tag r" style="--rc:var(--r4)">LEGENDARY VARIANT</span>':''} <span class="tag">Generation ${e.gen}</span></div>
+      <h3>Breed recipe</h3><div class="panel small"><div><b>Parent A:</b> ${esc(r.parentBreedA)}</div><div><b>Parent B:</b> ${esc(r.parentBreedB)}${(r.altPairs||[]).length?` <span class="muted">(or ${r.altPairs.map(x=>esc(x[1])).join(', ')})</span>`:''}</div>
+        <div><b>Required genes:</b> ${r.requiredTraits.length?r.requiredTraits.map(t=>MIX.TRAIT_WORDS[t]).join(', '):'none beyond the two breeds'}</div><div><b>Generations of crossing:</b> ${r.generationRequired}+</div>
+        <div><b>Size:</b> ${r.sizeRange[0]}–${r.sizeRange[1]} kg · <b>Build:</b> ${r.bodyType}, body from the ${esc(shortOf(r.parentBreedA))} side</div><div><b>Bonus:</b> ${Object.entries(r.statModifiers).map(([k,v])=>`${STATS.find(s=>s[0]===k)[1]} +${v}`).join(', ')}</div></div>
+      <h3>The first one</h3><div class="panel small"><div><b>${esc(d.name)}</b> ${d.sex==='M'?'♂':'♀'} · ${esc(coatName(d))}</div><div>Father: ${esc(e.sire.name)} <span class="muted">(${esc(e.sire.b)})</span> · Mother: ${esc(e.dam.name)} <span class="muted">(${esc(e.dam.b)})</span></div>
+        <div class="muted">${st}</div><div class="muted">Genes: ${Object.keys(LOCI).map(L=>genoText(d,L,'')).join(' ')}</div></div>`)},
+  bornSheet(){const q=UI.mixBorn;if(!q||!q.length)return false;const L=q.shift();
+    const disc=L.disc.map(id=>MIX.get(id));
+    openSheet(`${disc.length?`<div style="text-align:center;padding:8px 0 4px"><div style="font:400 26px/1.1 var(--logo);color:var(--blaze);letter-spacing:.04em">NEW BREED DISCOVERED!</div>${disc.map(r=>{const p=L.pups.find(x=>x.snap.mix&&x.snap.mix.id===r.id);return`<div style="margin:10px auto;max-width:320px">${r.sheet!=null?MIX.tile(r,true,300):''}<div style="font:600 20px var(--display);margin-top:6px">${esc(r.name)}</div><div class="small"><span class="tag r" style="--rc:var(${MIX.RCOL[r.rarity]})">${r.rarity}</span> #${r.id} · ${esc(shortOf(r.parentBreedA))} × ${esc(shortOf(r.parentBreedB))}</div></div>`}).join('')}<div class="small muted">Added to your Genetic Discovery Book.</div></div>`:''}
+      <h2>Offspring created</h2><p class="sub">${esc(L.dam.name)} × ${esc(L.sire.name)}: ${L.pups.length} pup${L.pups.length>1?'s':''}.</p>
+      ${L.pups.map(x=>{const d=x.snap;return`<div class="panel" style="margin-bottom:8px"><div class="row" style="gap:10px;align-items:flex-start"><div style="width:130px">${dogArt(d,130)}</div><div class="small" style="flex:1;min-width:150px">
+        <div><b>${esc(d.name)}</b> ${d.sex==='M'?'♂':'♀'}</div><div><b>Breed:</b> ${esc(breedName(d))}${d.mix&&d.mix.legend?' <span class="tag r" style="--rc:var(--r4)">Legendary</span>':''}</div>
+        <div><b>Generation:</b> ${d.xgen||'Purebred'}</div><div><b>Father:</b> ${esc(L.sire.name)} · <b>Mother:</b> ${esc(L.dam.name)}</div>
+        <div><b>Rarity:</b> ${d.mix?d.mix.rarity+' mix':RAR[rarTier(d)][0]} · <b>Genetic quality:</b> ${MIX.quality(d)}</div><div class="muted">${esc(coatName(d))}</div>
+        <div class="row" style="gap:6px;margin-top:6px">${x.kept&&S.dogs.some(k=>k.id===d.id)?`<button class="btn sm ghost" data-act="dog" data-id="${d.id}">View dog</button><span class="small" style="color:var(--good)">✓ In your kennel</span>`:`<span class="small muted">Kennel was full: sold to a neighbor.</span>`}</div></div></div></div>`}).join('')}
+      <button class="btn big" data-act="${q.length?'mixNext':'closeSheet'}">${q.length?'Next litter':'Done'}</button>`);return true}
+};
+const MIX_ACTIONS={mbf:d=>{UI.mbf=d.k;render()},mbv:d=>MIX.view(d.id),mixNext:()=>{if(!MIX.bornSheet())closeSheet()}};
+// the engine at whelping (every litter from the barn goes through breedDogs), the book screen, the lab, the litter card
+SCREENS.mixbook=()=>MIX.screen();
+{const o=SCREENS.breed;SCREENS.breed=function(){let html=o.apply(this,arguments);if(UI.breedMode&&UI.breedMode!=='dog')return html;try{
+  const btn=`<button class="panel spread" style="width:100%;margin:4px 0 10px;text-align:left" data-act="tab" data-t="mixbook"><span><b>📖 Genetic Discovery Book</b><div class="small muted">${Object.keys(MIX.book()).length} of ${MIX.build().length} custom mixes discovered</div></span><span>›</span></button>`;
+  const i=html.indexOf('</p>');if(i>=0)html=html.slice(0,i+4)+btn+html.slice(i+4);
+  const s=S.dogs.find(d=>d.id===UI.sire),m=S.dogs.find(d=>d.id===UI.dam);if(s&&m){const j=html.indexOf('<div class="panel" style="margin-top:10px"><b>Breeding prediction</b>');const lab=MIX.labPanel(s,m);html=j>=0?html.slice(0,j)+lab+html.slice(j):html+lab}}catch(e){console.warn('lab',e)}return html}}
+{const o=SCREENS.more;SCREENS.more=function(){return o.apply(this,arguments).replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="mixbook"><div class="tileic">📖</div><b>Discovery Book</b><div class="small muted">${Object.keys(MIX.book()).length}/${MIX.build().length} custom mixes bred</div></button>`)}}
+{const o=endDay;endDay=function(){const r=o.apply(this,arguments);try{if(UI.mixBorn&&UI.mixBorn.length)MIX.bornSheet()}catch(e){console.warn('mix',e)}return r}}
+{const o=rarPts;rarPts=function(d){return o(d)+(d&&d.mix?(d.mix.legend?3:1):0)}}
+{const o=findDog;findDog=function(id){return o(id)||(()=>{for(const e of Object.values(S.mixBook||{}))if(e.dog&&e.dog.id===id)return e.dog;for(const L of UI.mixBorn||[])for(const x of L.pups)if(x.id===id)return x.snap;return null})()}}
+// the regular market never sells a named mix (they only come from breeding)
+{const o=refreshMarket;refreshMarket=function(){o.apply(this,arguments);S.market=S.market.filter(d=>!d.mix);S.featured=S.featured.filter(d=>!d.mix)}}
+// the dog's profile: its mix, generation, quality and ancestry
+{const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const d=S.dogs.find(x=>x.id===id),b=d&&document.querySelector('#sheetInner .dcard');if(b){const A=MIX.ancestry(d.id),nm=q=>q?`${esc(q.n||'?')} <span class="muted num">#${esc(String(q.id).replace('DOG-',''))}</span>`:'<span class="muted">unknown</span>';
+  b.insertAdjacentHTML('afterend',`<div class="panel small" style="margin:8px 0">${d.mix&&MIX.get(d.mix.id).assetPath?`<div style="float:right;width:96px;margin-left:8px">${MIX.tile(MIX.get(d.mix.id),true,96)}</div>`:''}${d.mix?`<div><b style="color:var(${MIX.RCOL[d.mix.rarity]})">${esc(d.mix.name)}</b> · ${d.mix.rarity} custom mix #${d.mix.id}${d.mix.legend?' · <b style="color:var(--r4)">Legendary variant</b>':''}</div>`:''}
+    <div><b>Genetic quality:</b> ${MIX.quality(d)} · <b>Generation:</b> ${MIX.isMixed(d)?MIX.xgen(d):'purebred'+(d.gen?` (line gen ${d.gen})`:'')}</div>
+    <div><b>Father:</b> ${nm(A.p[0])} · <b>Mother:</b> ${nm(A.p[1])}</div>${A.gp.some(Boolean)?`<div class="muted">Grandparents: ${A.gp.map(nm).join(', ')}</div>`:''}</div>`)}}catch(e){console.warn('mix profile',e)}return r}}
+Object.assign(A,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
