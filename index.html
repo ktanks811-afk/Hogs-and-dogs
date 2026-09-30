@@ -4864,8 +4864,8 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.15.0';
-const PATCH_NOTES=[{v:'2.15.0',title:'3D hunting',items:['<b>See the hunt in 3D</b>: tap <b>3D</b> on the hunt map to stand in the woods yourself. The real hills, creeks, ponds, trees and brush are all there.','<b>Through your own eyes</b>: drag to look around, pinch or + / − to look closer like binoculars, and tap the ground to walk there. You turn to face where you walk.','<b>Your dogs in 3D</b>: every dog and hog is built from its own picture, so every breed, mix and coat looks like itself. Their legs move as they run.','<b>How far off</b>: dogs and hogs show their names and how many yards away they are.','<b>🛰 From above</b>: switch to a view from above to see yourself and the whole race, and <b>2D</b> takes you back to the map.']},{v:'2.14.0',title:'Hunting packs',items:[
+const GAME_VERSION='2.15.1';
+const PATCH_NOTES=[{v:'2.15.1',title:'Realistic 3D',items:['<b>Real-looking dogs and hogs</b>: every 3D dog and hog now stands on four legs set apart like the real animal, trots with its legs in step, casts a real shadow and has a smooth, lit coat with no drawn outline.','<b>Catch dogs on a leash</b>: catch dogs you’re holding walk just ahead of you on a leash in your hand, where you can see them. From above you can see yourself holding them.','<b>Finishing touches on the woods</b>: a real sky, sunlight and shadows, textured ground with grass tufts, full leafy trees and layered pines, bushes, rocks and darker, calmer water.','<b>Walk into the woods</b>: trees right in front of your eyes step out of the way so they never block your view.','<b>Every breed on the Breeds tab</b>: Beagle, Redbone, Black and Tan, American Bully, Bluetick, American English Coonhound, Labrador, Mountain Cur, Plott, Blue Lacy, Leopard Cur and Black Mouth Cur now each have a full coat lineup there. The custom mixes stay breed-only.','<b>Custom mixes keep their own picture</b>: a dog born as one of the custom mixes always looks like that mix’s picture on its card and profile, and the same dog runs on the hunt map and in 3D. Its body no longer changes.']},{v:'2.15.0',title:'3D hunting',items:['<b>See the hunt in 3D</b>: tap <b>3D</b> on the hunt map to stand in the woods yourself. The real hills, creeks, ponds, trees and brush are all there.','<b>Through your own eyes</b>: drag to look around, pinch or + / − to look closer like binoculars, and tap the ground to walk there. You turn to face where you walk.','<b>Your dogs in 3D</b>: every dog and hog is built from its own picture, so every breed, mix and coat looks like itself. Their legs move as they run.','<b>How far off</b>: dogs and hogs show their names and how many yards away they are.','<b>🛰 From above</b>: switch to a view from above to see yourself and the whole race, and <b>2D</b> takes you back to the map.']},{v:'2.14.0',title:'Hunting packs',items:[
   ['Save a pack','Pick your bay and catch dogs on the Hunt tab and save them as a named pack. Load it again in one tap next time.'],
   ['Packs build a bond','Every hunt the same dogs run together builds their bond: more for bays, catches and hard fights. It goes from Strangers to Getting along, Working pack, Tight pack and Legendary pack.'],
   ['A bonded pack works as one','Pack mates honor each other’s strikes from further off, the bay holds longer, the catch dogs pull together and they cover each other so fewer get cut.'],
@@ -9620,29 +9620,36 @@ const PK_ACTIONS={pkSave:()=>{const n=prompt('Name this pack','');if(n===null)re
 {const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const P=PK.ofDog(id),b=P.length&&document.querySelector('#sheetInner .dcard');if(b)b.insertAdjacentHTML('afterend',`<div class="small" style="margin:8px 0 2px"><b>Pack:</b> ${P.map(p=>`<a href="#" data-act="pkView" data-id="${p.id}">${esc(p.name)}</a> <span class="muted">(bond ${p.bond}, ${PK.level(p.bond)[1]})</span>`).join(' · ')}</div>`)}catch(e){}return r}}
 // ---------- 3D HUNT MAP ----------
 // A real 3D hunt map. A "3D" button on the hunt map swaps the flat map for a 3D view of the same
-// world: the ground's real hills and hollows, creeks and ponds, trees and brush, with the dogs and hogs as
-// 3D models made from their own pictures (each picture's outline is puffed out into a rounded body, so every
-// breed, mix and coat looks like itself). The hunt itself doesn't change; this only draws it another way.
-const H3D={on:false,fp:true,yaw:0,pitch:-.12,lookT:0,ptr:new Map(),T:null,busy:false,err:null,SC:1.5,EX:1.6,PATCH:176,models:new Map(),
+// world: the ground's real hills and hollows, creeks and ponds, trees, grass, brush and rock, with the dogs
+// and hogs as 3D models made from their own pictures. Each picture's outline is puffed out into a rounded
+// body and its legs are split into a near and far pair that trot, so every breed, mix and coat looks like
+// itself. Catch dogs you're holding walk on a leash in your hand. The hunt itself doesn't change; this only
+// draws it another way.
+const H3D={on:false,fp:true,yaw:0,pitch:-.22,face:0,lookT:0,ptr:new Map(),T:null,busy:false,err:null,SC:1.5,EX:1.6,PATCH:176,models:new Map(),leashes:[],
   // world height in tiles (the sim works in 5-yard tiles; hwE is feet)
   hgt(x,y){return hwE(x,y)/15*H3D.EX},
+  small:()=>Math.min(innerWidth,innerHeight)<700,
   async load(){if(H3D.T)return H3D.T;const base='./assets/3d/three-0.160.0/';
     const[T,OC]=await Promise.all([import(base+'three.module.min.js'),import(base+'OrbitControls.js')]);H3D.OC=OC.OrbitControls;H3D.T=T;return T},
   toggle(){if(H3D.on){H3D.stop();return}H3D.busy=true;huntHud&&H3D.btn();
     H3D.load().then(()=>{H3D.busy=false;H3D.start();H3D.on=true;H3D.btn()}).catch(e=>{H3D.busy=false;H3D.err=e;console.warn('3d',e);toast('3D view could not load on this device.');H3D.btn()})},
   btn(){const b=document.getElementById('h3dBtn');if(b){b.textContent=H3D.busy?'…':H3D.on?'2D':'3D';b.classList.toggle('ghost',!H3D.on)}
     const v=document.getElementById('h3dView');if(v){v.style.display=H3D.on?'':'none';v.textContent=H3D.fp?'🛰':'👁';v.setAttribute('aria-label',H3D.fp?'View from above':'View from your eyes')}},
-  start(){const T=H3D.T;if(!H3D.R){const R=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  start(){const T=H3D.T;if(!H3D.R){const R=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(1.75,window.devicePixelRatio||1));
+      R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.05;R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;
       R.domElement.id='h3dcv';R.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none';
-      const sc=new T.Scene(),cam=new T.PerspectiveCamera(50,1,.05,400);H3D.R=R;H3D.scene=sc;H3D.cam=cam;
-      H3D.hemi=new T.HemisphereLight(0xdfe8ff,0x3a3020,1.1);sc.add(H3D.hemi);H3D.sun=new T.DirectionalLight(0xfff1d6,1.6);H3D.sun.position.set(-40,60,-25);sc.add(H3D.sun);
+      const sc=new T.Scene(),cam=new T.PerspectiveCamera(50,1,.05,700);H3D.R=R;H3D.scene=sc;H3D.cam=cam;
+      H3D.hemi=new T.HemisphereLight(0xdfe8ff,0x4a3f28,1.4);sc.add(H3D.hemi);
+      const sun=new T.DirectionalLight(0xfff1d6,2.4),ss=H3D.small()?1024:2048;sun.castShadow=true;sun.shadow.mapSize.set(ss,ss);
+      Object.assign(sun.shadow.camera,{left:-22,right:22,top:22,bottom:-22,near:1,far:160});sun.shadow.bias=-.0006;sun.shadow.normalBias=.03;H3D.sun=sun;sc.add(sun);sc.add(sun.target);
+      H3D.sky=H3D.skyDome();sc.add(H3D.sky);
       H3D.ctl=new H3D.OC(cam,R.domElement);Object.assign(H3D.ctl,{enableDamping:true,dampingFactor:.12,minDistance:1.5,maxDistance:70,maxPolarAngle:1.38,enablePan:false});
       H3D.group=new T.Group();sc.add(H3D.group);H3D.labels=document.createElement('div');H3D.labels.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';
       R.domElement.addEventListener('pointerdown',e=>{H3D.down={x:e.clientX,y:e.clientY,t:performance.now()};H3D.ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});H3D.pinch=null});R.domElement.addEventListener('pointerup',e=>{H3D.ptr.delete(e.pointerId);H3D.tap(e)});
       R.domElement.addEventListener('pointercancel',e=>H3D.ptr.delete(e.pointerId));R.domElement.addEventListener('pointermove',H3D.look);
       R.domElement.addEventListener('wheel',e=>{if(H3D.fp){e.preventDefault();H3D.zoom(e.deltaY<0?1:-1)}},{passive:false});
       {const o=A.hzoom;A.hzoom=d=>H3D.on&&d.k!=='world'?H3D.zoom(d.k==='in'?1:-1):o(d)}
-      H3D.player=H3D.hunter()}
+      H3D.leashMat=new T.MeshLambertMaterial({color:0x6b2e12});H3D.player=H3D.hunter()}
     H3D.patchAt=null;H3D.placed=false;H3D.attach()},
   // your own eyes: drag to look around, pinch or +/− to look closer (like binoculars)
   look(e){if(!H3D.fp||!H3D.ptr.has(e.pointerId))return;const q=H3D.ptr.get(e.pointerId),dx=e.clientX-q.x,dy=e.clientY-q.y;q.x=e.clientX;q.y=e.clientY;
@@ -9653,96 +9660,182 @@ const H3D={on:false,fp:true,yaw:0,pitch:-.12,lookT:0,ptr:new Map(),T:null,busy:f
   view(){H3D.fp=!H3D.fp;H3D.placed=false;if(!H3D.fp)H3D.setFov(50);H3D.btn()},
   stop(){H3D.on=false;const c=document.getElementById('h3dcv');if(c)c.remove();if(H3D.labels)H3D.labels.remove();H3D.btn();if(HV.cv)huntDraw()},
   attach(){const w=document.querySelector('.huntwrap');if(!w||!H3D.R)return false;if(H3D.R.domElement.parentNode!==w){w.insertBefore(H3D.R.domElement,w.querySelector('.hlegend'));w.appendChild(H3D.labels)}return true},
-  // ---- the ground: a patch of the world around the camera, rebuilt as you move ----
-  patch(cx,cy){const T=H3D.T,N=H3D.PATCH,x0=Math.round(cx-N/2),y0=Math.round(cy-N/2);H3D.patchAt={x:x0+N/2,y:y0+N/2};
-    for(const k of ['ground','water','trunks','crowns','pines','brush'])if(H3D[k]){H3D.group.remove(H3D[k]);H3D[k].geometry.dispose()}
+  // ---- small builders ----
+  rnd(x,y,k){const s=Math.sin(x*127.1+y*311.7+k*74.7)*43758.5453;return s-Math.floor(s)},
+  canvas(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);return c},
+  // join simple parts into one mesh, each part with its own colour
+  merge(parts){const T=H3D.T,P=[],N=[],C=[];for(const[g0,col]of parts){const g=g0.index?g0.toNonIndexed():g0,p=g.attributes.position.array,n=g.attributes.normal.array,c=new T.Color(col);
+      for(let i=0;i<p.length;i++){P.push(p[i]);N.push(n[i])}for(let i=0;i<p.length/3;i++)C.push(c.r,c.g,c.b)}
+    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('normal',new T.Float32BufferAttribute(N,3));g.setAttribute('color',new T.Float32BufferAttribute(C,3));return g},
+  // a lumpy leaf cluster: a ball pushed in and out, lit as a soft round mass
+  blob(x,y,z,r,det=1){const T=H3D.T,g=new T.IcosahedronGeometry(r,det),p=g.attributes.position,n=g.attributes.normal;
+    for(let i=0;i<p.count;i++){const v=new T.Vector3(p.getX(i),p.getY(i),p.getZ(i)),h=H3D.rnd(Math.round(v.x*97),Math.round(v.y*89),Math.round(v.z*83)),k=1+.22*(h-.5);
+      n.setXYZ(i,v.x/r,v.y/r,v.z/r);p.setXYZ(i,v.x*k,v.y*k,v.z*k)}return g.translate(x,y,z)},
+  skyDome(){const T=H3D.T,g=new T.SphereGeometry(500,32,16),c=new Float32Array(g.attributes.position.count*3);g.setAttribute('color',new T.BufferAttribute(c,3));
+    const m=new T.Mesh(g,new T.MeshBasicMaterial({vertexColors:true,side:T.BackSide,fog:false,depthWrite:false}));m.renderOrder=-1;return m},
+  paintSky(night){const T=H3D.T,g=H3D.sky.geometry,p=g.attributes.position,c=g.attributes.color,top=new T.Color(night?0x03060f:0x3f7cc4),hz=new T.Color(night?0x18243c:0xcfdde2),low=new T.Color(night?0x0d1422:0x9aa98c),k=new T.Color();
+    for(let i=0;i<p.count;i++){const y=p.getY(i)/500;if(y>=0)k.copy(hz).lerp(top,Math.pow(y,.55));else k.copy(hz).lerp(low,Math.min(1,-y*6));c.setXYZ(i,k.r,k.g,k.b)}c.needsUpdate=true;return hz},
+  // ---- the ground: a patch of the world around you, rebuilt as you move ----
+  patch(cx,cy){const T=H3D.T,N=H3D.PATCH,x0=Math.round(cx-N/2),y0=Math.round(cy-N/2),rnd=H3D.rnd;H3D.patchAt={x:x0+N/2,y:y0+N/2};
+    for(const k of ['ground','water','trees','pines','brush','rocks','grass'])if(H3D[k]){H3D.group.remove(H3D[k]);H3D[k].geometry.dispose();H3D[k]=null}
     const g=new T.PlaneGeometry(N,N,N,N);g.rotateX(-Math.PI/2);const p=g.attributes.position,col=new Float32Array(p.count*3),wat=[];
-    const trees=[],pines=[],brush=[],rnd=(x,y,k)=>{const s=Math.sin(x*127.1+y*311.7+k*74.7)*43758.5453;return s-Math.floor(s)};
+    const trees=[],pines=[],brush=[],rocks=[],grass=[];
     for(let i=0;i<p.count;i++){const x=x0+p.getX(i)+N/2,y=y0+p.getZ(i)+N/2,t=hwT(x,y),c=(TEX[t]||TEX[0])[rnd(x,y,1)>.5?1:0],h=H3D.hgt(x,y);
-      p.setXYZ(i,x,h-(t===T_WATER?.35:0),y);const sh=.82+.18*rnd(x,y,2);const L=v=>Math.pow(v/255*sh,2.2);col[i*3]=L(c[0]);col[i*3+1]=L(c[1]);col[i*3+2]=L(c[2])}
+      p.setXYZ(i,x,h-(t===T_WATER?.35:0),y);const lo=lnoise(x/14,y/14,HW.seed+40),sh=(.8+.14*rnd(x,y,2)+.22*(lo-.5))*1.12;const L=v=>Math.pow(Math.min(1,v/255*sh),2.2);col[i*3]=L(c[0]);col[i*3+1]=L(c[1]);col[i*3+2]=L(c[2])}
+    const gr=H3D.small()?34:44,gcap=H3D.small()?5000:9000;
     for(let y=y0;y<y0+N;y++)for(let x=x0;x<x0+N;x++){const t=hwT(x,y);
       if(t===T_WATER||t===T_FORD)wat.push(x,y);
       else if(t===T_TREE&&rnd(x,y,3)<.7){const a=hwBias(x,y);(a[3]>.12&&rnd(x,y,4)<.75?pines:trees).push(x+rnd(x,y,5)*.8+.1,y+rnd(x,y,6)*.8+.1,.8+rnd(x,y,7)*.6)}
-      else if((t===T_BRUSH||t===T_HARD)&&rnd(x,y,8)<.55||t===T_GRASS&&rnd(x,y,9)<.03)brush.push(x+rnd(x,y,10),y+rnd(x,y,11),.5+rnd(x,y,12)*.6)}
+      else if(((t===T_BRUSH||t===T_HARD)&&rnd(x,y,8)<.55||t===T_GRASS&&rnd(x,y,9)<.03)&&Math.hypot(x-cx,y-cy)<70)brush.push(x+rnd(x,y,10),y+rnd(x,y,11),.5+rnd(x,y,12)*.6);
+      else if(t===T_ROCK&&rnd(x,y,16)<.3)rocks.push(x+rnd(x,y,17),y+rnd(x,y,18),.3+rnd(x,y,19)*.5);
+      if((t===T_GRASS||t===T_BRUSH||t===T_MARSH||t===T_HARD||t===T_TREE)&&Math.hypot(x-cx,y-cy)<gr&&grass.length<gcap*3){const n=t===T_TREE?1:t===T_GRASS?3:2;for(let k=0;k<n;k++)if(rnd(x,y,20+k)<.8)grass.push(x+rnd(x,y,30+k),y+rnd(x,y,40+k),.6+rnd(x,y,50+k)*.5)}}
     g.setAttribute('color',new T.BufferAttribute(col,3));g.computeVertexNormals();
-    H3D.ground=new T.Mesh(g,new T.MeshLambertMaterial({vertexColors:true}));H3D.group.add(H3D.ground);
+    if(!H3D.dirtTex){const c=H3D.canvas(256,256,(x,w,h)=>{const im=x.createImageData(w,h);for(let i=0;i<w*h;i++){const v=200+Math.random()*55-(Math.random()<.06?60:0);im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v;im.data[i*4+3]=255}x.putImageData(im,0,0);
+        for(let k=0;k<260;k++){x.strokeStyle=`rgba(${60+Math.random()*40},${70+Math.random()*50},30,.35)`;x.lineWidth=1;const a=Math.random()*w,b=Math.random()*h;x.beginPath();x.moveTo(a,b);x.lineTo(a+Math.random()*6-3,b-4-Math.random()*6);x.stroke()}});
+      H3D.dirtTex=new T.CanvasTexture(c);H3D.dirtTex.wrapS=H3D.dirtTex.wrapT=T.RepeatWrapping;H3D.dirtTex.repeat.set(N/2.5,N/2.5);H3D.dirtTex.anisotropy=4}
+    H3D.ground=new T.Mesh(g,new T.MeshLambertMaterial({vertexColors:true,map:H3D.dirtTex}));H3D.ground.receiveShadow=true;H3D.group.add(H3D.ground);
     // water: one flat sheet per wet tile at its bank height
-    if(wat.length){const n=wat.length/2,wg=new T.PlaneGeometry(1,1);wg.rotateX(-Math.PI/2);const wm=new T.InstancedMesh(wg,new T.MeshPhongMaterial({color:0x2f5a66,shininess:90,transparent:true,opacity:.85}),n),M=new T.Matrix4();
-      for(let i=0;i<n;i++){const x=wat[i*2],y=wat[i*2+1];M.makeTranslation(x+.5,H3D.hgt(x+.5,y+.5)-.12,y+.5);wm.setMatrixAt(i,M)}H3D.water=wm;H3D.group.add(wm)}
-    const inst=(geo,mat,list,fn,tint=true)=>{const n=list.length/3;if(!n)return null;const m=new T.InstancedMesh(geo,mat,n),M=new T.Matrix4(),Q=new T.Quaternion(),S=new T.Vector3(),P=new T.Vector3(),C=new T.Color();
-      for(let i=0;i<n;i++){const x=list[i*3],y=list[i*3+1],s=list[i*3+2];fn(P,S,x,y,s);Q.setFromAxisAngle(new T.Vector3(0,1,0),rnd(x,y,13)*6.28);M.compose(P,Q,S);m.setMatrixAt(i,M);
-        if(tint){C.setHSL(.22+rnd(x,y,14)*.1,.45,.2+rnd(x,y,15)*.12);m.setColorAt(i,C)}}H3D.group.add(m);return m};
-    const all=trees.concat(pines),hts=(x,y)=>H3D.hgt(x,y);
-    H3D.trunks=inst(new T.CylinderGeometry(.07,.11,1,6).translate(0,.5,0),new T.MeshLambertMaterial({color:0x4a3524}),all,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.6,s*2.6,s*1.6)},false);
-    H3D.crowns=inst(new T.IcosahedronGeometry(.9,1).translate(0,2.2,0),new T.MeshLambertMaterial({color:0xffffff,flatShading:true}),trees,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.6,s*1.8,s*1.6)});
-    H3D.pines=inst(new T.ConeGeometry(.75,2.6,7).translate(0,2.3,0),new T.MeshLambertMaterial({color:0xffffff,flatShading:true}),pines,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.5,s*1.9,s*1.5)});
-    H3D.brush=inst(new T.IcosahedronGeometry(.32,0).translate(0,.18,0),new T.MeshLambertMaterial({color:0xffffff,flatShading:true}),brush,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*.8,s*.55,s*.8)})},
-  // ---- a 3D body from a picture: the outline is puffed out so each part is as thick as it is tall ----
-  inflate(img){const T=H3D.T,GW=110,GH=Math.max(8,Math.round(GW*img.height/img.width)),c=document.createElement('canvas');c.width=GW;c.height=GH;
-    const cx=c.getContext('2d');cx.drawImage(img,0,0,GW,GH);const a=cx.getImageData(0,0,GW,GH).data,IN=new Uint8Array(GW*GH);for(let i=0;i<GW*GH;i++)IN[i]=a[i*4+3]>90?1:0;
+    if(wat.length){const n=wat.length/2,wg=new T.PlaneGeometry(1,1);wg.rotateX(-Math.PI/2);const wm=new T.InstancedMesh(wg,new T.MeshPhongMaterial({color:0x223f45,specular:0x2c3a3e,shininess:60,transparent:true,opacity:.82,depthWrite:false}),n),M=new T.Matrix4();
+      for(let i=0;i<n;i++){const x=wat[i*2],y=wat[i*2+1];M.makeTranslation(x+.5,H3D.hgt(x+.5,y+.5)-.12,y+.5);wm.setMatrixAt(i,M)}wm.receiveShadow=true;H3D.water=wm;H3D.group.add(wm)}
+    const inst=(geo,mat,list,fn,tint,shadow)=>{const n=list.length/3;if(!n)return null;const m=new T.InstancedMesh(geo,mat,n),M=new T.Matrix4(),Q=new T.Quaternion(),S=new T.Vector3(),P=new T.Vector3(),C=new T.Color(),up=new T.Vector3(0,1,0);
+      for(let i=0;i<n;i++){const x=list[i*3],y=list[i*3+1],s=list[i*3+2];fn(P,S,x,y,s);Q.setFromAxisAngle(up,rnd(x,y,13)*6.28);M.compose(P,Q,S);m.setMatrixAt(i,M);if(tint){tint(C,x,y);m.setColorAt(i,C)}}
+      m.castShadow=!!shadow;m.receiveShadow=true;H3D.group.add(m);return m};
+    const hts=(x,y)=>H3D.hgt(x,y),leafy=(C,x,y)=>{const v=.8+rnd(x,y,14)*.35;C.setRGB(v*(.9+rnd(x,y,15)*.2),v,v*(.85+rnd(x,y,21)*.15))};
+    if(!H3D.geo){const G=H3D.geo={};const bark=0x4a3626,leaf=0x3f5e27,leaf2=0x4f6d2c,pine=0x2c4a26,pine2=0x365a2c;
+      G.tree=H3D.merge([[new T.CylinderGeometry(.06,.13,1.9,7).translate(0,.95,0),bark],[new T.CylinderGeometry(.03,.05,.7,5).rotateZ(.7).translate(.22,1.55,0),bark],
+        [H3D.blob(0,2.05,0,.82),leaf],[H3D.blob(.5,1.75,.2,.6),leaf2],[H3D.blob(-.42,1.85,-.28,.64),leaf],[H3D.blob(.12,2.55,-.12,.58),leaf2],[H3D.blob(-.1,1.7,.45,.5),leaf]]);
+      G.pine=H3D.merge([[new T.CylinderGeometry(.05,.1,2.9,6).translate(0,1.45,0),bark],[new T.ConeGeometry(.82,1.3,9).translate(0,1.35,0),pine],[new T.ConeGeometry(.66,1.15,9).translate(0,2.0,0),pine2],
+        [new T.ConeGeometry(.48,1.0,9).translate(0,2.6,0),pine],[new T.ConeGeometry(.28,.8,8).translate(0,3.1,0),pine2]]);
+      G.bush=H3D.merge([[H3D.blob(0,.2,0,.32,0),0x4d6a2c],[H3D.blob(.22,.16,.1,.24,0),0x587636],[H3D.blob(-.2,.15,-.08,.22,0),0x46632a]]);
+      const rk=new T.DodecahedronGeometry(.35,1),rp=rk.attributes.position;for(let i=0;i<rp.count;i++){const k=.8+.4*H3D.rnd(Math.round(rp.getX(i)*50),Math.round(rp.getY(i)*50),Math.round(rp.getZ(i)*50));rp.setXYZ(i,rp.getX(i)*k*1.2,rp.getY(i)*k*.7,rp.getZ(i)*k)}rk.computeVertexNormals();G.rock=rk;
+      // grass: two crossed cards of drawn blades
+      const gc=H3D.canvas(64,64,(x,w,h)=>{for(let k=0;k<22;k++){const bx=4+Math.random()*56,lean=(Math.random()-.5)*14,top=6+Math.random()*30,gg=120+Math.random()*80;
+        x.fillStyle=`rgb(${Math.round(gg*.72)},${Math.round(gg)},${Math.round(gg*.38)})`;x.beginPath();x.moveTo(bx-2,h);x.quadraticCurveTo(bx+lean*.3,h-(h-top)*.5,bx+lean,top);x.quadraticCurveTo(bx+lean*.3+1,h-(h-top)*.5,bx+2,h);x.fill()}});
+      {const im=gc.getContext('2d').getImageData(0,0,64,64).data,D=new Uint8Array(64*64*4);for(let y=0;y<64;y++)for(let x=0;x<64;x++){const i=(y*64+x)*4,o=((63-y)*64+x)*4,a=im[i+3];
+          D[o]=a>8?Math.round(im[i]*255/a):96;D[o+1]=a>8?Math.round(im[i+1]*255/a):140;D[o+2]=a>8?Math.round(im[i+2]*255/a):52;D[o+3]=a}
+        H3D.grassTex=new T.DataTexture(D,64,64);H3D.grassTex.needsUpdate=true;H3D.grassTex.magFilter=T.LinearFilter;H3D.grassTex.minFilter=T.LinearMipmapLinearFilter;H3D.grassTex.generateMipmaps=true}H3D.grassTex.colorSpace=T.SRGBColorSpace;const q1=new T.PlaneGeometry(.5,.26).translate(0,.12,0),q2=q1.clone().rotateY(Math.PI/2);
+      const q3=q1.clone().rotateY(Math.PI),q4=q2.clone().rotateY(Math.PI);G.grass=H3D.merge([[q1,0xffffff],[q2,0xffffff],[q3,0xffffff],[q4,0xffffff]]);{const n=G.grass.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0)}const uv=[];for(let k=0;k<4;k++){const u=q1.toNonIndexed().attributes.uv.array;for(const v of u)uv.push(v)}G.grass.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+      // trees right against the camera are left out, so walking into the woods never blinds you
+      const tm=new T.MeshLambertMaterial({vertexColors:true});tm.onBeforeCompile=s=>{s.vertexShader='varying vec3 vW3;\n'+s.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\nvW3=(modelMatrix*instanceMatrix*vec4(transformed,1.)).xyz;');
+        s.fragmentShader='varying vec3 vW3;\n'+s.fragmentShader.replace('void main() {','void main() {\nif(distance(vW3,cameraPosition)<2.2)discard;')};
+      H3D.mats={tree:tm,rock:new T.MeshLambertMaterial({color:0x8a857a}),
+        grass:new T.MeshLambertMaterial({map:H3D.grassTex,alphaTest:.45,vertexColors:true})}}
+    const G=H3D.geo,Ms=H3D.mats;
+    H3D.trees=inst(G.tree,Ms.tree,trees,(P,S,x,y,s)=>{P.set(x,hts(x,y)-.05,y);S.set(s*1.55,s*1.7,s*1.55)},leafy,true);
+    H3D.pines=inst(G.pine,Ms.tree,pines,(P,S,x,y,s)=>{P.set(x,hts(x,y)-.05,y);S.set(s*1.4,s*1.8,s*1.4)},leafy,true);
+    H3D.brush=inst(G.bush,Ms.tree,brush,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.4,s*1.1,s*1.4)},leafy,false);
+    H3D.rocks=inst(G.rock,Ms.rock,rocks,(P,S,x,y,s)=>{P.set(x,hts(x,y)+.02,y);S.set(s,s,s)},(C,x,y)=>{const v=.75+rnd(x,y,22)*.4;C.setRGB(v,v*.97,v*.92)},true);
+    H3D.grass=inst(G.grass,Ms.grass,grass,(P,S,x,y,s)=>{P.set(x,hts(x,y)-.02,y);S.set(s,s*(.8+rnd(x,y,23)*.6),s)},(C,x,y)=>{const t=hwT(x,y),dry=t===T_HARD||t===T_BRUSH?.25:0,v=.75+rnd(x,y,24)*.35;C.setRGB(v*(1+dry),v*(1+dry*.4),v*(.8-dry*.2))},false);if(H3D.grass)H3D.grass.receiveShadow=false},
+  // ---- a 3D body from a picture ----
+  // The outline is puffed out so each part is as round as it is tall. The legs are then split into a near and a
+  // far pair, set apart like a real dog's, that trot in step (front near with back far).
+  inflate(img){const T=H3D.T,GW=120,GH=Math.max(8,Math.round(GW*img.height/img.width)),n0=GW*GH;
+    const a=H3D.canvas(GW,GH,x=>x.drawImage(img,0,0,GW,GH)).getContext('2d').getImageData(0,0,GW,GH).data,IN=new Uint8Array(n0);for(let i=0;i<n0;i++)IN[i]=a[i*4+3]>90?1:0;
     // distance to the outline, then the local "radius" of each part (how fat the leg, neck or body is there)
-    const d=new Float32Array(GW*GH);for(let i=0;i<GW*GH;i++)d[i]=IN[i]?1e4:0;
-    for(let pass=0;pass<2;pass++)for(let k=0;k<GW*GH;k++){const i=pass?GW*GH-1-k:k,x=i%GW,y=(i/GW)|0,s=pass?1:-1;if(!IN[i])continue;
-      const n=[[s,0,1],[0,s,1],[s,s,1.414],[-s,s,1.414]];for(const[dx,dy,w]of n){const X=x+dx,Y=y+dy,v=X<0||Y<0||X>=GW||Y>=GH?0:d[Y*GW+X];if(v+w<d[i])d[i]=v+w}}
-    const Rl=new Float32Array(GW*GH),r=5;for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(!IN[i])continue;let m=d[i];
+    const d=new Float32Array(n0);for(let i=0;i<n0;i++)d[i]=IN[i]?1e4:0;
+    for(let pass=0;pass<2;pass++)for(let k=0;k<n0;k++){const i=pass?n0-1-k:k,x=i%GW,y=(i/GW)|0,s=pass?1:-1;if(!IN[i])continue;
+      for(const[dx,dy,w]of[[s,0,1],[0,s,1],[s,s,1.414],[-s,s,1.414]]){const X=x+dx,Y=y+dy,v=X<0||Y<0||X>=GW||Y>=GH?0:d[Y*GW+X];if(v+w<d[i])d[i]=v+w}}
+    const Rl=new Float32Array(n0),r=5;for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(!IN[i])continue;let m=d[i];
       for(let yy=Math.max(0,y-r);yy<=Math.min(GH-1,y+r);yy++)for(let xx=Math.max(0,x-r);xx<=Math.min(GW-1,x+r);xx++){const j=yy*GW+xx;if(IN[j]&&d[j]>m&&Math.hypot(xx-x,yy-y)<=d[j])m=d[j]}Rl[i]=m}
-    const pos=[],uv=[],idx=[],id=new Int32Array(GW*GH).fill(-1),sc=1/GW;let maxY=0;
+    // the belly line, and which parts below it are legs (they reach the ground; a hanging tail doesn't)
+    let top=GH,bot=0,lx=GW,rx=0;for(let i=0;i<n0;i++)if(IN[i]){const x=i%GW,y=(i/GW)|0;top=Math.min(top,y);bot=Math.max(bot,y);lx=Math.min(lx,x);rx=Math.max(rx,x)}
+    let belly=-1;for(let y=top;y<=bot;y++){let run=0,best=0;for(let x=0;x<GW;x++){run=IN[y*GW+x]?run+1:0;best=Math.max(best,run)}if(best>.38*(rx-lx+1))belly=y}
+    if(belly<0)belly=Math.round(top+(bot-top)*.55);
+    const leg=new Uint8Array(n0),seen=new Uint8Array(n0);
+    for(let i0=0;i0<n0;i0++){if(!IN[i0]||seen[i0]||((i0/GW)|0)<=belly+1)continue;const st=[i0],comp=[];seen[i0]=1;let reach=0;
+      while(st.length){const i=st.pop(),x=i%GW,y=(i/GW)|0;comp.push(i);reach=Math.max(reach,y);for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const X=x+dx,Y=y+dy,j=Y*GW+X;if(X<0||X>=GW||Y<=belly+1||Y>=GH||!IN[j]||seen[j])continue;seen[j]=1;st.push(j)}}
+      if(reach>=bot-3)for(const i of comp)leg[i]=1}
+    const legCol=new Uint8Array(GW);for(let i=0;i<n0;i++)if(leg[i]){const x=i%GW;for(let k=-1;k<=1;k++)if(x+k>=0&&x+k<GW)legCol[x+k]=1}
+    const OUT=[],pos=[],uv=[],lfA=[],idx=[],id=new Int32Array(n0).fill(-1),sc=1/GW;
     for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(!IN[i])continue;const R=Rl[i],dd=Math.max(0,Math.min(d[i],R)-.85),z=Math.sqrt(Math.max(0,2*R*dd-dd*dd))*.85*sc;
-      id[i]=pos.length/3;pos.push((x+.5)*sc-.5,(GH-y-.5)*sc,z,(x+.5)*sc-.5,(GH-y-.5)*sc,-z);uv.push((x+.5)/GW,1-(y+.5)/GH,(x+.5)/GW,1-(y+.5)/GH);maxY=Math.max(maxY,GH-y)}
-    const edges=new Map(),tri=(a,b,c)=>{idx.push(a,b,c,c+1,b+1,a+1);for(const[p,q]of[[a,b],[b,c],[c,a]]){const k=p<q?p+','+q:q+','+p;const e=edges.get(k);e?e.n++:edges.set(k,{n:1,p,q})}};
+      // colour from a little way inside the edge, so the drawing's outline doesn't wrap round the body
+      let ux=x,uy=y;{const want=Math.min(5,R*.7);for(let st=0;st<8&&d[uy*GW+ux]<want;st++){let bx=ux,by=uy,b=d[uy*GW+ux];for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){const X=ux+dx,Y=uy+dy;if(X<0||Y<0||X>=GW||Y>=GH)continue;const v=d[Y*GW+X];if(v>b){b=v;bx=X;by=Y}}if(bx===ux&&by===uy)break;ux=bx;uy=by}}
+      const lf=(y>belly+1?leg[i]:legCol[x]&&y>=belly-3?1:0)*clamp((y-(belly-3))/4,0,1);
+      const gxv=(x+1<GW?d[i+1]:0)-(x>0?d[i-1]:0),gyv=(y+1<GH?d[i+GW]:0)-(y>0?d[i-GW]:0),gl=Math.hypot(gxv,gyv)||1;OUT.push(-gxv/gl,gyv/gl,clamp(1-d[i]/3,0,1));
+      id[i]=pos.length/3;pos.push((x+.5)*sc-.5,(GH-y-.5)*sc,z,(x+.5)*sc-.5,(GH-y-.5)*sc,-z);const u=(ux+.5)/GW,v=1-(uy+.5)/GH;uv.push(u,v,u,v);lfA.push(lf,lf)}
+    const edges=new Map(),tri=(a,b,c)=>{idx.push(a,b,c,c+1,b+1,a+1);for(const[p,q]of[[a,b],[b,c],[c,a]]){const k=p<q?p+','+q:q+','+p;const e=edges.get(k);e?e.n++:edges.set(k,{n:1,p,q})}};// p→q as the triangle runs
     for(let y=0;y<GH-1;y++)for(let x=0;x<GW-1;x++){const A=id[y*GW+x],B=id[y*GW+x+1],C=id[(y+1)*GW+x],D=id[(y+1)*GW+x+1];
       if(A>=0&&B>=0&&C>=0&&D>=0){tri(A,C,B);tri(B,C,D)}else if(A>=0&&B>=0&&C>=0)tri(A,C,B);else if(A>=0&&B>=0&&D>=0)tri(A,D,B);else if(A>=0&&C>=0&&D>=0)tri(A,C,D);else if(B>=0&&C>=0&&D>=0)tri(B,C,D)}
     // each point is a front/back pair (front i, back i+1); close the rim between them
-    for(const e of edges.values())if(e.n===1){const f1=e.p,f2=e.q;idx.push(f1,f2,f2+1,f1,f2+1,f1+1)}
+    for(const e of edges.values())if(e.n===1){const p=e.p,q=e.q;idx.push(q,p,p+1,q,p+1,q+1)}
     {const nb=new Map(),add=(a,b)=>{(nb.get(a)||nb.set(a,new Set()).get(a)).add(b)};const nT=idx.length;for(let k=0;k<nT;k+=6){const[a,b,c]=[idx[k],idx[k+1],idx[k+2]];if(a%2||b%2||c%2)continue;add(a,b);add(b,a);add(b,c);add(c,b);add(a,c);add(c,a)}
       for(let it=0;it<3;it++){const nx=pos.slice();for(const[v,s]of nb){let x=0,y=0;for(const u of s){x+=pos[u*3];y+=pos[u*3+1]}x/=s.size;y/=s.size;for(const w of[v,v+1]){nx[w*3]=pos[w*3]*.5+x*.5;nx[w*3+1]=pos[w*3+1]*.5+y*.5}}for(let k=0;k<pos.length;k++)pos[k]=nx[k]}}
-    let minY=1e9;for(let i=1;i<pos.length;i+=3)minY=Math.min(minY,pos[i]);for(let i=1;i<pos.length;i+=3)pos[i]-=minY;
-    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
-    g.userData.h=(maxY*sc)-minY;return g},
-  // legs swing when it moves: vertices low on the body sway fore and aft, front and back pairs out of step
+    let minY=1e9,maxY=-1e9;for(let i=1;i<pos.length;i+=3){minY=Math.min(minY,pos[i]);maxY=Math.max(maxY,pos[i])}for(let i=1;i<pos.length;i+=3)pos[i]-=minY;const H=maxY-minY,hip=(GH-(belly-3)-.5)*sc-minY;
+    // how far apart the near and far legs stand: about half the body's width at the belly
+    let zb=0;for(let v=0;v<pos.length/3;v++){const y=pos[v*3+1];if(y>hip-.06&&y<hip+.12&&!lfA[v])zb=Math.max(zb,Math.abs(pos[v*3+2]))}const off=Math.max(.012,zb*.62),nv=pos.length/3;
+    const P2=[],U2=[],SIDE=[],SW=[];for(const side of[1,-1])for(let v=0;v<nv;v++){const lf=lfA[v],y=pos[v*3+1];P2.push(pos[v*3],y,pos[v*3+2]+side*off*lf);U2.push(uv[v*2],uv[v*2+1]);SIDE.push(side);SW.push(lf*clamp((hip-y)/Math.max(.01,hip),0,1))}
+    const I2=idx.slice();for(let k=0;k<idx.length;k+=3){const[a,b,c]=[idx[k],idx[k+1],idx[k+2]];if(lfA[a]>0||lfA[b]>0||lfA[c]>0)I2.push(a+nv,b+nv,c+nv)}
+    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P2,3));g.setAttribute('uv',new T.Float32BufferAttribute(U2,2));
+    g.setAttribute('side',new T.Float32BufferAttribute(SIDE,1));g.setAttribute('swing',new T.Float32BufferAttribute(SW,1));g.setIndex(I2);g.computeVertexNormals();
+    {const Nn=g.attributes.normal;for(let c=0;c<2;c++)for(let v=0;v<nv;v++){const b=(v>>1)*3,w=OUT[b+2],j=c*nv+v;if(w<=0)continue;const zs=v%2?-1:1;
+      let nx=Nn.getX(j)*(1-w)+OUT[b]*w,ny=Nn.getY(j)*(1-w)+OUT[b+1]*w,nz=Nn.getZ(j)*(1-w)+zs*.15*w;const l=Math.hypot(nx,ny,nz)||1;Nn.setXYZ(j,nx/l,ny/l,nz/l)}}
+    // where a collar sits (the picture faces left): just behind the head, near the top of the neck
+    let nose=1;for(let v=0;v<nv;v++)if(pos[v*3+1]>H*.55)nose=Math.min(nose,pos[v*3]);const nx=nose+.17;let ny=0;for(let v=0;v<nv;v++)if(Math.abs(pos[v*3]-nx)<.02)ny=Math.max(ny,pos[v*3+1]);
+    g.userData={h:H,hip,neck:{x:nx,y:Math.max(hip,ny-.07)}};return g},
+  // legs swing about the hip when it moves: diagonal pairs together, like a trot
   mat(img){const T=H3D.T,tex=new T.CanvasTexture(img);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
-    const m=new T.MeshLambertMaterial({map:tex,side:T.DoubleSide,alphaTest:.3});m.userData.u={uT:{value:0},uA:{value:0},uLeg:{value:.3}};
-    m.onBeforeCompile=s=>{Object.assign(s.uniforms,m.userData.u);s.vertexShader='uniform float uT;uniform float uA;uniform float uLeg;\n'+s.vertexShader.replace('#include <begin_vertex>',
-      `#include <begin_vertex>\nfloat lf=clamp((uLeg-position.y)/uLeg,0.,1.);float ph=position.x<0.?0.:3.1416;transformed.x+=sin(uT+ph)*uA*lf*uLeg;transformed.y+=abs(cos(uT+ph))*uA*.15*lf*uLeg;`)};return m},
-  model(key,img,faceLeft,len){let M=H3D.models.get(key);if(M)return M;const T=H3D.T,g=H3D.inflate(img),m=H3D.mat(img);m.userData.u.uLeg.value=g.userData.h*.42;
-    const mesh=new T.Mesh(g,m),o=new T.Group();mesh.scale.setScalar(len);o.add(mesh);o.userData={mesh,mat:m,faceLeft,rot:null};
-    const sh=new T.Mesh(new T.CircleGeometry(.5,16).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0,transparent:true,opacity:.3,depthWrite:false}));sh.scale.set(len*.9,1,len*.35);sh.position.y=.03;o.add(sh);
+    const m=new T.MeshStandardMaterial({map:tex,alphaTest:.3,roughness:.88,metalness:0});m.userData.u={uT:{value:0},uA:{value:0},uLeg:{value:.3}};
+    m.onBeforeCompile=s=>{Object.assign(s.uniforms,m.userData.u);s.vertexShader='uniform float uT;uniform float uA;uniform float uLeg;attribute float side;attribute float swing;\n'+s.vertexShader.replace('#include <begin_vertex>',
+      `#include <begin_vertex>\nfloat ph=((position.x<0.?1.:-1.)*side>0.)?0.:3.1416;float sw=sin(uT+ph);transformed.x+=sw*uA*swing*uLeg*.9;transformed.y+=max(0.,cos(uT+ph))*uA*.35*swing*swing*uLeg;`)};return m},
+  model(key,img,faceLeft,len){let M=H3D.models.get(key);if(M)return M;const T=H3D.T,g=H3D.inflate(img),m=H3D.mat(img);m.userData.u.uLeg.value=g.userData.hip;
+    len*=Math.min(1,.62/Math.max(.1,g.userData.h));// a tall picture (a big-headed pose) still makes a dog of normal size
+    const mesh=new T.Mesh(g,m),o=new T.Group();mesh.scale.setScalar(len);mesh.castShadow=true;mesh.receiveShadow=true;o.add(mesh);o.userData={mesh,mat:m,faceLeft,rot:null,len,geo:g};
+    const sh=new T.Mesh(new T.CircleGeometry(.5,20).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0,transparent:true,opacity:.18,depthWrite:false}));sh.scale.set(len*.8,1,len*.3);sh.position.y=.03;o.add(sh);
     M=o;H3D.models.set(key,M);H3D.group.add(M);return M},
-  hunter(){const T=H3D.T,o=new T.Group(),m=(c)=>new T.MeshLambertMaterial({color:c});
-    const add=(geo,mat,y)=>{const x=new T.Mesh(geo,mat);x.position.y=y;o.add(x);return x};
-    add(new T.CylinderGeometry(.09,.11,.5,8),m(0x4b4636),.25);add(new T.CylinderGeometry(.16,.13,.5,10),m(0xff7a1a),.72);add(new T.SphereGeometry(.12,12,10),m(0xd9a77c),1.09);
-    add(new T.CylinderGeometry(.14,.14,.06,12),m(0xff7a1a),1.19);const sh=add(new T.CircleGeometry(.3,16).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0,transparent:true,opacity:.3,depthWrite:false}),.03);
+  // you: boots, camo, a blaze-orange vest and cap, one hand out holding the leash
+  hunter(){const T=H3D.T,o=new T.Group(),m=c=>new T.MeshStandardMaterial({color:c,roughness:.9});
+    const add=(geo,mat,x,y,z,rx=0)=>{const q=new T.Mesh(geo,mat);q.position.set(x,y,z);q.rotation.x=rx;q.castShadow=true;o.add(q);return q};
+    const camo=m(0x5b5a3a),vest=m(0xff5a0a),skin=m(0xc98f68),boot=m(0x2b2118);
+    for(const s of[-1,1]){add(new T.CylinderGeometry(.055,.05,.46,8),camo,s*.065,.3,0);add(new T.BoxGeometry(.09,.07,.16),boot,s*.065,.04,.03)}
+    add(new T.CylinderGeometry(.14,.12,.42,12),camo,0,.72,0);add(new T.CylinderGeometry(.152,.132,.3,12),vest,0,.76,0);
+    add(new T.CylinderGeometry(.038,.034,.4,8),camo,.18,.74,0,.12);add(new T.CylinderGeometry(.038,.034,.4,8),camo,-.17,.8,.12,-1.05);add(new T.SphereGeometry(.035,8,6),skin,-.17,.72,.3);
+    add(new T.SphereGeometry(.095,14,12),skin,0,1.04,0);add(new T.CylinderGeometry(.1,.1,.07,14),vest,0,1.12,0);add(new T.BoxGeometry(.13,.015,.1),vest,0,1.09,.1);
     o.scale.setScalar(H3D.SC*1.1);H3D.group.add(o);return o},
   place(o,x,y,hd,faceLeft,moving,t,off){o.position.set(x,H3D.hgt(x,y),y);const want=faceLeft?Math.PI-hd:-hd;const u=o.userData;
     if(u.rot===null)u.rot=want;else{let d=want-u.rot;d=Math.atan2(Math.sin(d),Math.cos(d));u.rot+=d*.2}o.rotation.y=u.rot;
-    if(u.mat){const U=u.mat.userData.u;U.uT.value=t*9+off;U.uA.value+=((moving?.5:0)-U.uA.value)*.15;u.mesh.position.y=moving?Math.abs(Math.sin(t*9+off))*.03:0}o.visible=true},
+    if(u.mat){const U=u.mat.userData.u;U.uT.value=t*9+off;U.uA.value+=((moving?.55:0)-U.uA.value)*.15;u.mesh.position.y=moving?Math.abs(Math.sin(t*9+off))*.025:0}o.visible=true},
   label(txt,x,y,h,col){const T=H3D.T,v=new T.Vector3(x,H3D.hgt(x,y)+h,y).project(H3D.cam);if(v.z>1||Math.abs(v.x)>1.1||Math.abs(v.y)>1.1)return'';
     const W=H3D.R.domElement.clientWidth,Hh=H3D.R.domElement.clientHeight;return `<div style="position:absolute;left:${clamp((v.x+1)/2*W,55,W-55)}px;top:${(1-v.y)/2*Hh}px;transform:translate(-50%,-100%);font:600 11px system-ui;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;border-bottom:2px solid ${col}">${txt}</div>`},
+  // a leash from your hand to the dog's collar, hanging a little slack
+  leash(from,o){const T=H3D.T,u=o.userData,n=u.geo.userData.neck,to=o.localToWorld(new T.Vector3(n.x*u.len,n.y*u.len+u.mesh.position.y,0)),L=from.distanceTo(to),pts=[];
+    for(let i=0;i<=10;i++){const k=i/10,p=from.clone().lerp(to,k);p.y-=Math.sin(k*Math.PI)*L*.09;pts.push(p)}
+    const m=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,.009,5,false),H3D.leashMat);m.castShadow=true;H3D.group.add(m);H3D.leashes.push(m)},
   frame(){const S2=UI.hunt&&UI.hunt.sim;if(!H3D.on||!S2||!H3D.attach())return false;const T=H3D.T,R=H3D.R,cv=R.domElement,W=cv.clientWidth,Hh=cv.clientHeight;if(!W||!Hh)return true;
     if(cv.width!==Math.round(W*R.getPixelRatio())||cv.height!==Math.round(Hh*R.getPixelRatio())){R.setSize(W,Hh,false);H3D.cam.aspect=W/Hh;H3D.cam.updateProjectionMatrix()}
-    const P=S2.player,c=H3D.fp?{x:P.x,y:P.y}:HV.cam,tx=c.x,ty=c.y,th=H3D.hgt(tx,ty);if(!H3D.patchAt||Math.hypot(tx-H3D.patchAt.x,ty-H3D.patchAt.y)>H3D.PATCH*.3)H3D.patch(tx,ty);
-    const ctl=H3D.ctl;ctl.enabled=!H3D.fp;if(H3D.fp)H3D.eyes(S2,th);else{const tg=new T.Vector3(tx,th,ty);if(!H3D.placed){H3D.placed=true;ctl.target.copy(tg);H3D.cam.position.set(tx-7,th+9,ty+9)}
+    const P=S2.player,c=H3D.fp?{x:P.x,y:P.y}:HV.cam,tx=c.x,ty=c.y,th=H3D.hgt(tx,ty);if(!H3D.patchAt||Math.hypot(tx-H3D.patchAt.x,ty-H3D.patchAt.y)>H3D.PATCH*.12)H3D.patch(tx,ty);
+    const walking=P.tx!==null&&P.tx!==undefined&&Math.hypot(P.tx-P.x,P.ty-P.y)>.5;if(walking)H3D.face=Math.atan2(P.ty-P.y,P.tx-P.x);else if(H3D.fp)H3D.face=H3D.yaw;
+    const ctl=H3D.ctl;ctl.enabled=!H3D.fp;if(H3D.fp)H3D.eyes(S2,th,walking);else{const tg=new T.Vector3(tx,th,ty);if(!H3D.placed){H3D.placed=true;ctl.target.copy(tg);H3D.cam.position.set(tx-9,th+15,ty+11)}
     else{const dv=tg.clone().sub(ctl.target);H3D.cam.position.add(dv);ctl.target.copy(tg)}ctl.update()}
     const g0=H3D.hgt(H3D.cam.position.x,H3D.cam.position.z)+.6;if(H3D.cam.position.y<g0)H3D.cam.position.y=g0;
-    // light and sky: day, dusk or night
-    const night=!!(S2.night||S2.nightHog),sky=night?0x0c1424:0x9fb8c9;if(H3D.skyC!==sky){H3D.skyC=sky;H3D.scene.background=new T.Color(sky);H3D.scene.fog=new T.Fog(sky,night?12:30,night?45:H3D.PATCH*.48);
-      H3D.hemi.intensity=night?.35:1.1;H3D.sun.intensity=night?.25:1.6;H3D.sun.color.set(night?0x8fa6ff:0xfff1d6)}
-    const t=performance.now()/1000,seen=new Set(),labels=[];
+    // light and sky: day or night; the sun's shadows follow where you're looking
+    const night=!!(S2.night||S2.nightHog);if(H3D.isNight!==night){H3D.isNight=night;const hz=H3D.paintSky(night);H3D.scene.background=hz.clone();H3D.scene.fog=new T.Fog(hz.getHex(),night?10:34,night?48:H3D.PATCH*.5);
+      H3D.hemi.intensity=night?.3:1.4;H3D.sun.intensity=night?.3:2.4;H3D.sun.color.set(night?0x8fa6ff:0xfff1d6);H3D.hemi.color.set(night?0x8090c0:0xdfe8ff)}
+    H3D.sky.position.copy(H3D.cam.position);
+    const F=new T.Vector3();H3D.cam.getWorldDirection(F);const fc=H3D.cam.position.clone().addScaledVector(new T.Vector3(F.x,0,F.z).normalize(),H3D.fp?12:0);if(!H3D.fp)fc.copy(ctl.target);
+    H3D.sun.position.set(fc.x-30,fc.y+48,fc.z-18);H3D.sun.target.position.copy(fc);
+    const t=performance.now()/1000,labels=[];for(const m of H3D.leashes){H3D.group.remove(m);m.geometry.dispose()}H3D.leashes=[];
     for(const m of H3D.models.values())m.visible=false;
+    const leashed=S2.dogs.filter(x=>x.st==='leash'),pl=H3D.player;pl.visible=!H3D.fp;pl.position.set(P.x,H3D.hgt(P.x,P.y),P.y);pl.rotation.y=-H3D.face+Math.PI/2;pl.updateMatrixWorld(true);
+    // your hand: in your own view, just off the bottom right of the screen; from above, the hunter's outstretched hand
+    let hand;if(H3D.fp){const f=new T.Vector3(Math.cos(H3D.yaw),0,Math.sin(H3D.yaw)),rt=new T.Vector3(-Math.sin(H3D.yaw),0,Math.cos(H3D.yaw));hand=H3D.cam.position.clone().addScaledVector(f,1.25).addScaledVector(rt,.5).add(new T.Vector3(0,-.78,0))}
+    else hand=pl.localToWorld(new T.Vector3(-.17,.72,.32));
     for(const g of S2.dogs){const im=g.d&&SPR.dog(g.d);if(!im)continue;const key='d|'+coatKey(g.d,.2),o=H3D.model(key+'|'+g.name,im,true,H3D.SC*(isAdult(g.d)?1:.7));
-      let gx=g.x,gy=g.y,gh=g.hd||0;if(H3D.fp&&g.st==='leash'){const k=S2.dogs.filter(x=>x.st==='leash').indexOf(g),a=H3D.yaw+.28+k*.3;gx=S2.player.x+Math.cos(a)*2.6;gy=S2.player.y+Math.sin(a)*2.6;gh=H3D.yaw}
-      H3D.place(o,gx,gy,gh,true,SPR.moving(g.st)||(H3D.fp&&g.st==='leash'&&S2.player.tx!==null&&S2.player.tx!==undefined),t,(g.off||0)*1.7);labels.push(H3D.label(H3D.far(g.name,gx,gy,S2),gx,gy,H3D.SC*.8,HCOL[g.role]))}
+      let gx=g.x,gy=g.y,gh=g.hd||0,mv=SPR.moving(g.st);
+      // a dog on the leash walks just ahead of you, where you can see it
+      if(g.st==='leash'){const k=leashed.indexOf(g),a=H3D.face+(H3D.fp?.12-k*.26:.55-k*1.1),r=H3D.fp?3.4:1.8;gx=P.x+Math.cos(a)*r;gy=P.y+Math.sin(a)*r;gh=walking?H3D.face:H3D.face+(k%2?-.9:.9);mv=walking}
+      H3D.place(o,gx,gy,gh,true,mv,t,(g.off||0)*1.7);if(g.st==='leash'){o.updateMatrixWorld(true);H3D.leash(hand,o)}
+      labels.push(H3D.label(H3D.far(g.name,gx,gy,S2),gx,gy,H3D.SC*.8,HCOL[g.role]))}
     const hogs=S2.mode?[]:S2.hogs.filter(Hx=>(Hx===S2.target?Hx.rev:Hx.seen)&&!Hx.bagged&&!Hx.rabbit&&!Hx.coon&&!Hx.deer&&!['gone','caught','dead'].includes(Hx.st));
     for(const Hx of hogs){const im=SPR.hog(Hx);if(!im)continue;const o=H3D.model('h|'+(Hx.genes?Hx.id:(Hx.seed||Hx.id)),im,false,H3D.SC*(.75+Hx.w/500));
       H3D.place(o,Hx.x,Hx.y,Hx.hd||0,false,['run','wander','sneak'].includes(Hx.st),t,(Hx.seed||1)%7);labels.push(H3D.label(H3D.far(`${Hx.w} lb hog`,Hx.x,Hx.y,S2),Hx.x,Hx.y,H3D.SC*.8,HCOL.hog))}
-    const pl=H3D.player;pl.visible=!H3D.fp;pl.position.set(P.x,H3D.hgt(P.x,P.y),P.y);if(P.tx!==null&&P.tx!==undefined)pl.rotation.y=-Math.atan2(P.ty-P.y,P.tx-P.x)+Math.PI/2;if(!H3D.fp)labels.push(H3D.label('You',P.x,P.y,H3D.SC*1.05,HCOL.me));
+    if(!H3D.fp)labels.push(H3D.label('You',P.x,P.y,H3D.SC*1.05,HCOL.me));
     H3D.labels.innerHTML=labels.join('');R.render(H3D.scene,H3D.cam);return true},
   far(txt,x,y,S2){return H3D.fp?`${txt} · ${yd(Math.hypot(x-S2.player.x,y-S2.player.y))} yd`:txt},
   // the camera at your eyes; when you walk and haven't looked around for a bit, you face where you're going
-  eyes(S2,th){const P=S2.player,now=performance.now(),walking=P.tx!==null&&P.tx!==undefined&&Math.hypot(P.tx-P.x,P.ty-P.y)>.5;
+  eyes(S2,th,walking){const P=S2.player,now=performance.now();
     if(!H3D.placed){H3D.placed=true;const H=S2.target&&S2.target.rev?S2.target:null,b=S2.dogs.filter(g=>g.st!=='leash'),f=H||(b.length?{x:avg(b.map(g=>g.x)),y:avg(b.map(g=>g.y))}:null);
-      H3D.yaw=f&&Math.hypot(f.x-P.x,f.y-P.y)>1?Math.atan2(f.y-P.y,f.x-P.x):walking?Math.atan2(P.ty-P.y,P.tx-P.x):0;H3D.pitch=-.1;H3D.setFov(55)}
-    if(walking&&now-H3D.lookT>2500){let d=Math.atan2(P.ty-P.y,P.tx-P.x)-H3D.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));H3D.yaw+=d*.04;H3D.pitch+=(-.1-H3D.pitch)*.03}
+      H3D.yaw=f&&Math.hypot(f.x-P.x,f.y-P.y)>1?Math.atan2(f.y-P.y,f.x-P.x):walking?Math.atan2(P.ty-P.y,P.tx-P.x):0;H3D.pitch=-.22;H3D.setFov(55)}
+    if(walking&&now-H3D.lookT>2500){let d=Math.atan2(P.ty-P.y,P.tx-P.x)-H3D.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));H3D.yaw+=d*.04;H3D.pitch+=(-.22-H3D.pitch)*.03}
     const eye=H3D.SC*(P.mounted?1.9:1.2),bob=walking?Math.sin(now/170)*.035:0,c=H3D.cam;c.position.set(P.x,th+eye+bob,P.y);
     c.lookAt(P.x+Math.cos(H3D.yaw)*Math.cos(H3D.pitch),th+eye+bob+Math.sin(H3D.pitch),P.y+Math.sin(H3D.yaw)*Math.cos(H3D.pitch))},
   // tap the ground to walk there (a drag turns the camera instead)
@@ -9755,11 +9848,65 @@ const H3D={on:false,fp:true,yaw:0,pitch:-.12,lookT:0,ptr:new Map(),T:null,busy:f
 const H3D_ACTIONS={h3d:()=>H3D.toggle(),h3dView:()=>H3D.view()};
 {const o=huntDraw;huntDraw=function(){if(H3D.on){try{if(H3D.frame())return}catch(e){console.warn('3d',e);H3D.stop()}}return o.apply(this,arguments)}}
 {const o=huntAttach;huntAttach=function(){const r=o.apply(this,arguments);try{const z=document.querySelector('.huntwrap .landzoom');if(z&&!document.getElementById('h3dBtn'))z.insertAdjacentHTML('beforeend','<button class="btn sm ghost" id="h3dBtn" data-act="h3d" aria-label="3D view">3D</button><button class="btn sm ghost" id="h3dView" data-act="h3dView" style="display:none">🛰</button>');H3D.btn();if(H3D.on){H3D.attach()}}catch(e){}return r}}
+// ---------- COAT LINEUPS FOR EVERY BREED ----------
+// Every real breed gets its row on the Breeds tab: one dog in each of the breed's true coats, always in stock.
+// (The custom mixes from the Breeding Lab are bred, not bought, so they have no lineup.)
+Object.assign(Coat.LINEUPS,{
+ 'Beagle':{'Classic tricolor':{K:['y','y'],A:['as','as'],S:['sp','sw']},'Black blanket tricolor':{K:['y','y'],A:['as','as'],S:['sp','sp'],whiteMod:-.2},'Open tricolor':{K:['y','y'],A:['as','as'],S:['sp','sw'],whiteMod:.15},
+  'Lemon and white':{E:['e','e'],S:['sp','sw'],coatInt:.3},'Tan and white':{E:['e','e'],S:['sp','sw'],coatInt:.55},'Red and white':{E:['e','e'],S:['sp','sw'],coatInt:.85},
+  'Chocolate tricolor':{K:['y','y'],A:['as','as'],B:['b','b'],S:['sp','sw'],coatInt:.7},'Blue tick':{K:['y','y'],A:['as','as'],S:['sp','sw'],T:['T','T'],tickMod:.8},'Red tick':{E:['e','e'],S:['sp','sw'],T:['T','T']},
+  'Black and tan':{K:['y','y'],A:['at','at'],S:['sp','sw'],whiteMod:-.3}},
+ 'Redbone Coonhound':{'Deep red':{E:['e','e'],coatInt:.96},'Mahogany':{E:['e','e'],B:['B','b'],coatInt:.92},'Light red':{E:['e','e'],coatInt:.8},'Copper red':{E:['e','e'],coatInt:.88},
+  'Red, white chest':{E:['e','e'],S:['S','sp'],whiteMod:-.12,coatInt:.92},'Red, white toes':{E:['e','e'],S:['S','sp'],whiteMod:-.22,coatInt:.92},'Liver-nosed red':{E:['e','e'],B:['b','b'],coatInt:.9,eyes:'Amber'}},
+ 'Black and Tan Coonhound':{'Black and tan':{K:['y','y'],A:['at','at']},'Rich tan points':{K:['y','y'],A:['at','at'],patMod:.85},'Light tan points':{K:['y','y'],A:['at','at'],patMod:.2},
+  'Black and tan, white chest':{K:['y','y'],A:['at','at'],S:['S','sp'],whiteMod:-.14},'Liver and tan':{K:['y','y'],A:['at','at'],B:['b','b'],coatInt:.45,eyes:'Amber'},'Blue and tan':{K:['y','y'],A:['at','at'],D:['d','d']}},
+ 'American Bully':{'Black':{},'Blue':{D:['d','d']},'Fawn':{K:['y','y'],A:['ay','ay']},'Blue fawn':{K:['y','y'],A:['ay','ay'],D:['d','d']},'Red':{E:['e','e'],coatInt:.75},'Chocolate':{B:['b','b'],coatInt:.7},
+  'Lilac':{B:['b','b'],D:['d','d'],coatInt:.72},'Champagne':{E:['e','e'],B:['b','b'],coatInt:.3},'Tri-color':{K:['y','y'],A:['at','at'],S:['S','sp']},'Blue tri':{K:['y','y'],A:['at','at'],D:['d','d'],S:['S','sp']},
+  'Seal':{K:['y','y'],A:['ay','ay'],coatInt:.95},'Brindle':{K:['br','br']},'Blue brindle':{K:['br','br'],D:['d','d']},'Merle':{M:['M','m'],S:['S','sp']},
+  'Black & white':{S:['sp','sw']},'Blue & white':{D:['d','d'],S:['sp','sw']},'Piebald':{S:['sp','sp'],whiteMod:.1},'White':{S:['sw','sw'],whiteMod:.1}},
+ 'Bluetick Coonhound':{'Blue ticked':{K:['y','y'],A:['at','at'],S:['sp','sw'],T:['T','T'],tickMod:1},'Dark blue':{K:['y','y'],A:['at','at'],S:['sp','sw'],T:['T','T'],tickMod:1,whiteMod:-.2},
+  'Light ticked':{K:['y','y'],A:['at','at'],S:['sp','sw'],T:['T','t'],tickMod:.45},'Blue roan':{K:['y','y'],A:['at','at'],S:['sp','sw'],R:['R','R']},'Black saddled':{K:['y','y'],A:['as','as'],S:['sp','sw'],T:['T','T'],tickMod:.9},
+  'Blue ticked, no tan':{S:['sp','sw'],T:['T','T'],tickMod:1}},
+ 'American English Coonhound':{'Red and white ticked':{E:['e','e'],S:['sp','sw'],T:['T','T']},'Blue ticked':{K:['y','y'],A:['at','at'],S:['sp','sw'],T:['T','T'],tickMod:.9},'Tricolor':{K:['y','y'],A:['as','as'],S:['sp','sw']},
+  'Tricolor ticked':{K:['y','y'],A:['as','as'],S:['sp','sw'],T:['T','T'],tickMod:.6},'Red and white':{E:['e','e'],S:['sp','sw']},'Lemon and white':{E:['e','e'],S:['sp','sw'],coatInt:.3},'Black and white':{S:['sp','sw']}},
+ 'Labrador Retriever':{'Black':{},'Yellow':{E:['e','e'],coatInt:.35},'Fox red':{E:['e','e'],coatInt:.85},'Chocolate':{B:['b','b'],coatInt:.75},'Silver':{B:['b','b'],D:['d','d'],coatInt:.6},
+  'Charcoal':{D:['d','d']},'Champagne':{E:['e','e'],D:['d','d'],coatInt:.3},'Black, white chest':{S:['S','sp'],whiteMod:-.15}},
+ 'Mountain Cur':{'Brindle':{K:['br','br']},'Black brindle':{K:['br','br'],patMod:.82},'Black':{},'Yellow':{K:['y','y'],E:['e','e'],coatInt:.55},'Blue':{D:['d','d']},
+  'Black, white chest':{S:['S','sp'],whiteMod:-.12},'Brindle, white chest':{K:['br','br'],S:['S','sp'],whiteMod:-.12},'Black and tan':{K:['y','y'],A:['at','at']}},
+ 'Plott Hound':{'Brindle':{K:['br','br']},'Black brindle':{K:['br','br'],patMod:.82},'Tan brindle':{K:['br','br'],patMod:.3,coatInt:.5},'Blue brindle':{K:['br','br'],D:['d','d']},
+  'Buckskin':{K:['y','y'],A:['ay','ay'],coatInt:.5},'Black':{},'Brindle, white chest':{K:['br','br'],S:['S','sp'],whiteMod:-.12},'Black saddle brindle':{K:['br','br'],patMod:.6,A:['as','as']}},
+ 'Blue Lacy':{'Blue':{D:['d','d']},'Dark blue':{D:['d','d'],coatInt:.9},'Red':{E:['e','e'],coatInt:.75},'Light red':{E:['e','e'],coatInt:.45},'Tricolor':{D:['d','d'],K:['y','y'],A:['at','at']},
+  'Blue, white chest':{D:['d','d'],S:['S','sp'],whiteMod:-.12}},
+ 'Leopard Cur':{'Blue leopard':{M:['M','m'],eyes:'Glass'},'Black leopard':{M:['M','m'],merleMod:.1},'Red leopard':{M:['M','m'],B:['b','b'],coatInt:.45,eyes:'Amber'},'Leopard, tan points':{M:['M','m'],K:['y','y'],A:['at','at']},
+  'Brindle':{K:['br','br']},'Black':{},'Yellow':{K:['y','y'],E:['e','e'],coatInt:.5},'Leopard, white chest':{M:['M','m'],S:['S','sp'],whiteMod:-.12}},
+ 'Black Mouth Cur':{'Red, black mouth':{K:['y','y'],A:['ay','ay'],E:['Em','E'],coatInt:.85},'Yellow, black mouth':{K:['y','y'],A:['ay','ay'],E:['Em','E'],coatInt:.5},'Fawn':{K:['y','y'],A:['ay','ay'],E:['Em','E'],coatInt:.3},
+  'Buckskin':{K:['y','y'],A:['ay','ay'],E:['Em','E'],coatInt:.65},'Brindle':{K:['br','br'],E:['Em','E']},'Black':{K:['K','K']},'Yellow, white chest':{K:['y','y'],A:['ay','ay'],E:['Em','E'],S:['S','sp'],whiteMod:-.12,coatInt:.5}}
+});
+// ---------- CUSTOM MIX PICTURES ----------
+// A dog born as one of the custom mixes always looks like that mix's own picture: its cards and profile show the
+// picture as drawn, and the hunt map and 3D view use the same dog cut out of its background
+// (tools/breeds/cut_mix_cutouts.py). Its genes still breed on as normal; only the picture is fixed.
+const MIXPIC={CUT:{1:'/assets/mixes/cut/001.374a27d4.webp',2:'/assets/mixes/cut/002.22a64b5f.webp',3:'/assets/mixes/cut/003.1fc7213f.webp',4:'/assets/mixes/cut/004.2ab95280.webp',5:'/assets/mixes/cut/005.9d4f11ca.webp',6:'/assets/mixes/cut/006.229d2123.webp',7:'/assets/mixes/cut/007.2ded8e8a.webp',8:'/assets/mixes/cut/008.9339f914.webp',9:'/assets/mixes/cut/009.21e873a6.webp',10:'/assets/mixes/cut/010.0faf0103.webp',11:'/assets/mixes/cut/011.6b15eb66.webp',12:'/assets/mixes/cut/012.8ba861ac.webp',13:'/assets/mixes/cut/013.2bfccdb1.webp',14:'/assets/mixes/cut/014.89692fc8.webp',15:'/assets/mixes/cut/015.81726799.webp',16:'/assets/mixes/cut/016.9307920d.webp',17:'/assets/mixes/cut/017.ce5bfde5.webp',18:'/assets/mixes/cut/018.fe95e1bb.webp',19:'/assets/mixes/cut/019.b8e92098.webp',20:'/assets/mixes/cut/020.c2a5062c.webp',21:'/assets/mixes/cut/021.1e4b14ab.webp',22:'/assets/mixes/cut/022.fc8f2d35.webp',23:'/assets/mixes/cut/023.41f0591f.webp',24:'/assets/mixes/cut/024.88d95f36.webp',25:'/assets/mixes/cut/025.9c867d62.webp',26:'/assets/mixes/cut/026.b95983ed.webp',27:'/assets/mixes/cut/027.43c604f0.webp',28:'/assets/mixes/cut/028.403a282c.webp',29:'/assets/mixes/cut/029.2bb49bad.webp',30:'/assets/mixes/cut/030.45ed97fa.webp',31:'/assets/mixes/cut/031.63343523.webp',32:'/assets/mixes/cut/032.cd051c60.webp',33:'/assets/mixes/cut/033.2d68e5a4.webp',34:'/assets/mixes/cut/034.cb83b379.webp',35:'/assets/mixes/cut/035.177b2d1b.webp',36:'/assets/mixes/cut/036.4f06ec4c.webp',37:'/assets/mixes/cut/037.16ec7ae6.webp',38:'/assets/mixes/cut/038.5d5639ba.webp',39:'/assets/mixes/cut/039.8314f0ae.webp',40:'/assets/mixes/cut/040.24b12f5a.webp',41:'/assets/mixes/cut/041.2bd88b17.webp',42:'/assets/mixes/cut/042.b962ebbc.webp',43:'/assets/mixes/cut/043.a68918a1.webp',44:'/assets/mixes/cut/044.bb9009e2.webp',45:'/assets/mixes/cut/045.7a412ef4.webp',46:'/assets/mixes/cut/046.f5a9781b.webp',47:'/assets/mixes/cut/047.25e6f00d.webp',48:'/assets/mixes/cut/048.25092ec7.webp',49:'/assets/mixes/cut/049.711f40fc.webp',50:'/assets/mixes/cut/050.d30d92f1.webp',51:'/assets/mixes/cut/051.8f97bdb3.webp',52:'/assets/mixes/cut/052.7d32954d.webp',53:'/assets/mixes/cut/053.23b22183.webp',54:'/assets/mixes/cut/054.37a3300f.webp',55:'/assets/mixes/cut/055.d29c819e.webp',56:'/assets/mixes/cut/056.213232e4.webp',57:'/assets/mixes/cut/057.68a34044.webp',58:'/assets/mixes/cut/058.fd9cd881.webp',59:'/assets/mixes/cut/059.8172e14e.webp',60:'/assets/mixes/cut/060.52328367.webp',61:'/assets/mixes/cut/061.b1a2fada.webp',62:'/assets/mixes/cut/062.17108288.webp',63:'/assets/mixes/cut/063.f956549a.webp',64:'/assets/mixes/cut/064.dd8246e0.webp',65:'/assets/mixes/cut/065.445136dd.webp',66:'/assets/mixes/cut/066.b1ab3b77.webp',67:'/assets/mixes/cut/067.5b5d95a0.webp',68:'/assets/mixes/cut/068.30483f42.webp',69:'/assets/mixes/cut/069.5a2af7d8.webp',70:'/assets/mixes/cut/070.748200be.webp',71:'/assets/mixes/cut/071.95a44d3f.webp',72:'/assets/mixes/cut/072.2ccd7203.webp',73:'/assets/mixes/cut/073.dff43521.webp',74:'/assets/mixes/cut/074.09029622.webp',75:'/assets/mixes/cut/075.0a25ea2d.webp',76:'/assets/mixes/cut/076.0670dbfc.webp',77:'/assets/mixes/cut/077.6313be3b.webp',78:'/assets/mixes/cut/078.c17a879e.webp',79:'/assets/mixes/cut/079.297072cc.webp',80:'/assets/mixes/cut/080.381fdea4.webp',81:'/assets/mixes/cut/081.ea325868.webp',82:'/assets/mixes/cut/082.d2dadd34.webp',83:'/assets/mixes/cut/083.08b6f16f.webp',84:'/assets/mixes/cut/084.d0374336.webp',85:'/assets/mixes/cut/085.cc7570c8.webp',86:'/assets/mixes/cut/086.a6785f4a.webp',87:'/assets/mixes/cut/087.c4aba165.webp',88:'/assets/mixes/cut/088.f0c701e8.webp',89:'/assets/mixes/cut/089.efbc42e6.webp',90:'/assets/mixes/cut/090.4ea07ca7.webp'},img:new Map(),
+  rec(d){return d&&d.mix&&typeof MIX!=='undefined'?MIX.get(d.mix.id):null},
+  src(d){const r=MIXPIC.rec(d);return r&&r.assetPath||null},
+  cut(d){return d&&d.mix?MIXPIC.CUT[d.mix.id]||null:null},
+  // the cut-out as a canvas, loaded once; null until it's ready
+  canvas(url){const c=MIXPIC.img.get(url);if(c)return c.cv||null;const e={cv:null};MIXPIC.img.set(url,e);const im=new Image();im.crossOrigin='anonymous';
+    im.onload=()=>{const cv=document.createElement('canvas');cv.width=im.naturalWidth;cv.height=im.naturalHeight;cv.getContext('2d').drawImage(im,0,0);e.cv=cv};im.onerror=()=>MIXPIC.img.delete(url);
+    im.src=typeof assetSrc==='function'?assetSrc(url):url;return null},
+  async canvasAsync(url){for(let i=0;i<60;i++){const c=MIXPIC.canvas(url);if(c)return c;await new Promise(r=>setTimeout(r,100))}return null}
+};
+{const o=dogArt;dogArt=function(d,w=120){const s=MIXPIC.src(d);if(!s)return o.apply(this,arguments);const pw=Math.round(w*(.72+.28*pupStage(d)/6));
+  return `<img class="mixpic" src="${typeof assetSrc==='function'?assetSrc(s):s}" width="${w}" height="${Math.round(w*224/300)}" alt="${esc(d.name)}, ${esc(d.mix.name||breedName(d))}" style="display:block;width:${pw}px;max-width:100%;height:auto;aspect-ratio:300/224;margin:0 auto;border-radius:6px">`}}
+{const o=SPR.dog;SPR.dog=function(d){const u=MIXPIC.cut(d);return u?MIXPIC.canvas(u):o.apply(this,arguments)}}
+{const o=SHARE.art;SHARE.art=async function(kind,o2){if(kind==='dog'){const u=MIXPIC.cut(o2);if(u){const c=await MIXPIC.canvasAsync(u);if(c)return c}}return o.apply(this,arguments)}}
 Object.assign(A,H3D_ACTIONS,PK_ACTIONS,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
   ensureFeaturedBreed('Gordon Setter');if(!S.seenGordon){S.seenGordon=true;addLog('New breed: Gordon Setters are in the Market and the Breeds tab.');setTimeout(()=>toast('New breed: Gordon Setters are in the Market!'),600)}save()}catch(e){console.error('gordon',e)}
+// every breed with coats but no lineup yet (older saves) gets its row on the Breeds tab
+try{if(!S.lineups)S.lineups={};for(const b of Object.keys(Coat.LINEUPS))if(BREEDS[b]&&!S.lineups[b])S.lineups[b]=Object.keys(Coat.LINEUPS[b]).map(n=>makeLineupDog(b,n));save()}catch(e){console.error('lineups',e)}
 try{purgeLegendShops()}catch(e){console.error('legend shops',e)}
 applyTheme();render();
 try{LD.boot()}catch(e){try{LD.done()}catch(_){}}
