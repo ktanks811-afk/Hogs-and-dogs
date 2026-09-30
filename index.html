@@ -9618,7 +9618,124 @@ const PK_ACTIONS={pkSave:()=>{const n=prompt('Name this pack','');if(n===null)re
 {const o=SCREENS.more;SCREENS.more=function(){return o.apply(this,arguments).replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="hunt"><div class="tileic">🐺</div><b>Hunting packs</b><div class="small muted">${PK.all().length} pack${PK.all().length===1?'':'s'}: dogs that hunt together bond</div></button>`)}}
 // the dog's profile: its packs
 {const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const P=PK.ofDog(id),b=P.length&&document.querySelector('#sheetInner .dcard');if(b)b.insertAdjacentHTML('afterend',`<div class="small" style="margin:8px 0 2px"><b>Pack:</b> ${P.map(p=>`<a href="#" data-act="pkView" data-id="${p.id}">${esc(p.name)}</a> <span class="muted">(bond ${p.bond}, ${PK.level(p.bond)[1]})</span>`).join(' · ')}</div>`)}catch(e){}return r}}
-Object.assign(A,PK_ACTIONS,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- 3D HUNT MAP (test) ----------
+// A test of a real 3D hunt map. A "3D" button on the hunt map swaps the flat map for a 3D view of the same
+// world: the ground's real hills and hollows, creeks and ponds, trees and brush, with the dogs and hogs as
+// 3D models made from their own pictures (each picture's outline is puffed out into a rounded body, so every
+// breed, mix and coat looks like itself). The hunt itself doesn't change; this only draws it another way.
+const H3D={on:false,T:null,busy:false,err:null,SC:1.5,EX:1.6,PATCH:176,models:new Map(),
+  // world height in tiles (the sim works in 5-yard tiles; hwE is feet)
+  hgt(x,y){return hwE(x,y)/15*H3D.EX},
+  async load(){if(H3D.T)return H3D.T;const base='./assets/3d/three-0.160.0/';
+    const[T,OC]=await Promise.all([import(base+'three.module.min.js'),import(base+'OrbitControls.js')]);H3D.OC=OC.OrbitControls;H3D.T=T;return T},
+  toggle(){if(H3D.on){H3D.stop();return}H3D.busy=true;huntHud&&H3D.btn();
+    H3D.load().then(()=>{H3D.busy=false;H3D.start();H3D.on=true;H3D.btn()}).catch(e=>{H3D.busy=false;H3D.err=e;console.warn('3d',e);toast('3D view could not load on this device.');H3D.btn()})},
+  btn(){const b=document.getElementById('h3dBtn');if(b){b.textContent=H3D.busy?'…':H3D.on?'2D':'3D';b.classList.toggle('ghost',!H3D.on)}},
+  start(){const T=H3D.T;if(!H3D.R){const R=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+      R.domElement.id='h3dcv';R.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none';
+      const sc=new T.Scene(),cam=new T.PerspectiveCamera(50,1,.05,400);H3D.R=R;H3D.scene=sc;H3D.cam=cam;
+      H3D.hemi=new T.HemisphereLight(0xdfe8ff,0x3a3020,1.1);sc.add(H3D.hemi);H3D.sun=new T.DirectionalLight(0xfff1d6,1.6);H3D.sun.position.set(-40,60,-25);sc.add(H3D.sun);
+      H3D.ctl=new H3D.OC(cam,R.domElement);Object.assign(H3D.ctl,{enableDamping:true,dampingFactor:.12,minDistance:1.5,maxDistance:70,maxPolarAngle:1.38,enablePan:false});
+      H3D.group=new T.Group();sc.add(H3D.group);H3D.labels=document.createElement('div');H3D.labels.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';
+      R.domElement.addEventListener('pointerdown',e=>{H3D.down={x:e.clientX,y:e.clientY,t:performance.now()}});R.domElement.addEventListener('pointerup',H3D.tap);
+      H3D.player=H3D.hunter()}
+    H3D.patchAt=null;H3D.placed=false;H3D.attach()},
+  stop(){H3D.on=false;const c=document.getElementById('h3dcv');if(c)c.remove();if(H3D.labels)H3D.labels.remove();H3D.btn();if(HV.cv)huntDraw()},
+  attach(){const w=document.querySelector('.huntwrap');if(!w||!H3D.R)return false;if(H3D.R.domElement.parentNode!==w){w.insertBefore(H3D.R.domElement,w.querySelector('.hlegend'));w.appendChild(H3D.labels)}return true},
+  // ---- the ground: a patch of the world around the camera, rebuilt as you move ----
+  patch(cx,cy){const T=H3D.T,N=H3D.PATCH,x0=Math.round(cx-N/2),y0=Math.round(cy-N/2);H3D.patchAt={x:x0+N/2,y:y0+N/2};
+    for(const k of ['ground','water','trunks','crowns','pines','brush'])if(H3D[k]){H3D.group.remove(H3D[k]);H3D[k].geometry.dispose()}
+    const g=new T.PlaneGeometry(N,N,N,N);g.rotateX(-Math.PI/2);const p=g.attributes.position,col=new Float32Array(p.count*3),wat=[];
+    const trees=[],pines=[],brush=[],rnd=(x,y,k)=>{const s=Math.sin(x*127.1+y*311.7+k*74.7)*43758.5453;return s-Math.floor(s)};
+    for(let i=0;i<p.count;i++){const x=x0+p.getX(i)+N/2,y=y0+p.getZ(i)+N/2,t=hwT(x,y),c=(TEX[t]||TEX[0])[rnd(x,y,1)>.5?1:0],h=H3D.hgt(x,y);
+      p.setXYZ(i,x,h-(t===T_WATER?.35:0),y);const sh=.82+.18*rnd(x,y,2);const L=v=>Math.pow(v/255*sh,2.2);col[i*3]=L(c[0]);col[i*3+1]=L(c[1]);col[i*3+2]=L(c[2])}
+    for(let y=y0;y<y0+N;y++)for(let x=x0;x<x0+N;x++){const t=hwT(x,y);
+      if(t===T_WATER||t===T_FORD)wat.push(x,y);
+      else if(t===T_TREE&&rnd(x,y,3)<.7){const a=hwBias(x,y);(a[3]>.12&&rnd(x,y,4)<.75?pines:trees).push(x+rnd(x,y,5)*.8+.1,y+rnd(x,y,6)*.8+.1,.8+rnd(x,y,7)*.6)}
+      else if((t===T_BRUSH||t===T_HARD)&&rnd(x,y,8)<.55||t===T_GRASS&&rnd(x,y,9)<.03)brush.push(x+rnd(x,y,10),y+rnd(x,y,11),.5+rnd(x,y,12)*.6)}
+    g.setAttribute('color',new T.BufferAttribute(col,3));g.computeVertexNormals();
+    H3D.ground=new T.Mesh(g,new T.MeshLambertMaterial({vertexColors:true}));H3D.group.add(H3D.ground);
+    // water: one flat sheet per wet tile at its bank height
+    if(wat.length){const n=wat.length/2,wg=new T.PlaneGeometry(1,1);wg.rotateX(-Math.PI/2);const wm=new T.InstancedMesh(wg,new T.MeshPhongMaterial({color:0x2f5a66,shininess:90,transparent:true,opacity:.85}),n),M=new T.Matrix4();
+      for(let i=0;i<n;i++){const x=wat[i*2],y=wat[i*2+1];M.makeTranslation(x+.5,H3D.hgt(x+.5,y+.5)-.12,y+.5);wm.setMatrixAt(i,M)}H3D.water=wm;H3D.group.add(wm)}
+    const inst=(geo,mat,list,fn,tint=true)=>{const n=list.length/3;if(!n)return null;const m=new T.InstancedMesh(geo,mat,n),M=new T.Matrix4(),Q=new T.Quaternion(),S=new T.Vector3(),P=new T.Vector3(),C=new T.Color();
+      for(let i=0;i<n;i++){const x=list[i*3],y=list[i*3+1],s=list[i*3+2];fn(P,S,x,y,s);Q.setFromAxisAngle(new T.Vector3(0,1,0),rnd(x,y,13)*6.28);M.compose(P,Q,S);m.setMatrixAt(i,M);
+        if(tint){C.setHSL(.22+rnd(x,y,14)*.1,.45,.2+rnd(x,y,15)*.12);m.setColorAt(i,C)}}H3D.group.add(m);return m};
+    const all=trees.concat(pines),hts=(x,y)=>H3D.hgt(x,y);
+    H3D.trunks=inst(new T.CylinderGeometry(.07,.11,1,6).translate(0,.5,0),new T.MeshLambertMaterial({color:0x4a3524}),all,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.6,s*2.6,s*1.6)},false);
+    H3D.crowns=inst(new T.IcosahedronGeometry(.9,1).translate(0,2.2,0),new T.MeshLambertMaterial({color:0xffffff,flatShading:true}),trees,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.6,s*1.8,s*1.6)});
+    H3D.pines=inst(new T.ConeGeometry(.75,2.6,7).translate(0,2.3,0),new T.MeshLambertMaterial({color:0xffffff,flatShading:true}),pines,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*1.5,s*1.9,s*1.5)});
+    H3D.brush=inst(new T.IcosahedronGeometry(.32,0).translate(0,.18,0),new T.MeshLambertMaterial({color:0xffffff,flatShading:true}),brush,(P,S,x,y,s)=>{P.set(x,hts(x,y),y);S.set(s*.8,s*.55,s*.8)})},
+  // ---- a 3D body from a picture: the outline is puffed out so each part is as thick as it is tall ----
+  inflate(img){const T=H3D.T,GW=110,GH=Math.max(8,Math.round(GW*img.height/img.width)),c=document.createElement('canvas');c.width=GW;c.height=GH;
+    const cx=c.getContext('2d');cx.drawImage(img,0,0,GW,GH);const a=cx.getImageData(0,0,GW,GH).data,IN=new Uint8Array(GW*GH);for(let i=0;i<GW*GH;i++)IN[i]=a[i*4+3]>90?1:0;
+    // distance to the outline, then the local "radius" of each part (how fat the leg, neck or body is there)
+    const d=new Float32Array(GW*GH);for(let i=0;i<GW*GH;i++)d[i]=IN[i]?1e4:0;
+    for(let pass=0;pass<2;pass++)for(let k=0;k<GW*GH;k++){const i=pass?GW*GH-1-k:k,x=i%GW,y=(i/GW)|0,s=pass?1:-1;if(!IN[i])continue;
+      const n=[[s,0,1],[0,s,1],[s,s,1.414],[-s,s,1.414]];for(const[dx,dy,w]of n){const X=x+dx,Y=y+dy,v=X<0||Y<0||X>=GW||Y>=GH?0:d[Y*GW+X];if(v+w<d[i])d[i]=v+w}}
+    const Rl=new Float32Array(GW*GH),r=5;for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(!IN[i])continue;let m=d[i];
+      for(let yy=Math.max(0,y-r);yy<=Math.min(GH-1,y+r);yy++)for(let xx=Math.max(0,x-r);xx<=Math.min(GW-1,x+r);xx++){const j=yy*GW+xx;if(IN[j]&&d[j]>m&&Math.hypot(xx-x,yy-y)<=d[j])m=d[j]}Rl[i]=m}
+    const pos=[],uv=[],idx=[],id=new Int32Array(GW*GH).fill(-1),sc=1/GW;let maxY=0;
+    for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(!IN[i])continue;const R=Rl[i],dd=Math.max(0,Math.min(d[i],R)-.85),z=Math.sqrt(Math.max(0,2*R*dd-dd*dd))*.85*sc;
+      id[i]=pos.length/3;pos.push((x+.5)*sc-.5,(GH-y-.5)*sc,z,(x+.5)*sc-.5,(GH-y-.5)*sc,-z);uv.push((x+.5)/GW,1-(y+.5)/GH,(x+.5)/GW,1-(y+.5)/GH);maxY=Math.max(maxY,GH-y)}
+    const edges=new Map(),tri=(a,b,c)=>{idx.push(a,b,c,c+1,b+1,a+1);for(const[p,q]of[[a,b],[b,c],[c,a]]){const k=p<q?p+','+q:q+','+p;const e=edges.get(k);e?e.n++:edges.set(k,{n:1,p,q})}};
+    for(let y=0;y<GH-1;y++)for(let x=0;x<GW-1;x++){const A=id[y*GW+x],B=id[y*GW+x+1],C=id[(y+1)*GW+x],D=id[(y+1)*GW+x+1];
+      if(A>=0&&B>=0&&C>=0&&D>=0){tri(A,C,B);tri(B,C,D)}else if(A>=0&&B>=0&&C>=0)tri(A,C,B);else if(A>=0&&B>=0&&D>=0)tri(A,D,B);else if(A>=0&&C>=0&&D>=0)tri(A,C,D);else if(B>=0&&C>=0&&D>=0)tri(B,C,D)}
+    // each point is a front/back pair (front i, back i+1); close the rim between them
+    for(const e of edges.values())if(e.n===1){const f1=e.p,f2=e.q;idx.push(f1,f2,f2+1,f1,f2+1,f1+1)}
+    {const nb=new Map(),add=(a,b)=>{(nb.get(a)||nb.set(a,new Set()).get(a)).add(b)};const nT=idx.length;for(let k=0;k<nT;k+=6){const[a,b,c]=[idx[k],idx[k+1],idx[k+2]];if(a%2||b%2||c%2)continue;add(a,b);add(b,a);add(b,c);add(c,b);add(a,c);add(c,a)}
+      for(let it=0;it<3;it++){const nx=pos.slice();for(const[v,s]of nb){let x=0,y=0;for(const u of s){x+=pos[u*3];y+=pos[u*3+1]}x/=s.size;y/=s.size;for(const w of[v,v+1]){nx[w*3]=pos[w*3]*.5+x*.5;nx[w*3+1]=pos[w*3+1]*.5+y*.5}}for(let k=0;k<pos.length;k++)pos[k]=nx[k]}}
+    let minY=1e9;for(let i=1;i<pos.length;i+=3)minY=Math.min(minY,pos[i]);for(let i=1;i<pos.length;i+=3)pos[i]-=minY;
+    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
+    g.userData.h=(maxY*sc)-minY;return g},
+  // legs swing when it moves: vertices low on the body sway fore and aft, front and back pairs out of step
+  mat(img){const T=H3D.T,tex=new T.CanvasTexture(img);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;
+    const m=new T.MeshLambertMaterial({map:tex,side:T.DoubleSide,alphaTest:.3});m.userData.u={uT:{value:0},uA:{value:0},uLeg:{value:.3}};
+    m.onBeforeCompile=s=>{Object.assign(s.uniforms,m.userData.u);s.vertexShader='uniform float uT;uniform float uA;uniform float uLeg;\n'+s.vertexShader.replace('#include <begin_vertex>',
+      `#include <begin_vertex>\nfloat lf=clamp((uLeg-position.y)/uLeg,0.,1.);float ph=position.x<0.?0.:3.1416;transformed.x+=sin(uT+ph)*uA*lf*uLeg;transformed.y+=abs(cos(uT+ph))*uA*.15*lf*uLeg;`)};return m},
+  model(key,img,faceLeft,len){let M=H3D.models.get(key);if(M)return M;const T=H3D.T,g=H3D.inflate(img),m=H3D.mat(img);m.userData.u.uLeg.value=g.userData.h*.42;
+    const mesh=new T.Mesh(g,m),o=new T.Group();mesh.scale.setScalar(len);o.add(mesh);o.userData={mesh,mat:m,faceLeft,rot:null};
+    const sh=new T.Mesh(new T.CircleGeometry(.5,16).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0,transparent:true,opacity:.3,depthWrite:false}));sh.scale.set(len*.9,1,len*.35);sh.position.y=.03;o.add(sh);
+    M=o;H3D.models.set(key,M);H3D.group.add(M);return M},
+  hunter(){const T=H3D.T,o=new T.Group(),m=(c)=>new T.MeshLambertMaterial({color:c});
+    const add=(geo,mat,y)=>{const x=new T.Mesh(geo,mat);x.position.y=y;o.add(x);return x};
+    add(new T.CylinderGeometry(.09,.11,.5,8),m(0x4b4636),.25);add(new T.CylinderGeometry(.16,.13,.5,10),m(0xff7a1a),.72);add(new T.SphereGeometry(.12,12,10),m(0xd9a77c),1.09);
+    add(new T.CylinderGeometry(.14,.14,.06,12),m(0xff7a1a),1.19);const sh=add(new T.CircleGeometry(.3,16).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0,transparent:true,opacity:.3,depthWrite:false}),.03);
+    o.scale.setScalar(H3D.SC*1.1);H3D.group.add(o);return o},
+  place(o,x,y,hd,faceLeft,moving,t,off){o.position.set(x,H3D.hgt(x,y),y);const want=faceLeft?Math.PI-hd:-hd;const u=o.userData;
+    if(u.rot===null)u.rot=want;else{let d=want-u.rot;d=Math.atan2(Math.sin(d),Math.cos(d));u.rot+=d*.2}o.rotation.y=u.rot;
+    if(u.mat){const U=u.mat.userData.u;U.uT.value=t*9+off;U.uA.value+=((moving?.5:0)-U.uA.value)*.15;u.mesh.position.y=moving?Math.abs(Math.sin(t*9+off))*.03:0}o.visible=true},
+  label(txt,x,y,h,col){const T=H3D.T,v=new T.Vector3(x,H3D.hgt(x,y)+h,y).project(H3D.cam);if(v.z>1||Math.abs(v.x)>1.1||Math.abs(v.y)>1.1)return'';
+    const W=H3D.R.domElement.clientWidth,Hh=H3D.R.domElement.clientHeight;return `<div style="position:absolute;left:${(v.x+1)/2*W}px;top:${(1-v.y)/2*Hh}px;transform:translate(-50%,-100%);font:600 11px system-ui;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;border-bottom:2px solid ${col}">${txt}</div>`},
+  frame(){const S2=UI.hunt&&UI.hunt.sim;if(!H3D.on||!S2||!H3D.attach())return false;const T=H3D.T,R=H3D.R,cv=R.domElement,W=cv.clientWidth,Hh=cv.clientHeight;if(!W||!Hh)return true;
+    if(cv.width!==Math.round(W*R.getPixelRatio())||cv.height!==Math.round(Hh*R.getPixelRatio())){R.setSize(W,Hh,false);H3D.cam.aspect=W/Hh;H3D.cam.updateProjectionMatrix()}
+    const c=HV.cam,tx=c.x,ty=c.y,th=H3D.hgt(tx,ty);if(!H3D.patchAt||Math.hypot(tx-H3D.patchAt.x,ty-H3D.patchAt.y)>H3D.PATCH*.3)H3D.patch(tx,ty);
+    const ctl=H3D.ctl,tg=new T.Vector3(tx,th,ty);if(!H3D.placed){H3D.placed=true;ctl.target.copy(tg);H3D.cam.position.set(tx-7,th+9,ty+9)}
+    else{const dv=tg.clone().sub(ctl.target);H3D.cam.position.add(dv);ctl.target.copy(tg)}ctl.update();
+    const g0=H3D.hgt(H3D.cam.position.x,H3D.cam.position.z)+.6;if(H3D.cam.position.y<g0)H3D.cam.position.y=g0;
+    // light and sky: day, dusk or night
+    const night=!!(S2.night||S2.nightHog),sky=night?0x0c1424:0x9fb8c9;if(H3D.skyC!==sky){H3D.skyC=sky;H3D.scene.background=new T.Color(sky);H3D.scene.fog=new T.Fog(sky,night?12:30,night?45:H3D.PATCH*.48);
+      H3D.hemi.intensity=night?.35:1.1;H3D.sun.intensity=night?.25:1.6;H3D.sun.color.set(night?0x8fa6ff:0xfff1d6)}
+    const t=performance.now()/1000,seen=new Set(),labels=[];
+    for(const m of H3D.models.values())m.visible=false;
+    for(const g of S2.dogs){const im=g.d&&SPR.dog(g.d);if(!im)continue;const key='d|'+coatKey(g.d,.2),o=H3D.model(key+'|'+g.name,im,true,H3D.SC*(isAdult(g.d)?1:.7));
+      H3D.place(o,g.x,g.y,g.hd||0,true,SPR.moving(g.st),t,(g.off||0)*1.7);labels.push(H3D.label(g.name,g.x,g.y,H3D.SC*.8,HCOL[g.role]))}
+    const hogs=S2.mode?[]:S2.hogs.filter(Hx=>(Hx===S2.target?Hx.rev:Hx.seen)&&!Hx.bagged&&!Hx.rabbit&&!Hx.coon&&!Hx.deer&&!['gone','caught','dead'].includes(Hx.st));
+    for(const Hx of hogs){const im=SPR.hog(Hx);if(!im)continue;const o=H3D.model('h|'+(Hx.genes?Hx.id:(Hx.seed||Hx.id)),im,false,H3D.SC*(.75+Hx.w/500));
+      H3D.place(o,Hx.x,Hx.y,Hx.hd||0,false,['run','wander','sneak'].includes(Hx.st),t,(Hx.seed||1)%7);labels.push(H3D.label(`${Hx.w} lb`,Hx.x,Hx.y,H3D.SC*.8,HCOL.hog))}
+    const P=S2.player,pl=H3D.player;pl.position.set(P.x,H3D.hgt(P.x,P.y),P.y);if(P.tx!==null&&P.tx!==undefined)pl.rotation.y=-Math.atan2(P.ty-P.y,P.tx-P.x)+Math.PI/2;labels.push(H3D.label('You',P.x,P.y,H3D.SC*1.05,HCOL.me));
+    H3D.labels.innerHTML=labels.join('');R.render(H3D.scene,H3D.cam);return true},
+  // tap the ground to walk there (a drag turns the camera instead)
+  tap(e){const d=H3D.down;H3D.down=null;if(!d||Math.hypot(e.clientX-d.x,e.clientY-d.y)>8||performance.now()-d.t>500)return;const T=H3D.T,S2=UI.hunt&&UI.hunt.sim;if(!S2||!H3D.ground)return;
+    const r=H3D.R.domElement.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),H3D.cam);
+    const hit=ray.intersectObject(H3D.ground)[0];if(!hit)return;const P=S2.player;
+    if(HV.castMode){HV.castMode=false;CMD.cast(S2,hit.point.x,hit.point.z);const cb=document.getElementById('cmdCast');if(cb){cb.classList.add('ghost');cb.textContent='📣 Cast here'}return}
+    P.tx=clamp(hit.point.x,2,HW.N-3);P.ty=clamp(hit.point.z,2,HW.N-3);if(HV.follow==='walk')HV.follow='me';huntHud(true)}
+};
+const H3D_ACTIONS={h3d:()=>H3D.toggle()};
+{const o=huntDraw;huntDraw=function(){if(H3D.on){try{if(H3D.frame())return}catch(e){console.warn('3d',e);H3D.stop()}}return o.apply(this,arguments)}}
+{const o=huntAttach;huntAttach=function(){const r=o.apply(this,arguments);try{const z=document.querySelector('.huntwrap .landzoom');if(z&&!document.getElementById('h3dBtn'))z.insertAdjacentHTML('beforeend','<button class="btn sm ghost" id="h3dBtn" data-act="h3d" aria-label="3D view (test)">3D</button>');H3D.btn();if(H3D.on){H3D.attach()}}catch(e){}return r}}
+Object.assign(A,H3D_ACTIONS,PK_ACTIONS,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
