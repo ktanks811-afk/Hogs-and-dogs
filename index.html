@@ -4864,8 +4864,8 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.14.0';
-const PATCH_NOTES=[{v:'2.14.0',title:'Hunting packs',items:[
+const GAME_VERSION='2.15.0';
+const PATCH_NOTES=[{v:'2.15.0',title:'3D hunting',items:['<b>See the hunt in 3D</b>: tap <b>3D</b> on the hunt map to stand in the woods yourself. The real hills, creeks, ponds, trees and brush are all there.','<b>Through your own eyes</b>: drag to look around, pinch or + / − to look closer like binoculars, and tap the ground to walk there. You turn to face where you walk.','<b>Your dogs in 3D</b>: every dog and hog is built from its own picture, so every breed, mix and coat looks like itself. Their legs move as they run.','<b>How far off</b>: dogs and hogs show their names and how many yards away they are.','<b>🛰 From above</b>: switch to a view from above to see yourself and the whole race, and <b>2D</b> takes you back to the map.']},{v:'2.14.0',title:'Hunting packs',items:[
   ['Save a pack','Pick your bay and catch dogs on the Hunt tab and save them as a named pack. Load it again in one tap next time.'],
   ['Packs build a bond','Every hunt the same dogs run together builds their bond: more for bays, catches and hard fights. It goes from Strangers to Getting along, Working pack, Tight pack and Legendary pack.'],
   ['A bonded pack works as one','Pack mates honor each other’s strikes from further off, the bay holds longer, the catch dogs pull together and they cover each other so fewer get cut.'],
@@ -9618,8 +9618,8 @@ const PK_ACTIONS={pkSave:()=>{const n=prompt('Name this pack','');if(n===null)re
 {const o=SCREENS.more;SCREENS.more=function(){return o.apply(this,arguments).replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="hunt"><div class="tileic">🐺</div><b>Hunting packs</b><div class="small muted">${PK.all().length} pack${PK.all().length===1?'':'s'}: dogs that hunt together bond</div></button>`)}}
 // the dog's profile: its packs
 {const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const P=PK.ofDog(id),b=P.length&&document.querySelector('#sheetInner .dcard');if(b)b.insertAdjacentHTML('afterend',`<div class="small" style="margin:8px 0 2px"><b>Pack:</b> ${P.map(p=>`<a href="#" data-act="pkView" data-id="${p.id}">${esc(p.name)}</a> <span class="muted">(bond ${p.bond}, ${PK.level(p.bond)[1]})</span>`).join(' · ')}</div>`)}catch(e){}return r}}
-// ---------- 3D HUNT MAP (test) ----------
-// A test of a real 3D hunt map. A "3D" button on the hunt map swaps the flat map for a 3D view of the same
+// ---------- 3D HUNT MAP ----------
+// A real 3D hunt map. A "3D" button on the hunt map swaps the flat map for a 3D view of the same
 // world: the ground's real hills and hollows, creeks and ponds, trees and brush, with the dogs and hogs as
 // 3D models made from their own pictures (each picture's outline is puffed out into a rounded body, so every
 // breed, mix and coat looks like itself). The hunt itself doesn't change; this only draws it another way.
@@ -9754,7 +9754,7 @@ const H3D={on:false,fp:true,yaw:0,pitch:-.12,lookT:0,ptr:new Map(),T:null,busy:f
 };
 const H3D_ACTIONS={h3d:()=>H3D.toggle(),h3dView:()=>H3D.view()};
 {const o=huntDraw;huntDraw=function(){if(H3D.on){try{if(H3D.frame())return}catch(e){console.warn('3d',e);H3D.stop()}}return o.apply(this,arguments)}}
-{const o=huntAttach;huntAttach=function(){const r=o.apply(this,arguments);try{const z=document.querySelector('.huntwrap .landzoom');if(z&&!document.getElementById('h3dBtn'))z.insertAdjacentHTML('beforeend','<button class="btn sm ghost" id="h3dBtn" data-act="h3d" aria-label="3D view (test)">3D</button><button class="btn sm ghost" id="h3dView" data-act="h3dView" style="display:none">🛰</button>');H3D.btn();if(H3D.on){H3D.attach()}}catch(e){}return r}}
+{const o=huntAttach;huntAttach=function(){const r=o.apply(this,arguments);try{const z=document.querySelector('.huntwrap .landzoom');if(z&&!document.getElementById('h3dBtn'))z.insertAdjacentHTML('beforeend','<button class="btn sm ghost" id="h3dBtn" data-act="h3d" aria-label="3D view">3D</button><button class="btn sm ghost" id="h3dView" data-act="h3dView" style="display:none">🛰</button>');H3D.btn();if(H3D.on){H3D.attach()}}catch(e){}return r}}
 Object.assign(A,H3D_ACTIONS,PK_ACTIONS,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
