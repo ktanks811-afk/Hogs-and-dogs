@@ -4864,8 +4864,12 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.13.0';
-const PATCH_NOTES=[{v:'2.13.0',title:'The Breeding Lab',items:[
+const GAME_VERSION='2.14.0';
+const PATCH_NOTES=[{v:'2.14.0',title:'Hunting packs',items:[
+  ['Save a pack','Pick your bay and catch dogs on the Hunt tab and save them as a named pack. Load it again in one tap next time.'],
+  ['Packs build a bond','Every hunt the same dogs run together builds their bond: more for bays, catches and hard fights. It goes from Strangers to Getting along, Working pack, Tight pack and Legendary pack.'],
+  ['A bonded pack works as one','Pack mates honor each other’s strikes from further off, the bay holds longer, the catch dogs pull together and they cover each other so fewer get cut.'],
+  ['Keep them together','Swapping dogs out costs some of the bond, losing a dog costs more, and a pack that sits idle slowly loses its edge. A dog’s profile shows its pack.']]},{v:'2.13.0',title:'The Breeding Lab',items:[
   ['100 custom mixes to discover','Hog Dog, Swamp Dog, Blue Cur, Tracker, Ghost Hound, Lilac Bully, Legend Cur and 93 more. None of them are for sale: each one comes from breeding the right two breeds, and only when the pup’s own genes fit the recipe (the right coat, pattern or generation) and it beats the odds. A few need several generations of crossing.'],
   ['Genetic Discovery Book','Every custom mix you breed for the first time is added to your Discovery Book (Breed tab or More): its picture, recipe, genes and your first one. The rest stay locked until you breed them.'],
   ['Breeding Lab','Pick a sire and a dam to see genetic compatibility, likely size, speed, scent, strength and stamina ranges, coat colors, hunting role, the chance of a rare pup and which discoveries the pair could make. It never tells you exactly what you’ll get.'],
@@ -9524,7 +9528,97 @@ SCREENS.mixbook=()=>MIX.screen();
   b.insertAdjacentHTML('afterend',`<div class="panel small" style="margin:8px 0">${d.mix&&MIX.get(d.mix.id).assetPath?`<div style="float:right;width:96px;margin-left:8px">${MIX.tile(MIX.get(d.mix.id),true,96)}</div>`:''}${d.mix?`<div><b style="color:var(${MIX.RCOL[d.mix.rarity]})">${esc(d.mix.name)}</b> · ${d.mix.rarity} custom mix #${d.mix.id}${d.mix.legend?' · <b style="color:var(--r4)">Legendary variant</b>':''}</div>`:''}
     <div><b>Genetic quality:</b> ${MIX.quality(d)} · <b>Generation:</b> ${MIX.isMixed(d)?MIX.xgen(d):'purebred'+(d.gen?` (line gen ${d.gen})`:'')}</div>
     <div><b>Father:</b> ${nm(A.p[0])} · <b>Mother:</b> ${nm(A.p[1])}</div>${A.gp.some(Boolean)?`<div class="muted">Grandparents: ${A.gp.map(nm).join(', ')}</div>`:''}</div>`)}}catch(e){console.warn('mix profile',e)}return r}}
-Object.assign(A,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
+// ---------- HUNTING PACKS: a saved group of dogs that builds a bond by hunting together ----------
+// Save the bay and catch dogs you pick for a hunt as a named pack, and load it again in one tap. Every hunt the same
+// pack runs together builds its bond: more for bays, catches and hard fights, less as the bond gets high, and it fades
+// if the pack sits idle. A bonded pack works as one: pack mates honor each other's strikes from further off, the bay
+// holds longer, the catch dogs pull together and the dogs cover each other so fewer get cut. Changing a pack's dogs
+// costs some of the bond; losing a dog costs more. Packs only count when exactly their dogs hunt together.
+const PK={
+  LEVELS:[[0,'Strangers','Just put together. No bonus yet.'],[20,'Getting along','Pack mates honor each other’s strikes from further off.'],
+    [40,'Working pack','Honor further, and the bay holds a little longer.'],[60,'Tight pack','The bay holds longer, the catch dogs pull together, fewer dogs get cut.'],
+    [80,'Legendary pack','Full bonus: the bay holds far longer, the catch dogs are much stronger and they cover each other.']],
+  all:()=>S.packs||(S.packs=[]),
+  get:id=>PK.all().find(p=>p.id===id),
+  level(b){let L=PK.LEVELS[0];for(const x of PK.LEVELS)if(b>=x[0])L=x;return L},
+  f:p=>p?clamp(p.bond/100,0,1):0,
+  ids:p=>[...p.bay,...p.catch],
+  key:(bay,ctch)=>[...bay].sort().join(',')+'|'+[...ctch].sort().join(','),
+  // the pack these picks make up (exactly its dogs, in the same roles)
+  match(sel){const k=PK.key(sel.bay||[],sel.catch||[]);return PK.all().find(p=>PK.key(p.bay,p.catch)===k)||null},
+  // dogs that left the kennel leave the pack; the bond takes the loss
+  tidy(){for(const p of PK.all()){const was=PK.ids(p).length;p.bay=p.bay.filter(id=>S.dogs.some(d=>d.id===id));p.catch=p.catch.filter(id=>S.dogs.some(d=>d.id===id));
+    const lost=was-PK.ids(p).length;if(lost>0)p.bond=Math.round(p.bond*Math.pow(.85,lost))}},
+  save(name){const sel=UI.huntSel,ids=[...sel.bay,...sel.catch];if(ids.length<2)return toast('Pick at least two dogs for a pack.');
+    const ex=PK.match(sel);if(ex)return toast(`These dogs are already the ${ex.name}.`);
+    const p={id:'PK'+(S.nextPk=(S.nextPk||0)+1),name:(name||'').trim().slice(0,28)||`Pack ${S.nextPk}`,bay:[...sel.bay],catch:[...sel.catch],bond:0,hunts:0,bays:0,catches:0,hogs:0,made:S.day,last:S.day,log:[]};
+    PK.all().push(p);UI.packView=p.id;addLog(`Formed the ${p.name}: ${ids.map(id=>(S.dogs.find(d=>d.id===id)||{}).name).join(', ')}.`);save();render();return p},
+  // re-picking a pack's dogs keeps the share of the bond held by the dogs that stay
+  reform(p){const sel=UI.huntSel,old=new Set(PK.ids(p)),now=[...sel.bay,...sel.catch];if(now.length<2)return toast('A pack needs at least two dogs.');
+    const kept=now.filter(id=>old.has(id)).length,share=kept/Math.max(old.size,now.length);p.bond=Math.round(p.bond*share*share);p.bay=[...sel.bay];p.catch=[...sel.catch];
+    addLog(`Changed the ${p.name}. The bond is now ${p.bond}.`);save();render()},
+  load(p){PK.tidy();const ok=d=>d&&isAdult(d)&&d.health>=30;UI.huntSel.bay=p.bay.filter(id=>ok(S.dogs.find(d=>d.id===id)));UI.huntSel.catch=p.catch.filter(id=>ok(S.dogs.find(d=>d.id===id)));
+    const miss=PK.ids(p).length-UI.huntSel.bay.length-UI.huntSel.catch.length;if(miss)toast(`${miss} of the ${p.name} can’t hunt today, so they’ll run as a plain group.`);render()},
+  // ---- on the hunt ----
+  start(S2){if(!S2||S2.mode||S2.practice)return;const p=PK.match(UI.huntSel);if(!p)return;S2.pack=p.id;S2.packB0=p.bond;
+    hwEvent(S2,'packgo',`🐺 The ${p.name} hunts together (bond ${p.bond}, ${PK.level(p.bond)[1]}).`,1)},
+  cur:S2=>S2&&S2.pack?PK.get(S2.pack):null,
+  // honoring: pack mates hear and join a strike from further off
+  honor(S2,g){const p=PK.cur(S2);if(!p||g.role!=='bay'||!PK.ids(p).includes(g.id))return;const f=PK.f(p);if(f<.2)return;
+    for(const o of S2.dogs)if(o!==g&&o.role==='bay'&&PK.ids(p).includes(o.id)&&(o.st==='cast'||o.st==='recast')&&Math.hypot(o.x-g.x,o.y-g.y)<250*(.4+g.at.voice)*HWX.hear*(1+.9*f)){o.st='join';o.lead=g.id}},
+  step(S2,dt,hold0,ph,ctl0){const p=PK.cur(S2);if(!p)return;const f=PK.f(p);if(f<.4)return;const k=(f-.4)/.6;
+    // the bay wears down slower (up to 30%), the catch goes their way faster (up to 35%)
+    if(ph==='bay'&&S2.phase==='bay'&&S2.hold<hold0)S2.hold=hold0-(hold0-S2.hold)*(1-.3*k);
+    if(S2.phase==='catch'&&S2.ctl>ctl0)S2.ctl+=(S2.ctl-ctl0)*.35*k;
+    const x=S2.pkx||(S2.pkx={bay:0,ctch:0});if(S2.phase==='bay')x.bay+=dt;if(S2.phase==='catch')x.ctch+=dt},
+  cutMult(S2,g){const p=PK.cur(S2);if(!p||!PK.ids(p).includes(g.id))return 1;const f=PK.f(p);return f<.6?1:1-.3*((f-.6)/.4)},
+  // ---- after the hunt: the bond ----
+  end(S2,lines){const p=PK.cur(S2);if(!p||S2.pkDone||!Array.isArray(lines))return;S2.pkDone=1;PK.tidy();
+    const ids=PK.ids(p),dogs=S2.dogs.filter(g=>ids.includes(g.id)),bayed=dogs.some(g=>g.m&&g.m.located)||S2.phase!=='search'&&!!S2.baying,caught=!!S2.win,extra=(S2.mhExtra||[]).length,
+      fought=!!(S2.fams&&S2.fams.some(f=>f.fought)),hurt=dogs.filter(g=>g.m&&g.m.hurt).length,dead=dogs.filter(g=>g.m&&g.m.dead).length;
+    let gain=3+(bayed?3:0)+(caught?5:0)+extra*2+(fought?4:0)+hurt*1;gain*=1-p.bond/130;let loss=dead*20;
+    const b0=p.bond;p.bond=Math.round(clamp(p.bond+gain-loss,0,100));p.hunts++;if(bayed)p.bays++;if(caught)p.catches++;p.hogs+=(caught?1:0)+extra;p.last=S.day;
+    p.log.unshift({d:S.day,win:caught,b:p.bond-b0,why:caught?'caught':bayed?'bayed':'no hog'});p.log.length=Math.min(p.log.length,8);
+    const L0=PK.level(b0),L1=PK.level(p.bond);
+    lines.push(`🐺 ${p.name}: bond ${b0} → ${p.bond} (${L1[1]}).${L1[0]>L0[0]?` The pack reached ${L1[1]}: ${L1[2]}`:''}${dead?' Losing a pack mate hit them hard.':''}`);
+    if(L1[0]>L0[0])addLog(`The ${p.name} reached ${L1[1]}.`)},
+  // an idle pack slowly loses its edge
+  daily(){for(const p of PK.all())if(S.day-(p.last||0)>5&&p.bond>0){p.bond=Math.max(0,Math.round((p.bond-.5)*10)/10)}},
+  // ---- the hunt screen ----
+  panel(){PK.tidy();const L=PK.all(),m=PK.match(UI.huntSel),n=UI.huntSel.bay.length+UI.huntSel.catch.length,nm=id=>esc((S.dogs.find(d=>d.id===id)||{}).name||'?');
+    const meter=b=>`<div style="height:7px;border-radius:4px;background:#0006;overflow:hidden;margin:4px 0"><div style="width:${b}%;height:100%;background:linear-gradient(90deg,var(--blaze2),var(--blaze),var(--gold))"></div></div>`;
+    return`<h3>Hunting packs <span class="small muted">dogs that hunt together bond</span></h3>
+      ${m?`<div class="panel small" style="border-color:var(--blaze);margin-bottom:8px"><div class="spread"><b>🐺 ${esc(m.name)}</b><span>${PK.level(m.bond)[1]}</span></div>${meter(m.bond)}<div class="muted">Bond ${m.bond}/100 · ${m.hunts} hunts together · ${PK.level(m.bond)[2]}</div></div>`
+        :n>=2?`<div class="panel small spread" style="margin-bottom:8px"><span class="muted">These dogs aren’t a pack yet. Save them to start building a bond.</span><button class="btn sm" data-act="pkSave">Save as pack</button></div>`:''}
+      ${L.length?`<div class="grid" style="grid-template-columns:1fr;gap:6px">${L.map(p=>`<div class="panel small" style="padding:8px 10px${m&&m.id===p.id?';opacity:.6':''}"><div class="spread"><b>${esc(p.name)}</b><span class="muted">${PK.level(p.bond)[1]} · ${p.bond}</span></div>${meter(p.bond)}
+        <div class="muted">Bay: ${p.bay.map(nm).join(', ')||'—'} · Catch: ${p.catch.map(nm).join(', ')||'—'}</div>
+        <div class="row" style="gap:6px;margin-top:6px"><button class="btn sm${m&&m.id===p.id?' ghost':''}" data-act="pkLoad" data-id="${p.id}" ${m&&m.id===p.id?'disabled':''}>${m&&m.id===p.id?'Picked':'Hunt with this pack'}</button><button class="btn sm ghost" data-act="pkView" data-id="${p.id}">Details</button>${!m&&n>=2?`<button class="btn sm ghost" data-act="pkReform" data-id="${p.id}">Swap in picked dogs</button>`:''}</div></div>`).join('')}</div>`
+        :`<p class="small muted">Pick your bay and catch dogs, then save them as a pack.</p>`}`},
+  view(id){const p=PK.get(id);if(!p)return;PK.tidy();const L=PK.level(p.bond),dogs=PK.ids(p).map(i=>S.dogs.find(d=>d.id===i)).filter(Boolean);
+    openSheet(`<div class="small muted">Formed day ${p.made}</div><h2>🐺 ${esc(p.name)}</h2>
+      <div class="panel small"><div class="spread"><b>${L[1]}</b><span>Bond ${p.bond}/100</span></div><div style="height:9px;border-radius:5px;background:#0006;overflow:hidden;margin:6px 0"><div style="width:${p.bond}%;height:100%;background:linear-gradient(90deg,var(--blaze2),var(--blaze),var(--gold))"></div></div><div class="muted">${L[2]}</div></div>
+      <h3>The dogs</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${dogs.map(d=>`<button class="panel" style="padding:6px;text-align:left" data-act="dog" data-id="${d.id}"><div>${dogArt(d,110)}</div><div class="small"><b>${esc(d.name)}</b><div class="muted">${p.bay.includes(d.id)?'Bay':'Catch'} · ${esc(breedName(d))}</div></div></button>`).join('')}</div>
+      <h3>Record</h3><div class="panel small">${p.hunts} hunts together · ${p.bays} bays · ${p.catches} catches · ${p.hogs} hogs${p.log.length?`<div class="muted" style="margin-top:4px">${p.log.map(e=>`Day ${e.d}: ${e.why} (${e.b>=0?'+':''}${e.b})`).join(' · ')}</div>`:''}</div>
+      <h3>How the bond works</h3><div class="panel small">${PK.LEVELS.map(x=>`<div${p.bond>=x[0]?'':' class="muted"'}><b>${x[0]}+ ${x[1]}</b>: ${x[2]}</div>`).join('')}<div class="muted" style="margin-top:6px">Bond grows every hunt these exact dogs run together (more for bays, catches and hard fights), fades if they sit idle, and drops if you swap dogs out or lose one.</div></div>
+      <div class="row" style="gap:8px;margin-top:10px"><button class="btn" data-act="pkLoad" data-id="${p.id}" data-go="1">Hunt with this pack</button><button class="btn ghost" data-act="pkRename" data-id="${p.id}">Rename</button><button class="btn ghost" data-act="pkDel" data-id="${p.id}">Break up</button></div>`)},
+  ofDog:id=>PK.all().filter(p=>PK.ids(p).includes(id))
+};
+const PK_ACTIONS={pkSave:()=>{const n=prompt('Name this pack','');if(n===null)return;PK.save(n)},pkLoad:d=>{const p=PK.get(d.id);if(!p)return;if(d.go){closeSheet();UI.tab='hunt';UI.hunt=null}PK.load(p)},
+  pkView:d=>PK.view(d.id),pkReform:d=>{const p=PK.get(d.id);if(p&&confirm(`Make the ${p.name} the dogs you've picked? Dogs that stay keep their share of the bond.`))PK.reform(p)},
+  pkRename:d=>{const p=PK.get(d.id);if(!p)return;const n=prompt('New name',p.name);if(n&&n.trim()){p.name=n.trim().slice(0,28);save();PK.view(p.id);render()}},
+  pkDel:d=>{const p=PK.get(d.id);if(p&&confirm(`Break up the ${p.name}? The bond is lost.`)){S.packs=PK.all().filter(x=>x!==p);closeSheet();save();render()}}};
+// wiring: the hunt screen, the start, the sim, the end, the day
+{const o=SCREENS.hunt;SCREENS.hunt=function(){const h=o.apply(this,arguments);try{if(UI.hunt||UI.huntMode&&UI.huntMode!=='hog'&&UI.huntMode!=='night')return h;const i=h.indexOf('<div style="margin-top:12px"><button class="btn big" data-act="hstart"');return i<0?h:h.slice(0,i)+PK.panel()+h.slice(i)}catch(e){console.warn('pk',e);return h}}}
+{const o=huntStart;huntStart=function(){const r=o.apply(this,arguments);try{if(UI.hunt&&UI.hunt.sim)PK.start(UI.hunt.sim)}catch(e){console.warn('pk',e)}return r}}
+{const o=hwStrike;hwStrike=function(S2,g){const r=o.apply(this,arguments);try{PK.honor(S2,g)}catch(e){}return r}}
+{const o=hwStep;hwStep=function(S2,dt){const h0=S2.hold,ph=S2.phase,c0=S2.ctl;o(S2,dt);try{if(S2.pack)PK.step(S2,dt,h0,ph,c0)}catch(e){console.warn('pk',e)}}}
+{const o=HOGAI.charge;HOGAI.charge=function(S2,g,h,dt){let k=1;try{if(S2&&S2.pack)k=PK.cutMult(S2,g)}catch(e){}return o.call(this,S2,g,h,dt*k)}}
+{const o=finishHunt;finishHunt=function(win,lines){const r=o.apply(this,arguments);try{const h=UI.hunt;if(h&&h.sim&&h.sim.pack)PK.end(h.sim,h.result?h.result.lines:lines)}catch(e){console.warn('pk',e)}return r}}
+{const o=endDay;endDay=function(){try{PK.daily()}catch(e){}return o.apply(this,arguments)}}
+{const o=SCREENS.more;SCREENS.more=function(){return o.apply(this,arguments).replace('<div class="grid">',`<div class="grid"><button class="panel" style="text-align:left" data-act="tab" data-t="hunt"><div class="tileic">🐺</div><b>Hunting packs</b><div class="small muted">${PK.all().length} pack${PK.all().length===1?'':'s'}: dogs that hunt together bond</div></button>`)}}
+// the dog's profile: its packs
+{const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const P=PK.ofDog(id),b=P.length&&document.querySelector('#sheetInner .dcard');if(b)b.insertAdjacentHTML('afterend',`<div class="small" style="margin:8px 0 2px"><b>Pack:</b> ${P.map(p=>`<a href="#" data-act="pkView" data-id="${p.id}">${esc(p.name)}</a> <span class="muted">(bond ${p.bond}, ${PK.level(p.bond)[1]})</span>`).join(' · ')}</div>`)}catch(e){}return r}}
+Object.assign(A,PK_ACTIONS,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
 try{if(!S.lineups)S.lineups={};if(!S.lineups['Gordon Setter'])S.lineups['Gordon Setter']=Object.keys(Coat.LINEUPS['Gordon Setter']).map(n=>makeLineupDog('Gordon Setter',n));
