@@ -9,5 +9,5 @@ self.addEventListener('fetch',e=>{const r=e.request,u=new URL(r.url);if(r.method
   if(r.mode==='navigate'){e.respondWith(fetch(r).then(n=>{const cp=n.clone();caches.open(CACHE).then(c=>c.put('/',cp));return n}).catch(()=>caches.match('/')))}});
 // Web Push from the server (reminders, sales, trade offers, club news): shown even when the game is closed
 self.addEventListener('push',e=>{let d={};try{d=e.data?e.data.json():{}}catch(x){d={body:e.data&&e.data.text()}}
-  e.waitUntil(self.registration.showNotification(d.title||'Hogs & Dogs',{body:d.body||'',tag:d.tag||'hd',icon:'/assets/app/icon-192.png',badge:'/assets/app/icon-192.png',data:{url:'/'}}))});
+  e.waitUntil(self.registration.showNotification(d.title||'Hogs & Dogs',{body:d.body||'',tag:d.tag||'hd',icon:'/assets/ui/icon-192-7de3524268.png',badge:'/assets/app/icon-192.png',data:{url:'/'}}))});
 self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(ws=>ws.length?ws[0].focus():self.clients.openWindow('/')))});

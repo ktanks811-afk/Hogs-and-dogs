@@ -6,21 +6,21 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#120d09",
-  "theme_color": "#120d09",
+  "background_color": "#0A0A09",
+  "theme_color": "#0A0A09",
   "icons": [
     {
-      "src": "/assets/app/icon-192.png",
+      "src": "/assets/ui/icon-192-7de3524268.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/assets/app/icon-512.png",
+      "src": "/assets/ui/icon-512-91d82ec0da.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/assets/app/icon-maskable-512.png",
+      "src": "/assets/ui/icon-maskable-512-45d8d3c4bb.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -36,8 +36,8 @@
   "prefer_related_applications": false,
   "screenshots": [
     {
-      "src": "/banner.jpg",
-      "sizes": "1983x793",
+      "src": "/assets/ui/banner-9dec8fff35.jpg",
+      "sizes": "1536x1024",
       "type": "image/jpeg",
       "form_factor": "wide",
       "label": "Hogs & Dogs"
