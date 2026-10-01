@@ -1822,7 +1822,7 @@ async function sbGet(path){const r=await fetch(`${SUPA_URL}/rest/v1/${path}`,{he
 async function onlineId(){if(!S.online||!S.online.pid){const r=await sbRpc('hd_register');S.online={pid:r.id,sec:r.secret};save()}return S.online}
 const A2=async()=>{const o=await onlineId();return{p_pid:o.pid,p_sec:o.sec}};
 // dogs travel as plain JSON; incoming dogs get a fresh local registry ID
-const leanDog=d=>{const o=JSON.parse(JSON.stringify(d));delete o.price;delete o.lineup;delete o.preview;delete o.blHits;delete o.guest;return o};
+let leanDog=d=>{const o=JSON.parse(JSON.stringify(d));delete o.price;delete o.lineup;delete o.preview;delete o.blHits;delete o.guest;return o};
 function importDog(obj,from){
   const d=JSON.parse(JSON.stringify(obj));d.origId=d.origId||obj.id;d.id=newId();d.fromRanch=from||d.fromRanch||'';d.energy=100;d.cool=0;d.lastShow=0;d.lastTrial=0;
   delete d.price;delete d.lineup;delete d.viewKey;
@@ -4868,8 +4868,8 @@ const JOB_ACTIONS={jtake:d=>{JB.accept(+d.id);save();render()},jpass:d=>{JB.pass
 // =========================================================
 // VERSION AND PATCH NOTES
 // =========================================================
-const GAME_VERSION='2.18.0';
-const PATCH_NOTES=[{v:'2.18.0',title:'Fights for alpha, and passing on small hogs',items:[['Pass on a small hog','When the dogs have a hog bayed and you can see it, you can call them off if it isn\'t big enough. Tap "Too small? Call off & cast elsewhere" and the bay dogs leave it and cast out for another hog. The hog runs off and the dogs won\'t take its track back up. A dog that doesn\'t mind well may be slow to come off.'],['The alpha stamp','The top grown male in your kennel is the alpha. He wears the gold 👑 Alpha stamp on his card and profile, and hunts with a little more grit.'],['Fights for alpha','Now and then another male challenges the alpha and they fight it out in the kennel yard. The stronger, tougher, bigger dog usually wins. If the challenger wins, he takes the stamp.'],['Fights can kill','Both dogs come out torn up. Sometimes a fight goes too far and one dog dies; he is remembered on the trophy wall. Each male\'s profile shows his pack rank and the alpha fights he has won.']]},{v:'2.17.0',title:'Coyotes',items:[['Coyotes on the ranch','Some nights a pack of coyotes comes onto the ranch after your kennels. Your best grown dogs go out and fight them off. Dogs can get bitten up; with no dogs fit to fight, the coyotes may take a hog from the Hog Pin.'],['Coyotes on the hunt','Coyotes may be about while you hunt. They show as red dots on the map (and in 3D) and come for your dogs. A dog a coyote jumps is pinned until it kills it or drives it off, and packmates close by pile in to help.'],['Every kill counts','Each coyote your dogs kill is shown with its picture and weight, in the hunt results or the ranch report, and pays a $40 county bounty.']]},{v:'2.16.0',title:'Your mix dogs, for real',items:[['New breed: German Rottweiler','A big black-and-mahogany catch and guard dog, drawn from its own picture. Buy one in the Market or from its lineup on the Breeds tab, hunt it, train it and cross it with any breed.'],['The right parents make the mix','Breed the two breeds of a custom mix (like American Bully × Coonhound) and every pup is that mix (a Bully Hound), each with its own genes, size, coat and stats from both parents. Other pairings still make ordinary crosses.'],['Every mix is its own dog','All 90 custom mixes show their own whole dog, with no name or label on the picture, on their card, profile, in the Discovery Book, on the hunt map and in 3D.'],['Pups already born','Dogs born as plain crosses of a recipe’s two breeds become that mix, with the same stats and training.'],['Discovery details','The New Breed Discovered screen now shows each pup’s genetics and stats.']]},{v:'2.15.5',title:'Dogs back to 2.15.1',items:[['Rolled back','The dog changes from 2.15.2 to 2.15.4 (new eyes and coat colours, the mix sheet pictures, every cross looking like a custom mix, and recipe pairings always making their mix) have been taken out. Dogs look and breed the way they did in 2.15.1. Any dog that already became a custom mix stays one.']]},{v:'2.15.1',title:'Realistic 3D',items:[['Real-looking dogs and hogs','Every 3D dog and hog now stands on four legs set apart like the real animal, trots with its legs in step, casts a real shadow and has a smooth, lit coat with no drawn outline.'],['Catch dogs on a leash','Catch dogs you’re holding walk just ahead of you on a leash in your hand, where you can see them. From above you can see yourself holding them.'],['Finishing touches on the woods','A real sky, sunlight and shadows, textured ground with grass tufts, full leafy trees and layered pines, bushes, rocks and darker, calmer water.'],['Walk into the woods','Trees right in front of your eyes step out of the way so they never block your view.'],['Every breed on the Breeds tab','Beagle, Redbone, Black and Tan, American Bully, Bluetick, American English Coonhound, Labrador, Mountain Cur, Plott, Blue Lacy, Leopard Cur and Black Mouth Cur now each have a full coat lineup there. The custom mixes stay breed-only.'],['Custom mixes keep their own picture','A dog born as one of the custom mixes always looks like that mix’s picture on its card and profile, and the same dog runs on the hunt map and in 3D. Its body no longer changes.']]},{v:'2.15.0',title:'3D hunting',items:[['See the hunt in 3D','Tap 3D on the hunt map to stand in the woods yourself. The real hills, creeks, ponds, trees and brush are all there.'],['Through your own eyes','Drag to look around, pinch or + / − to look closer like binoculars, and tap the ground to walk there. You turn to face where you walk.'],['Your dogs in 3D','Every dog and hog is built from its own picture, so every breed, mix and coat looks like itself. Their legs move as they run.'],['How far off','Dogs and hogs show their names and how many yards away they are.'],['🛰 From above','Switch to a view from above to see yourself and the whole race, and 2D takes you back to the map.']]},{v:'2.14.0',title:'Hunting packs',items:[
+const GAME_VERSION='2.19.0';
+const PATCH_NOTES=[{v:'2.19.0',title:'The Hunting Club hub',items:[['A social feed','The Hunting Club tab is now a feed of posts from ranches across the county: hunts, trophy hunts, new litters, studs, Alpha Dogs, breeding requests, dog showcases and club announcements. Like, comment and reply, share, save, and filter by post type or by who you follow.'],['Studs','List a male at stud with a fee, availability, how many bookings at once, requirements, location and a description. His photos, genetics, bloodline, generation, hunting and breeding record come from his real record, and he stays in your kennel.'],['Breeding requests and contracts','Request another player\'s stud for your female, or offer your stud for theirs. The other side can accept, decline or counter. Once you agree, you both confirm a breeding contract with the fee, the expected litter and estimated traits. Then the female is bred and the game\'s own genetics make the pups. Nothing is guaranteed. The litter shows in both players\' breeding history.'],['Litters, Alpha Dogs and showcases','Post a new litter with every pup\'s card, and keep, sell, list or showcase each pup. Certify Alpha Dogs from their real record (hunting, ability, bloodline, genetics, achievements and breeding), and show off any dog with its bloodline tree.'],['Post your hunts','After a hunt, tap POST HUNT. The place, hog, dogs, their work, time, grade and trophy fill in by themselves; add a caption.'],['Profiles, search and safety','Every ranch has a club profile with reputation earned from its record and partnerships, plus posts, dogs, litters, studs, bloodlines, hunts and achievements. Follow ranches and clubs, message players, and search and filter dogs, studs, females, players, clubs, posts and bloodlines. Report, mute and block are built in, along with spam limits and a word filter.']]},{v:'2.18.0',title:'Fights for alpha, and passing on small hogs',items:[['Pass on a small hog','When the dogs have a hog bayed and you can see it, you can call them off if it isn\'t big enough. Tap "Too small? Call off & cast elsewhere" and the bay dogs leave it and cast out for another hog. The hog runs off and the dogs won\'t take its track back up. A dog that doesn\'t mind well may be slow to come off.'],['The alpha stamp','The top grown male in your kennel is the alpha. He wears the gold 👑 Alpha stamp on his card and profile, and hunts with a little more grit.'],['Fights for alpha','Now and then another male challenges the alpha and they fight it out in the kennel yard. The stronger, tougher, bigger dog usually wins. If the challenger wins, he takes the stamp.'],['Fights can kill','Both dogs come out torn up. Sometimes a fight goes too far and one dog dies; he is remembered on the trophy wall. Each male\'s profile shows his pack rank and the alpha fights he has won.']]},{v:'2.17.0',title:'Coyotes',items:[['Coyotes on the ranch','Some nights a pack of coyotes comes onto the ranch after your kennels. Your best grown dogs go out and fight them off. Dogs can get bitten up; with no dogs fit to fight, the coyotes may take a hog from the Hog Pin.'],['Coyotes on the hunt','Coyotes may be about while you hunt. They show as red dots on the map (and in 3D) and come for your dogs. A dog a coyote jumps is pinned until it kills it or drives it off, and packmates close by pile in to help.'],['Every kill counts','Each coyote your dogs kill is shown with its picture and weight, in the hunt results or the ranch report, and pays a $40 county bounty.']]},{v:'2.16.0',title:'Your mix dogs, for real',items:[['New breed: German Rottweiler','A big black-and-mahogany catch and guard dog, drawn from its own picture. Buy one in the Market or from its lineup on the Breeds tab, hunt it, train it and cross it with any breed.'],['The right parents make the mix','Breed the two breeds of a custom mix (like American Bully × Coonhound) and every pup is that mix (a Bully Hound), each with its own genes, size, coat and stats from both parents. Other pairings still make ordinary crosses.'],['Every mix is its own dog','All 90 custom mixes show their own whole dog, with no name or label on the picture, on their card, profile, in the Discovery Book, on the hunt map and in 3D.'],['Pups already born','Dogs born as plain crosses of a recipe’s two breeds become that mix, with the same stats and training.'],['Discovery details','The New Breed Discovered screen now shows each pup’s genetics and stats.']]},{v:'2.15.5',title:'Dogs back to 2.15.1',items:[['Rolled back','The dog changes from 2.15.2 to 2.15.4 (new eyes and coat colours, the mix sheet pictures, every cross looking like a custom mix, and recipe pairings always making their mix) have been taken out. Dogs look and breed the way they did in 2.15.1. Any dog that already became a custom mix stays one.']]},{v:'2.15.1',title:'Realistic 3D',items:[['Real-looking dogs and hogs','Every 3D dog and hog now stands on four legs set apart like the real animal, trots with its legs in step, casts a real shadow and has a smooth, lit coat with no drawn outline.'],['Catch dogs on a leash','Catch dogs you’re holding walk just ahead of you on a leash in your hand, where you can see them. From above you can see yourself holding them.'],['Finishing touches on the woods','A real sky, sunlight and shadows, textured ground with grass tufts, full leafy trees and layered pines, bushes, rocks and darker, calmer water.'],['Walk into the woods','Trees right in front of your eyes step out of the way so they never block your view.'],['Every breed on the Breeds tab','Beagle, Redbone, Black and Tan, American Bully, Bluetick, American English Coonhound, Labrador, Mountain Cur, Plott, Blue Lacy, Leopard Cur and Black Mouth Cur now each have a full coat lineup there. The custom mixes stay breed-only.'],['Custom mixes keep their own picture','A dog born as one of the custom mixes always looks like that mix’s picture on its card and profile, and the same dog runs on the hunt map and in 3D. Its body no longer changes.']]},{v:'2.15.0',title:'3D hunting',items:[['See the hunt in 3D','Tap 3D on the hunt map to stand in the woods yourself. The real hills, creeks, ponds, trees and brush are all there.'],['Through your own eyes','Drag to look around, pinch or + / − to look closer like binoculars, and tap the ground to walk there. You turn to face where you walk.'],['Your dogs in 3D','Every dog and hog is built from its own picture, so every breed, mix and coat looks like itself. Their legs move as they run.'],['How far off','Dogs and hogs show their names and how many yards away they are.'],['🛰 From above','Switch to a view from above to see yourself and the whole race, and 2D takes you back to the map.']]},{v:'2.14.0',title:'Hunting packs',items:[
   ['Save a pack','Pick your bay and catch dogs on the Hunt tab and save them as a named pack. Load it again in one tap next time.'],
   ['Packs build a bond','Every hunt the same dogs run together builds their bond: more for bays, catches and hard fights. It goes from Strangers to Getting along, Working pack, Tight pack and Legendary pack.'],
   ['A bonded pack works as one','Pack mates honor each other’s strikes from further off, the bay holds longer, the catch dogs pull together and they cover each other so fewer get cut.'],
@@ -10078,6 +10078,551 @@ Object.assign(A,{hpass:()=>PASS.go()});
 {const o=hwStep;hwStep=function(S2){const r=o.apply(this,arguments);try{PASS.guard(S2)}catch(e){console.warn('pass',e)}return r}}
 {const o=hwSniff;hwSniff=function(S2,g){const r=o.apply(this,arguments);if(r&&g.hog&&g.hog.passed){g.st='recast';g.hog=null;g.trash=false;g.ctx=g.x;g.cty=g.y;g.r=2;g.ang=R()*6.283;return false}return r}}
 {const o=finishHunt;finishHunt=function(win,lines){try{const S2=UI.hunt&&UI.hunt.sim;if(S2&&S2.passed&&S2.passed.length&&Array.isArray(lines))lines.push(`🔙 You passed on ${S2.passed.length} hog${S2.passed.length>1?'s':''} too small to take: ${S2.passed.map(p=>`${p.w} lb ${p.name.toLowerCase()}`).join(', ')}.`)}catch(e){console.warn('pass',e)}return o.apply(this,arguments)}}
+// ===== HUNTING CLUB HUB =====
+// The Hunting Club tab becomes a social hub on top of the clubs that were already there (club chat and the weekly board
+// stay under "My Club"). Posts, studs, breeding contracts, litters, Alpha Dogs, profiles, notifications and messages all
+// run on the online server, and every dog shown is a real dog from a player's kennel, sent with its genes, stats,
+// pedigree, hunting record and breeding record. Studs are the online market's stud listings: the dog stays home and
+// other players book a breeding. A breeding contract ends with the female's owner breeding her in their own game,
+// where the existing genetics make the pups.
+const HUB_KIND={hunt:['🔥','Hunt','#c4501b'],trophy:['🏆','Trophy Hunt','#b8860b'],litter:['🐶','New Litter','#3f7d4e'],stud:['🧬','Stud Available','#2f6f9f'],
+  alpha:['👑','Alpha Dog','#a8820c'],request:['📣','Breeding Request','#8a3fa0'],showcase:['⭐','Dog Showcase','#b5651d'],announce:['📢','Club Announcement','#5a6470']};
+const HUB_STAT=[['str','Strength'],['spd','Speed'],['sta','Stamina'],['trk','Scent'],['bay','Baying'],['catch','Catch']];
+const HUB_TABS=[['feed','Feed'],['studs','Studs'],['breeding','Breeding'],['litters','Litters'],['alpha','Alpha Dogs'],['search','Search'],['profile','Profile'],['club','My Club']];
+const HUB_BAD=/(fuck|cunt|nigg|f[a@]gg?[o0]t|\bfag\b|retard|\bwhore|\bslut|\brape|\bkike\b|\bspic\b|\bchink|cocksuck|motherf|\btwat\b)/i;
+const HUB_TRAITS=[['sta','High stamina'],['trk','Strong scent'],['str','Power'],['spd','Speed'],['grip','Catch genetics'],['int','Smart'],['obd','Biddable']];
+UI.hubTab=UI.hubTab||'feed';UI.hubMode=UI.hubMode||'all';UI.hubF=UI.hubF||{};UI.hubProfTab=UI.hubProfTab||'posts';
+const HUB={
+  ctx:{},orig:{},
+  st(){const h=S.hub||(S.hub={});for(const[k,v]of[['litters',[]],['alpha',{}],['born',{}],['claimed',{}],['kept',{}],['history',[]]])if(!h[k])h[k]=v;return h},
+  async call(fn,args={}){return sbRpc(fn,{...(await A2()),...args})},
+  err(e){toast(e&&e.message?e.message:String(e))},
+  bad(t){return HUB_BAD.test(String(t||''))},
+  ago(t){const s=Math.max(0,(Date.now()-new Date(t).getTime())/1000);return s<60?'just now':s<3600?Math.floor(s/60)+'m':s<86400?Math.floor(s/3600)+'h':s<86400*7?Math.floor(s/86400)+'d':new Date(t).toLocaleDateString()},
+  me(){return myPid()},
+  myClub(){try{if(UI.clubL){const m=CLUB.mine();if(m.length){HUB.st().club=m[0].name;return m[0].name}}}catch(e){}return HUB.st().club||null},
+  // ---------- dogs ----------
+  stat(d,k){try{return k==='bay'?Math.round(bayScore(d)):k==='catch'?Math.round(catchScore(d)):Math.round((d.stats||{})[k]||0)}catch(e){return 0}},
+  badges(d,big){return`<div class="hubstats${big?' big':''}">${HUB_STAT.map(([k,l])=>`<span class="hubst"><b>${HUB.stat(d,k)}</b>${l}</span>`).join('')}</div>`},
+  tier(d){try{return BL_TIERS[tierIdx(blOf(d))]}catch(e){return'Normal'}},
+  line(d){try{return blOf(d).line}catch(e){return''}},
+  gq(d){const p=d.pot||{},v=STATS.map(([k])=>p[k]||0),a=v.reduce((s,x)=>s+x,0)/Math.max(1,v.length);return a>=82?'Elite':a>=72?'Excellent':a>=62?'Good':'Average'},
+  gqN(q){return{Average:0,Good:1,Excellent:2,Elite:3}[q]||0},
+  bname(d){try{return breedName(d)}catch(e){return d.breed||''}},
+  // four generations of ancestry as a small nested tree; dogs that came from other ranches bring theirs along
+  ped(x,dep=4){if(!x||dep<=0)return null;let f=x;try{if(x.id&&!x.ped&&typeof PAPERS!=='undefined'){const g=PAPERS.get(x.id);if(g)f=g}}catch(e){}
+    if(f.ped)return HUB.trim(f.ped,dep);
+    let b=f.breed||'';if(!f.snap&&f.genes)b=HUB.bname(f);
+    const n={n:f.name||'?',b,s:f.sex||'',id:f.id||'',c:f.coat||(f.genes?(()=>{try{return coatName(f)}catch(e){return''}})():'')};
+    if(dep>1){let ps=[null,null];try{ps=PAPERS.parentsOf(f)}catch(e){}if(ps&&(ps[0]||ps[1]))n.ch=[HUB.ped(ps[0],dep-1),HUB.ped(ps[1],dep-1)]}return n},
+  trim(t,dep){if(!t||dep<=0)return null;const o={...t};if(dep<=1)delete o.ch;else if(o.ch)o.ch=o.ch.map(c=>HUB.trim(c,dep-1));return o},
+  rootPed(d){const r=HUB.ped(d,4);if(r){r.n=d.name;r.id=d.id}return r},
+  lean(d){const o=leanDog(d);try{o.ped=HUB.rootPed(d);if(HUB.isAD(d))o.alphaDog=HUB.st().alpha[d.id]||d.alphaDog;if(typeof ALPHA!=='undefined'&&ALPHA.isAlpha(d))o.packAlpha=1}catch(e){}return o},
+  isAD(d){return!!(d&&((HUB.st().alpha[d.id])||d.alphaDog))},
+  ok(o){return!!(o&&typeof o==='object'&&o.genes&&o.stats&&o.pot)},
+  view(o,tag,ranch,ctx){const d=viewDog(o,tag,ranch);HUB.orig[d.id]=o;HUB.ctx[d.id]=ctx||{};return d},
+  art(d,w){return`<div class="hubart">${dogArt(d,w||320)}${HUB.isAD(d)?'<span class="hubcrown">👑 ALPHA DOG</span>':''}</div>`},
+  rec(d){try{return PAPERS.rec(d)}catch(e){return{h:{},br:[],aw:[]}}},
+  hist(d){const H=d.hunt||{},r=HUB.rec(d),h=r.h||{};return{n:H.n||0,ok:h.ok||0,c:H.catches||0,bays:H.bays||0,big:h.big?h.big.w:0,br:(r.br||[]).length,aw:(r.aw||[]).length}},
+  // ---------- bloodline tree ----------
+  tree(root){if(!root)return'<p class="small muted">No recorded ancestry.</p>';const lv=[[root]];for(let i=1;i<4;i++){const row=[];for(const x of lv[i-1]){row.push(x&&x.ch?x.ch[0]:null,x&&x.ch?x.ch[1]:null)}if(row.every(x=>!x))break;lv.push(row)}
+    const lab=['Dog','Parents','Grandparents','Great-grandparents'];
+    return`<div class="hubtree">${lv.map((row,i)=>`<div class="hubtl">${lab[i]}</div><div class="hubtr" style="grid-template-columns:repeat(${row.length},minmax(0,1fr))">${row.map((x,j)=>x?`<div class="hubtn ${i===0?'root':j%2===0?'sire':'dam'}"><b>${esc(x.n)}</b><span>${esc(x.b||'')}</span>${x.c?`<span>${esc(x.c)}</span>`:''}</div>`:'<div class="hubtn none">—</div>').join('')}</div>${i<lv.length-1?'<div class="hubarrow">↓</div>':''}`).join('')}</div>`},
+  // ---------- Alpha Dog certification: earned from the dog's real record, not a button ----------
+  alphaCheck(d){const h=HUB.hist(d),b=Math.max(HUB.stat(d,'bay'),HUB.stat(d,'catch')),top=Math.max(...STATS.map(([k])=>d.stats[k]||0)),t=(()=>{try{return tierIdx(blOf(d))}catch(e){return 0}})();
+    const badges=(()=>{try{return DB.top(d,10).length}catch(e){return 0}})(),rate=h.n?h.ok/h.n:0;
+    const items=[['Grown and healthy (18+ months, health 60+)',isAdult(d)&&d.age>=18&&d.health>=60,`${ageStr(d.age)}, health ${Math.round(d.health)}`,0],
+      ['Proven hunter: 15+ hunts, 60%+ successful',h.n>=15&&rate>=.6,`${h.n} hunts, ${h.ok} successful`,2],
+      ['Elite ability: bay or catch 75+, or a stat of 90+',b>=75||top>=90,`best of bay/catch ${b}, top stat ${top}`,2],
+      ['Big-hog dog: caught a hog of 250 lb or more',h.big>=250,h.big?`largest ${h.big} lb`:'none yet',1],
+      ['Strong bloodline (Proven or better)',t>=2,BL_TIERS[t]||'Normal',t>=3?2:1],
+      ['Genetics: Excellent or Elite quality',HUB.gqN(HUB.gq(d))>=2,HUB.gq(d),1],
+      ['Achievements: 3+ badges or awards',badges+h.aw>=3,`${badges} badges, ${h.aw} awards`,1],
+      ['Breeding history: 2+ litters',h.br>=2,`${h.br} litters`,1]];
+    const pts=items.slice(1).reduce((s,x)=>s+(x[1]?x[3]:0),0),hunt=items[1][1]||items[3][1],ok=items[0][1]&&hunt&&pts>=5;
+    return{ok,pts,items,need:5}},
+  // ---------- reputation (from the real record; never bought) ----------
+  gameRep(){const st=S.st||{},dogs=S.dogs.filter(d=>!d.guest);let r=0;
+    r+=Math.min(1500,(st.hogs||0)*4);r+=Math.min(400,(st.giants||0)*40);
+    r+=Math.min(600,dogs.reduce((s,d)=>s+([0,0,4,15,40][rarTier(d)]||0),0));
+    r+=Math.min(600,dogs.reduce((s,d)=>{let t=0;try{t=tierIdx(blOf(d))}catch(e){}return s+[0,0,5,15,40][t]},0));
+    r+=Math.min(500,(st.litters||0)*6);r+=Math.min(500,(S.badges||[]).length*12+(st.trialWins||0)*10+(st.showWins||0)*10);
+    r+=Math.min(400,Object.keys(HUB.st().alpha).filter(id=>S.dogs.some(d=>d.id===id)).length*60);return Math.round(Math.min(5000,r))},
+  repTier(n){return n>=3000?['Legend','#c9a227']:n>=1800?['Renowned','#d9822b']:n>=900?['Respected','#3f9d5e']:n>=300?['Known','#5b8fc9']:['New','#8a8f98']},
+  achievements(){const a=[];const st=S.st||{};if(st.hogs)a.push(`🐗 ${st.hogs} hogs caught`);if(st.best)a.push(`🏆 Heaviest hog ${st.best} lb`);if(st.giants)a.push(`🦣 ${st.giants} giant boar${st.giants>1?'s':''}`);
+    if(st.litters)a.push(`🐶 ${st.litters} litters`);if(st.trialWins)a.push(`🥇 ${st.trialWins} trial wins`);if(st.showWins)a.push(`🎀 ${st.showWins} show wins`);
+    for(const b of(S.badges||[]).slice(0,12)){try{a.push(`🎖️ ${BADGE_NAME(b)}${b.place?' #'+b.place:''}`)}catch(e){}}return a.slice(0,24)},
+  profileStats(){const dogs=S.dogs.filter(d=>!d.guest),st=S.st||{};
+    return{hunts:st.hunts||0,hogs:st.hogs||0,best:st.best||0,dogs:dogs.length,litters:st.litters||0,alphas:Object.keys(HUB.st().alpha).filter(id=>dogs.some(d=>d.id===id)).length,
+      trophies:(st.giants||0)+(S.badges||[]).length,ach:HUB.achievements(),level:S.level}},
+  avatarDog(){const id=HUB.st().avatar;return S.dogs.find(d=>d.id===id)||S.dogs.filter(d=>!d.guest).sort((a,b)=>rarTier(b)-rarTier(a))[0]||null},
+  async publish(force){if(inClaude||!S.online)return;const h=HUB.st();if(!force&&h.pubDay===S.day&&h.pubN===S.dogs.length)return;
+    const av=HUB.avatarDog(),alpha=S.dogs.filter(d=>h.alpha[d.id]).slice(0,6).map(HUB.lean);
+    await HUB.call('hd_hub_profile_save',{p_ranch:S.name,p_club:HUB.myClub(),p_bio:h.bio||null,p_avatar:av?HUB.lean(av):null,p_stats:HUB.profileStats(),p_alpha:alpha,p_game_rep:HUB.gameRep()});
+    h.pubDay=S.day;h.pubN=S.dogs.length;save()},
+};
+
+Object.assign(HUB,{
+  // ---------- screen ----------
+  screen(){if(inClaude)return`<h2>Hunting Club</h2><div class="panel">The Hunting Club runs on the public website: <a href="${SITE_URL}" target="_blank" rel="noopener">${SITE_URL.replace('https://','')}</a></div>`;
+    const t=UI.hubTab,N=UI.hubNot||{};setTimeout(()=>{HUB.fill();HUB.poll()},0);
+    return`<div class="hubhead"><div><h2 style="margin:0">Hunting Club</h2><div class="small muted">Hunts, dogs, bloodlines, litters and studs from ranches across the county.</div></div>
+      <div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm ghost hubicon" data-act="hubInbox" aria-label="Messages">✉️${N.msgs?`<i>${N.msgs}</i>`:''}</button><button class="btn sm ghost hubicon" data-act="hubNotifs" aria-label="Notifications">🔔${N.unread?`<i>${N.unread}</i>`:''}</button></div></div>
+      <div class="hubnav">${HUB_TABS.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="hubTab" data-k="${k}">${l}</button>`).join('')}</div>
+      <div id="hubBody">${t==='club'?CLUB.screen():'<div class="panel small muted">Loading…</div>'}</div>
+      ${t==='feed'||t==='profile'?'<button class="hubfab" data-act="hubCompose" aria-label="New post">＋ Post</button>':''}`},
+  async fill(){const el=document.getElementById('hubBody');if(!el||UI.hubTab==='club')return;const t=UI.hubTab;
+    try{await onlineId();const html=await HUB.views[t]();if(UI.tab!=='club'||UI.hubTab!==t)return;const e2=document.getElementById('hubBody');if(e2){e2.innerHTML=html;hydrateCoats();HUB.paint()}}
+    catch(e){const e2=document.getElementById('hubBody');if(e2)e2.innerHTML=`<div class="panel"><b>Can't reach the Hunting Club right now.</b><div class="small muted">${esc(e.message||e)}</div><button class="btn sm alt" data-act="hubRefresh" style="margin-top:8px">Try again</button></div>`}},
+  refresh(){HUB.fill()},
+  poll(){clearInterval(HUB.pt);HUB.notifs().catch(()=>{});HUB.pt=setInterval(()=>{if(UI.tab!=='club'){clearInterval(HUB.pt);return}if(!document.hidden)HUB.notifs().catch(()=>{})},30000)},
+  async notifs(){const r=(await HUB.call('hd_hub_notifs'))||{unread:0,msgs:0,list:[]};const old=UI.hubNot;UI.hubNot=r;if(!old||old.unread!==r.unread||old.msgs!==r.msgs){const h=document.querySelector('.hubhead');if(h&&UI.tab==='club'){const b=h.querySelectorAll('.hubicon');if(b[0])b[0].innerHTML='✉️'+(r.msgs?`<i>${r.msgs}</i>`:'');if(b[1])b[1].innerHTML='🔔'+(r.unread?`<i>${r.unread}</i>`:'')}}return r},
+  // hogs in hunt posts are drawn with the game's own hog pictures
+  paint(tries=0){const cs=[...document.querySelectorAll('canvas.hubhog:not([data-done])')];let left=0;
+    for(const c of cs){let im=null;try{im=SPR.hog({seed:+c.dataset.seed||1,key:c.dataset.key||'boar',w:+c.dataset.w||150,sex:c.dataset.sex||'M',sp:1,end:1,aggr:.6})}catch(e){}
+      if(!im){left++;continue}const x=c.getContext('2d'),s=Math.min(c.width/im.width,c.height/im.height);x.clearRect(0,0,c.width,c.height);x.drawImage(im,(c.width-im.width*s)/2,(c.height-im.height*s)/2,im.width*s,im.height*s);c.dataset.done=1}
+    if(left&&tries<20)setTimeout(()=>HUB.paint(tries+1),250)},
+  // ---------- post card ----------
+  dogsOf(p){return(p.data&&p.data.dogs||[]).filter(HUB.ok).map((o,i)=>HUB.view(o,'P'+p.id+'-'+i,p.ranch,{owner:p.player_id,ranch:p.ranch,post:p.id,listing:p.data.listing||null}))},
+  avatar(o,pid,size=40){const d=HUB.ok(o)?HUB.view(o,'AV'+(pid||'').slice(0,8)+'-'+(o.id||''),'',{owner:pid}):null;return`<div class="hubav" style="width:${size}px;height:${size}px">${d?dogArt(d,size*1.6):'🤠'}</div>`},
+  postCard(p){const K=HUB_KIND[p.kind]||HUB_KIND.showcase,mine=p.player_id===HUB.me(),dogs=HUB.dogsOf(p),D=p.data||{};
+    let media='';
+    if(p.kind==='hunt'||p.kind==='trophy'){const h=D.hunt||{};media=`<div class="hubhunt"><div class="hubhogwrap">${h.hog?`<canvas class="hubhog" width="420" height="220" data-seed="${+h.hog.seed||1}" data-key="${esc(h.hog.key||'boar')}" data-w="${+h.hog.w||0}" data-sex="${esc(h.hog.sex||'M')}"></canvas><div class="hubhogw">${h.hog.w} lb</div>`:'<div class="hubhogw">🐗</div>'}</div>
+      <div class="hubfacts">${[['Where',h.area],['Hog',h.hog?`${h.hog.w} lb ${h.hog.name||''}`:'—'],['Result',h.win?'Caught':h.found?'Got away':'No hog'],['Time',h.time],['Grade',h.grade],['Trophy',h.trophy]].filter(x=>x[1]).map(([a,b])=>`<div><span>${a}</span><b>${esc(String(b))}</b></div>`).join('')}</div>
+      ${(h.perf||[]).length?`<div class="small" style="margin-top:6px">${h.perf.map(x=>`<div>🐕 <b>${esc(x.name)}</b> <span class="muted">${esc(x.role||'')}${x.note?' · '+esc(x.note):''}</span></div>`).join('')}</div>`:''}</div>`}
+    if(dogs.length){const lead=dogs[0];media+=`<div class="hubmedia" data-act="hubDog" data-id="${lead.id}">${HUB.art(lead,360)}</div>`;
+      if(dogs.length>1)media+=`<div class="hubthumbs">${dogs.slice(1,9).map(d=>`<button data-act="hubDog" data-id="${d.id}">${dogArt(d,120)}<span>${esc(d.name)}${d.sex?` <i class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</i>`:''}</span></button>`).join('')}</div>`}
+    let info='';
+    if(p.kind==='stud'||p.kind==='showcase'||p.kind==='alpha'){const d=dogs[0];if(d){const h=HUB.hist(d);info=`<div class="hubdoghead"><b>${esc(d.name)}</b> <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span><div class="small muted">${esc(HUB.bname(d))} · Generation ${d.gen||0} · ${esc(HUB.tier(d))}${d.bl?` · ${esc(HUB.line(d))}`:''}</div></div>${HUB.badges(d,true)}
+      ${p.kind==='alpha'?`<div class="hubrecord">${[['Hunts',h.n],['Successful',h.ok],['Largest hog',h.big?h.big+' lb':'—'],['Baying',HUB.stat(d,'bay')],['Catch',HUB.stat(d,'catch')],['Scent',HUB.stat(d,'trk')],['Breeding quality',HUB.gq(d)]].map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')}</div>`:''}
+      ${p.kind==='stud'&&D.fee?`<div class="hubfee"><span>Stud fee</span><b>${fmt(D.fee)}</b><em>${D.avail==='paused'?'NOT BOOKING':'AVAILABLE FOR BREEDING'}</em></div>`:''}
+      ${D.showTree?`<details class="hubdet"><summary>🌳 Bloodline</summary>${HUB.tree(d.ped)}</details>`:''}
+      ${!mine?`<div class="row" style="margin-top:8px"><button class="btn sm" data-act="hubReq" data-id="${d.id}">${d.sex==='F'?'OFFER BREEDING':'REQUEST BREEDING'}</button><button class="btn sm ghost" data-act="hubDog" data-id="${d.id}">View dog</button></div>`:''}`}}
+    if(p.kind==='litter'){const L=D.litter||{};info=`<div class="hubfacts">${[['Pups',L.n],['Males',L.m],['Females',L.f],['Generation',L.gen]].map(([a,b])=>`<div><span>${a}</span><b>${b??'—'}</b></div>`).join('')}</div>${(L.traits||[]).length?`<div class="small" style="margin-top:6px"><b>Possible traits:</b> ${L.traits.map(esc).join(' · ')}</div>`:''}`}
+    if(p.kind==='request'){const R=D.req||{},d=dogs[0];info=`<div class="hubreq"><div><b>${R.want==='female'?'🔥 LOOKING FOR A FEMALE':'🔥 LOOKING FOR A STUD'}</b></div>${(R.breeds||[]).length?`<div class="small"><b>Looking for:</b> ${R.breeds.map(esc).join(', ')}</div>`:''}
+      ${(R.traits||[]).length?`<div class="small"><b>Traits wanted:</b> ${R.traits.map(esc).join(', ')}</div>`:''}${R.budget?`<div class="small"><b>Budget:</b> ${fmt(R.budget)}</div>`:''}
+      ${d&&!mine?`<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="hubDog" data-id="${d.id}">VIEW DOG</button><button class="btn sm" data-act="hubReq" data-id="${d.id}">OFFER BREEDING</button></div>`:''}</div>`}
+    return`<article class="hubpost" style="--kc:${K[2]}"><header>${HUB.avatar(p.avatar,p.player_id)}<div class="hubwho"><button class="linkbtn" data-act="hubProfile" data-id="${p.player_id}"><b>${esc(p.ranch)}</b></button><div class="small muted">${p.club?esc(p.club)+' · ':''}${HUB.ago(p.at)}</div></div>
+      <span class="hubkind">${K[0]} ${K[1]}</span><button class="btn sm ghost hubmore" data-act="hubMenu" data-id="${p.id}" data-pid="${p.player_id}" aria-label="More">⋯</button></header>
+      <h3 class="hubtitle">${esc(p.title)}</h3>${p.body?`<p class="hubbody">${esc(p.body)}</p>`:''}${media}${info}
+      <footer><button class="${p.liked?'on':''}" data-act="hubLike" data-id="${p.id}">❤️ <span>${p.likes}</span></button><button data-act="hubCmts" data-id="${p.id}">💬 ${p.comments}</button><button data-act="hubShare" data-id="${p.id}">🔄 ${p.shares}</button><button class="${p.saved?'on':''}" data-act="hubSavePost" data-id="${p.id}">🔖 ${p.saved?'Saved':'Save'}</button></footer></article>`},
+  views:{
+    async feed(){const r=(await HUB.call('hd_hub_feed',{p_mode:UI.hubMode,p_kind:UI.hubKind||null,p_limit:30}))||[];UI.hubPosts=r;
+      const modes=[['all','For you'],['following','Following'],['saved','Saved']],kinds=[['','All posts'],...Object.entries(HUB_KIND).filter(([k])=>k!=='trophy').map(([k,v])=>[k,v[0]+' '+v[1]])];
+      return`<div class="seg" style="margin:6px 0">${modes.map(([k,l])=>`<button class="${UI.hubMode===k?'on':''}" data-act="hubMode" data-k="${k}">${l}</button>`).join('')}</div>
+        <div class="hubchips scroll">${kinds.map(([k,l])=>`<button class="${(UI.hubKind||'')===k?'on':''}" data-act="hubKindF" data-k="${k}">${l}</button>`).join('')}</div>
+        <div class="hubquick">${[['hunt','🔥 Post a hunt'],['showcase','⭐ Showcase a dog'],['request','📣 Breeding request'],['litter','🐶 Post a litter']].map(([k,l])=>`<button class="btn sm ghost" data-act="hubCompose" data-k="${k}">${l}</button>`).join('')}</div>
+        ${r.length?r.map(HUB.postCard).join(''):`<div class="panel small muted">${UI.hubMode==='following'?'Nobody you follow has posted yet. Follow ranches from their profiles.':UI.hubMode==='saved'?'You have not saved any posts.':'No posts yet. Be the first: post a hunt or show off a dog.'}</div>`}`},
+    async studs(){const all=((await HUB.call('hd_hub_studs'))||[]).filter(x=>HUB.ok(x.dog));UI.hubStuds=all;const me=HUB.me(),mine=all.filter(x=>x.seller===me),others=HUB.filter(all.filter(x=>x.seller!==me),x=>x.dog,x=>x.price);
+      return`<div class="panel hubcta"><div><b>Stand a male at stud</b><div class="small muted">He stays in your kennel. Other players book a breeding and pay the fee; you approve every request.</div></div><button class="btn" data-act="hubStudForm">LIST DOG AS STUD</button></div>
+        ${mine.length?`<h3>Your studs</h3>${mine.map(x=>HUB.studCard(x,true)).join('')}`:''}${HUB.filterPanel('studs')}
+        <h3>Studs available</h3>${others.length?others.map(x=>HUB.studCard(x,false)).join(''):'<p class="small muted">No studs match.</p>'}`},
+    async breeding(){const B=((await HUB.call('hd_hub_breeds'))||[]).filter(b=>HUB.ok(b.sire)&&HUB.ok(b.dam));UI.hubBreeds=B;await HUB.syncBreeds(B,true);const me=HUB.me();
+      const act=B.filter(b=>['pending','countered','agreed','confirmed','bred'].includes(b.status)),inc=act.filter(b=>b.turn===me),wait=act.filter(b=>b.turn!==me&&['pending','countered'].includes(b.status)),con=act.filter(b=>['agreed','confirmed','bred'].includes(b.status)),done=B.filter(b=>['born','declined','cancelled'].includes(b.status));
+      return`<p class="sub">Requests to breed your dogs and the ones you sent. When both sides agree, you both confirm a breeding contract; then the female's owner breeds her and the pups are made by the game's genetics. Nothing is guaranteed.</p>
+        <h3>Needs your answer</h3>${inc.length?inc.map(HUB.breedCard).join(''):'<p class="small muted">Nothing waiting on you.</p>'}
+        <h3>Contracts</h3>${con.length?con.map(HUB.breedCard).join(''):'<p class="small muted">No open contracts.</p>'}
+        <h3>Waiting on the other player</h3>${wait.length?wait.map(HUB.breedCard).join(''):'<p class="small muted">None.</p>'}
+        <h3>Breeding history</h3>${done.length?done.map(HUB.breedCard).join(''):'<p class="small muted">No finished breedings yet.</p>'}`},
+    async litters(){const L=HUB.st().litters.filter(l=>l.pups&&l.pups.length).slice(0,20);const posts=(await HUB.call('hd_hub_feed',{p_mode:'all',p_kind:'litter',p_limit:20}))||[];UI.hubPosts=(UI.hubPosts||[]).concat(posts);
+      return`<h3>Your litters</h3>${L.length?L.map(HUB.litterCard).join(''):'<p class="small muted">Litters born in your kennel show up here, with each pup.</p>'}
+        <h3>New litters in the club</h3>${posts.filter(p=>p.player_id!==HUB.me()).map(HUB.postCard).join('')||'<p class="small muted">No litter posts yet.</p>'}`},
+    async alpha(){const h=HUB.st(),mine=S.dogs.filter(d=>!d.guest&&isAdult(d)).map(d=>({d,c:HUB.alphaCheck(d)})).sort((a,b)=>(HUB.isAD(b.d)-HUB.isAD(a.d))||b.c.pts-a.c.pts);
+      const posts=(await HUB.call('hd_hub_feed',{p_mode:'all',p_kind:'alpha',p_limit:20}))||[];UI.hubPosts=(UI.hubPosts||[]).concat(posts);
+      return`<div class="panel small">👑 <b>Alpha Dogs</b> are certified from a dog's real record: grown and healthy, a proven hunter or big-hog dog, and enough points from ability, bloodline, genetics, achievements and breeding (5 needed). Certified dogs carry the ALPHA DOG crown on posts and your profile.</div>
+        <h3>Your dogs</h3>${mine.map(({d,c})=>HUB.alphaRow(d,c)).join('')||'<p class="small muted">No grown dogs yet.</p>'}
+        <h3>Alpha Dogs of the county</h3>${posts.map(HUB.postCard).join('')||'<p class="small muted">No Alpha Dogs posted yet.</p>'}`},
+    async search(){const q=UI.hubQ||'';let res=UI.hubRes;if(q&&(!res||res.q!==q)){res=(await HUB.call('hd_hub_search',{p_q:q}))||{};res.q=q;UI.hubRes=res}
+      return`<div class="row"><input type="search" id="hubQ" value="${esc(q)}" placeholder="Dog, breed, mix, player, club, bloodline, gen 3…" style="flex:1;min-width:0"><button class="btn sm" data-act="hubSearch">Search</button></div>
+        ${HUB.filterPanel('search')}${q&&res?HUB.searchResults(res):'<p class="small muted" style="margin-top:8px">Search the county: dogs, studs, females, players, clubs, posts and bloodlines. Try “Catahoula”, “gen 4” or “Elite”.</p>'}`},
+    async profile(){await HUB.publish(true).catch(()=>{});const p=await HUB.call('hd_hub_profile_get',{p_target:HUB.me()});return HUB.profileHTML(p,true)}
+  },
+  // ---------- filters (search and studs) ----------
+  filterPanel(where){const F=UI.hubF,n=(k,l)=>`<label class="small">${l}<input type="number" min="0" max="100" id="hf_${k}" value="${F[k]||''}" style="width:64px"></label>`;
+    return`<details class="hubdet" ${Object.values(F).some(v=>v)?'open':''}><summary>Filters${Object.values(F).some(v=>v)?' (on)':''}</summary><div class="hubfilters">
+      <label class="small">Breed<input type="text" id="hf_breed" value="${esc(F.breed||'')}" style="width:120px"></label>
+      <label class="small">Sex<select id="hf_sex"><option value="">Any</option><option value="M" ${F.sex==='M'?'selected':''}>Male</option><option value="F" ${F.sex==='F'?'selected':''}>Female</option></select></label>
+      ${n('gen','Gen ≥')}<label class="small">${where==='studs'?'Stud fee ≤':'Price ≤'}<input type="number" min="0" id="hf_price" value="${F.price||''}" style="width:90px"></label>
+      ${n('str','Strength ≥')}${n('spd','Speed ≥')}${n('trk','Scent ≥')}${n('sta','Stamina ≥')}${n('bay','Baying ≥')}${n('catch','Catch ≥')}
+      <label class="small">Rarity ≥<select id="hf_rar"><option value="">Any</option>${RAR.map((r,i)=>`<option value="${i}" ${F.rar!==undefined&&F.rar!==''&&+F.rar===i?'selected':''}>${r[0]}</option>`).join('')}</select></label>
+      <label class="small">Genetics ≥<select id="hf_gq"><option value="">Any</option>${['Good','Excellent','Elite'].map(g=>`<option ${F.gq===g?'selected':''}>${g}</option>`).join('')}</select></label>
+      <label class="small"><input type="checkbox" id="hf_alpha" ${F.alpha?'checked':''}> Alpha Dogs only</label></div>
+      <div class="row" style="margin-top:6px"><button class="btn sm" data-act="hubFilter">Apply</button><button class="btn sm ghost" data-act="hubFilterClear">Clear</button></div></details>`},
+  readFilters(){const g=id=>{const e=document.getElementById('hf_'+id);return e?(e.type==='checkbox'?e.checked:e.value.trim()):''};const F={};
+    for(const k of['breed','sex','gen','price','str','spd','trk','sta','bay','catch','rar','gq','alpha']){const v=g(k);if(v!==''&&v!==false)F[k]=v}UI.hubF=F},
+  filter(list,dogOf,priceOf){const F=UI.hubF;return list.filter(x=>{const d=dogOf(x);if(!d||!d.stats)return false;
+    if(F.breed&&!(HUB.bname(d)+' '+(d.breed||'')+' '+(d.cross||'')).toLowerCase().includes(F.breed.toLowerCase()))return false;
+    if(F.sex&&d.sex!==F.sex)return false;if(F.gen&&(d.gen||0)<+F.gen)return false;if(F.price&&priceOf&&priceOf(x)>+F.price)return false;
+    for(const k of['str','spd','trk','sta','bay','catch'])if(F[k]&&HUB.stat(d,k)<+F[k])return false;
+    if(F.rar!==undefined&&F.rar!==''&&(()=>{try{return rarTier(d)}catch(e){return 0}})()<+F.rar)return false;
+    if(F.gq&&HUB.gqN(HUB.gq(d))<HUB.gqN(F.gq))return false;if(F.alpha&&!d.alphaDog)return false;return true})},
+  // ---------- studs ----------
+  studCard(x,mine){const d=HUB.view(x.dog,'S'+x.id,x.ranch,{owner:x.seller,ranch:x.ranch,listing:x.id}),I=x.info||{},h=HUB.hist(d);
+    return`<div class="hubstud"><div class="hubmedia" data-act="hubDog" data-id="${d.id}">${HUB.art(d,300)}</div><div class="hubstudbody">
+      <div class="spread"><div><b style="font-size:1.15em">${esc(d.name)}</b> <span class="sexM">♂</span><div class="small muted">${esc(HUB.bname(d))} · Gen ${d.gen||0}</div></div><div style="text-align:right"><b class="hubprice">${fmt(x.price)}</b><div class="small muted">stud fee</div></div></div>
+      <div class="small" style="margin:4px 0">${HUB.tier(d)!=='Normal'?`⭐ ${esc(HUB.tier(d))} · `:''}${esc(HUB.gq(d))} genetics · ${h.n} hunts · ${h.br} litters${I.loc?` · 📍 ${esc(I.loc)}`:''}</div>${HUB.badges(d)}
+      ${I.desc?`<p class="small" style="margin:6px 0">${esc(I.desc)}</p>`:''}${I.req?`<div class="small muted">Requirements: ${esc(I.req)}</div>`:''}
+      <div class="small" style="margin-top:4px"><span class="tag ${I.avail==='paused'?'warn':'ok'}">${I.avail==='paused'?'Not booking':'Available for breeding'}</span> <span class="muted">${x.active||0}/${I.slots||3} bookings open · bred ${x.uses} time${x.uses===1?'':'s'} · by <button class="linkbtn" data-act="hubProfile" data-id="${x.seller}">${esc(x.ranch||'')}</button></span></div>
+      <div class="row" style="margin-top:8px">${mine?`<button class="btn sm ghost" data-act="hubStudEdit" data-id="${x.id}">Edit</button><button class="btn sm ghost" data-act="hubStudPost" data-id="${x.id}">Post to feed</button><button class="btn sm ghost" data-act="onCancelListing" data-id="${x.id}">Take down</button>`
+        :`<button class="btn sm" data-act="hubReq" data-id="${d.id}" ${I.avail==='paused'?'disabled':''}>REQUEST BREEDING</button><button class="btn sm ghost" data-act="hubDog" data-id="${d.id}">View dog</button><button class="btn sm ghost" data-act="hubSaveStud" data-id="${x.id}">${x.saved?'🔖 Saved':'🔖 Save'}</button>`}</div></div></div>`},
+  // ---------- breeding cards ----------
+  breedCard(b){const me=HUB.me(),iSire=b.sire_owner===me,other=iSire?b.dam_ranch:b.sire_ranch,otherId=iSire?b.dam_owner:b.sire_owner;
+    const s=HUB.view(b.sire,'BS'+b.id,b.sire_ranch,{owner:b.sire_owner,ranch:b.sire_ranch}),d=HUB.view(b.dam,'BD'+b.id,b.dam_ranch,{owner:b.dam_owner,ranch:b.dam_ranch});
+    const lab={pending:'Request sent',countered:'Counter offer',agreed:'Agreed: confirm the contract',confirmed:'Contract confirmed',bred:'Bred: pups on the way',born:'Litter born',declined:'Declined',cancelled:'Called off'}[b.status];
+    let act='';const turn=b.turn===me;
+    if(['pending','countered'].includes(b.status)&&turn)act=`<button class="btn sm" data-act="hubResp" data-id="${b.id}" data-a="accept">ACCEPT</button><button class="btn sm ghost" data-act="hubResp" data-id="${b.id}" data-a="decline">DECLINE</button><button class="btn sm ghost" data-act="hubResp" data-id="${b.id}" data-a="counter">COUNTER OFFER</button>`;
+    if(b.status==='agreed'||b.status==='confirmed')act=`<button class="btn sm${(iSire?b.sire_ok:b.dam_ok)?' ghost':''}" data-act="hubContract" data-id="${b.id}">${(iSire?b.sire_ok:b.dam_ok)?'View contract':'Review & confirm contract'}</button>`;
+    if(b.status==='confirmed'&&!iSire)act+=`<button class="btn sm" data-act="hubClaim" data-id="${b.id}">Breed ${esc(b.dam.name)} now</button>`;
+    if(['pending','countered','agreed','confirmed'].includes(b.status))act+=`<button class="btn sm ghost" data-act="hubCancel" data-id="${b.id}">Call off</button>`;
+    const L=b.litter&&b.litter.pups||[];
+    return`<div class="hubbreed"><div class="hubpair"><button data-act="hubDog" data-id="${d.id}">${dogArt(d,150)}<b>${esc(d.name)} ♀</b><span>${esc(HUB.bname(d))}</span><span class="muted">${esc(b.dam_ranch)}</span></button><div class="hubx">×</div>
+      <button data-act="hubDog" data-id="${s.id}">${dogArt(s,150)}<b>${esc(s.name)} ♂</b><span>${esc(HUB.bname(s))}</span><span class="muted">${esc(b.sire_ranch)}</span></button></div>
+      <div class="spread small"><span><span class="tag">${lab}</span> with <button class="linkbtn" data-act="hubProfile" data-id="${otherId}">${esc(other)}</button></span><b>${fmt(b.fee)} fee</b></div>
+      ${b.msg?`<div class="small muted" style="margin-top:4px">“${esc(b.msg)}”</div>`:''}
+      ${b.status==='agreed'?`<div class="small" style="margin-top:4px">Confirmed: ${b.sire_ok?'✅':'⏳'} stud owner · ${b.dam_ok?'✅':'⏳'} female's owner</div>`:''}
+      ${L.length?`<div class="small" style="margin-top:4px"><b>${L.length} pups:</b> ${L.map(p=>`${esc(p.name)} ${p.sex==='M'?'♂':'♀'} <span class="muted">${esc(p.id)}</span>`).join(' · ')}</div>`:''}
+      ${act?`<div class="row" style="margin-top:8px;flex-wrap:wrap">${act}</div>`:''}</div>`},
+  // ---------- litters ----------
+  litterCard(L){const pups=L.pups.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),h=HUB.st();
+    return`<div class="panel" style="margin-bottom:10px"><div class="spread"><div><b>🐶 ${esc(L.dam.name)} × ${esc(L.sire.name)}</b><div class="small muted">Day ${L.day} · ${L.n} pup${L.n>1?'s':''}${L.sire.ranch&&L.sire.ranch!==S.name?` · stud from ${esc(L.sire.ranch)}`:''}</div></div>${pups.length?`<button class="btn sm" data-act="hubLitterPost" data-id="${L.id}">${L.posted?'Post again':'POST LITTER'}</button>`:''}</div>
+      <div class="hubpups">${pups.map(p=>`<div class="hubpup"><button data-act="dog" data-id="${p.id}">${dogArt(p,150)}</button><b>${esc(p.name)} <span class="${p.sex==='M'?'sexM':'sexF'}">${p.sex==='M'?'♂':'♀'}</span></b>
+        <div class="small muted">${esc(coatName(p))}<br>${rarTag(p)} Gen ${p.gen} · ${esc(HUB.gq(p))}<br><span class="num">${esc(p.id)}</span></div>${HUB.badges(p)}
+        <div class="hubpupact">${h.kept[p.id]?'<span class="tag ok">Kept</span>':`<button class="btn sm ghost" data-act="hubPup" data-a="keep" data-id="${p.id}">KEEP</button>`}<button class="btn sm ghost" data-act="hubPup" data-a="sell" data-id="${p.id}">LIST FOR SALE</button><button class="btn sm ghost" data-act="hubPup" data-a="breed" data-id="${p.id}">LIST FOR BREEDING</button><button class="btn sm ghost" data-act="hubPup" data-a="show" data-id="${p.id}">SHOWCASE</button></div></div>`).join('')||'<p class="small muted">None of these pups are in your kennel now.</p>'}</div></div>`},
+  // ---------- alpha ----------
+  alphaRow(d,c){const cert=HUB.isAD(d);return`<div class="panel hubalpha ${cert?'cert':''}"><div class="hubalphaart" data-act="dog" data-id="${d.id}">${HUB.art(d,170)}</div><div style="flex:1;min-width:0">
+    <b>${esc(d.name)}</b> <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span><div class="small muted">${esc(HUB.bname(d))} · Gen ${d.gen||0} · ${esc(HUB.tier(d))}</div>
+    <div class="small" style="margin:4px 0">${cert?'👑 <b>Certified Alpha Dog</b>':`Score ${c.pts}/${c.need} needed`}</div>
+    <details class="hubdet"><summary>Requirements</summary>${c.items.map(([l,ok,det])=>`<div class="small">${ok?'✅':'⬜'} ${l} <span class="muted">(${esc(det)})</span></div>`).join('')}</details>
+    <div class="row" style="margin-top:6px">${cert?`<button class="btn sm" data-act="hubCompose" data-k="alpha" data-id="${d.id}">Post Alpha Dog</button><button class="btn sm ghost" data-act="hubAvatar" data-id="${d.id}">Use as profile picture</button>`:`<button class="btn sm" data-act="hubNominate" data-id="${d.id}" ${c.ok?'':'disabled'}>Nominate as Alpha Dog</button>`}</div></div></div>`},
+  // ---------- search ----------
+  searchResults(r){r={...r,dogs:(r.dogs||[]).filter(x=>HUB.ok(x.dog)),studs:(r.studs||[]).filter(x=>HUB.ok(x.dog))};const dogs=HUB.filter(r.dogs||[],x=>x.dog,null),studs=HUB.filter(r.studs||[],x=>x.dog,x=>x.price);
+    const dcard=(x,i)=>{const d=HUB.view(x.dog,'Q'+i+'-'+(x.owner||'').slice(0,6),x.ranch,{owner:x.owner,ranch:x.ranch});return`<div><div class="small" style="font-weight:700;margin:0 0 3px 2px">${esc(x.ranch||'')}</div>${dogCard(d,'hubDog')}</div>`};
+    const lines={};for(const x of dogs){const d=x.dog;const L=d.bl&&d.bl.line;if(!L)continue;(lines[L]=lines[L]||[]).push(x)}
+    const sec=(t,n,body)=>`<h3>${t} <span class="small muted">${n}</span></h3>${n?body:'<p class="small muted">None.</p>'}`;
+    return sec('Dogs',dogs.length,`<div class="grid">${dogs.slice(0,24).map(dcard).join('')}</div>`)
+      +sec('Studs',studs.length,studs.map(x=>HUB.studCard({...x,active:0,saved:false},x.seller===HUB.me())).join(''))
+      +sec('Females',dogs.filter(x=>x.dog.sex==='F').length,`<div class="grid">${dogs.filter(x=>x.dog.sex==='F').slice(0,12).map((x,i)=>dcard(x,'f'+i)).join('')}</div>`)
+      +sec('Players',(r.players||[]).length,(r.players||[]).map(p=>`<div class="panel spread hubrow"><div class="row" style="flex-wrap:nowrap;gap:8px">${HUB.avatar(p.avatar,p.player_id,36)}<div><b>${esc(p.ranch)}</b><div class="small muted">${p.club?esc(p.club)+' · ':''}Level ${p.level||1} · ${p.rep} rep</div></div></div><button class="btn sm ghost" data-act="hubProfile" data-id="${p.player_id}">View</button></div>`).join(''))
+      +sec('Clubs',(r.clubs||[]).length,(r.clubs||[]).map(c=>`<div class="panel spread hubrow"><div><b>${esc(c.name)}</b><div class="small muted">${c.members} member${c.members==1?'':'s'}${c.motto?' · '+esc(c.motto):''}</div></div><button class="btn sm ${c.following?'ghost':''}" data-act="hubFollowClub" data-id="${c.id}" data-on="${c.following?0:1}">${c.following?'Following':'Follow club'}</button></div>`).join(''))
+      +sec('Posts',(r.posts||[]).length,(r.posts||[]).map(HUB.postCard).join(''))
+      +sec('Bloodlines',Object.keys(lines).length,Object.entries(lines).map(([L,xs])=>`<div class="panel" style="margin-bottom:6px"><b>🌳 ${esc(L)}</b> <span class="small muted">${xs.length} dog${xs.length>1?'s':''} · ${[...new Set(xs.map(x=>x.ranch))].map(esc).join(', ')}</span><div class="small">${xs.slice(0,8).map(x=>`${esc(x.dog.name)} (gen ${x.dog.gen||0}, ${esc(HUB.tier(x.dog))})`).join(' · ')}</div></div>`).join(''))},
+});
+
+Object.assign(HUB,{
+  // ---------- profiles ----------
+  profileHTML(p,own){const st=p.stats||{},rp=HUB.repTier(p.rep||0),tab=UI.hubProfTab,dogs=(p.dogs||[]).filter(HUB.ok).map((o,i)=>HUB.view(o,'PD'+i+'-'+p.player_id.slice(0,6),p.ranch,{owner:p.player_id,ranch:p.ranch}));
+    const tabs=[['posts','Posts'],['dogs','Dogs'],['litters','Litters'],['studs','Studs'],['bloodlines','Bloodlines'],['hunts','Hunts'],['achievements','Achievements']];
+    const alpha=(p.alpha||[]).filter(HUB.ok).map((o,i)=>HUB.view(o,'PA'+i+'-'+p.player_id.slice(0,6),p.ranch,{owner:p.player_id,ranch:p.ranch}));
+    let body='';
+    if(tab==='posts'||tab==='hunts')body=`<div id="hubProfPosts" data-pid="${p.player_id}" data-k="${tab==='hunts'?'hunt':''}"><div class="small muted">Loading…</div></div>`;
+    if(tab==='dogs')body=dogs.length?`<div class="grid">${dogs.map(d=>dogCard(d,'hubDog')).join('')}</div>`:'<p class="small muted">No dogs published yet.</p>';
+    if(tab==='litters')body=(p.litters||[]).length?(p.litters||[]).map(l=>`<div class="panel small" style="margin-bottom:6px">🐶 <b>${esc(l.dam)} × ${esc(l.sire)}</b> · ${(l.litter&&l.litter.pups||[]).length} pups <span class="muted">${HUB.ago(l.at)}</span><div>${(l.litter&&l.litter.pups||[]).map(x=>`${esc(x.name)} ${x.sex==='M'?'♂':'♀'}`).join(' · ')}</div></div>`).join(''):'<p class="small muted">No club litters yet.</p>';
+    if(tab==='studs')body=(p.studs||[]).length?p.studs.filter(x=>HUB.ok(x.dog)).map(x=>HUB.studCard({...x,seller:p.player_id,ranch:p.ranch,active:0},own)).join(''):'<p class="small muted">No studs standing right now.</p>';
+    if(tab==='bloodlines'){const L={};for(const d of dogs){const k=HUB.line(d);if(k)(L[k]=L[k]||[]).push(d)}body=Object.keys(L).length?Object.entries(L).map(([k,ds])=>`<div class="panel" style="margin-bottom:8px"><b>🌳 ${esc(k)}</b> <span class="small muted">${ds.length} dog${ds.length>1?'s':''}</span><div class="hubthumbs">${ds.map(d=>`<button data-act="hubTree" data-id="${d.id}">${dogArt(d,110)}<span>${esc(d.name)} · ${esc(HUB.tier(d))}</span></button>`).join('')}</div></div>`).join(''):'<p class="small muted">No recorded bloodlines yet.</p>'}
+    if(tab==='achievements')body=(st.ach||[]).length?`<div class="hubach">${st.ach.map(a=>`<span>${esc(a)}</span>`).join('')}</div>`:'<p class="small muted">No achievements yet.</p>';
+    setTimeout(()=>HUB.profPosts(),0);
+    return`<div class="hubprof"><div class="hubprofhead">${HUB.avatar(p.avatar,p.player_id,84)}<div style="min-width:0"><h2 style="margin:0">${esc(p.ranch)}</h2>
+      <div class="small muted">${(p.clubs||[]).map(c=>esc(c.name)).join(' · ')||esc(p.club||'No club')}${p.level?` · Level ${p.level}`:''}</div>
+      <div class="hubrep" style="--rc:${rp[1]}">★ ${p.rep||0} reputation · ${rp[0]}</div><div class="small muted">${p.followers} followers · ${p.following} following</div></div></div>
+      ${p.bio?`<p class="small">${esc(p.bio)}</p>`:''}
+      <div class="hubprofstats">${[['Hunts',st.hunts||0],['Hogs',p.hogs||st.hogs||0],['Dogs',p.dog_count||st.dogs||0],['Litters',st.litters||0],['Studs',(p.studs||[]).length],['Alpha Dogs',(p.alpha||[]).length],['Trophies',st.trophies||0],['Partners',p.partners||0]].map(([a,b])=>`<div><b>${b}</b><span>${a}</span></div>`).join('')}</div>
+      <div class="row" style="margin:8px 0;flex-wrap:wrap">${own?`<button class="btn sm ghost" data-act="hubBio">Edit bio</button><button class="btn sm ghost" data-act="hubSaved">🔖 Saved</button><button class="btn sm ghost" data-act="hubRefresh">Refresh</button>`
+        :`<button class="btn sm ${p.i_follow?'ghost':''}" data-act="hubFollow" data-id="${p.player_id}" data-on="${p.i_follow?0:1}">${p.i_follow?'Following':'Follow'}</button><button class="btn sm ghost" data-act="hubMsg" data-id="${p.player_id}">Message</button><button class="btn sm ghost" data-act="onVisit" data-id="${p.player_id}">Visit ranch</button>
+          <button class="btn sm ghost" data-act="hubBlock" data-id="${p.player_id}" data-k="mute" data-on="${p.muted?0:1}">${p.muted?'Unmute':'Mute'}</button><button class="btn sm ghost" data-act="hubBlock" data-id="${p.player_id}" data-k="block" data-on="${p.blocked?0:1}">${p.blocked?'Unblock':'Block'}</button><button class="btn sm ghost" data-act="hubReportPlayer" data-id="${p.player_id}">Report</button>`}</div>
+      ${alpha.length?`<h3>👑 Alpha Dogs</h3><div class="hubthumbs">${alpha.map(d=>`<button data-act="hubDog" data-id="${d.id}">${HUB.art(d,150)}<span>${esc(d.name)}</span></button>`).join('')}</div>`:''}
+      <div class="hubnav small">${tabs.map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="hubProfTab" data-k="${k}" data-pid="${p.player_id}">${l}</button>`).join('')}</div><div>${body}</div></div>`},
+  async profPosts(){const el=document.getElementById('hubProfPosts');if(!el)return;try{const r=await HUB.call('hd_hub_feed',{p_mode:'all',p_author:el.dataset.pid,p_kind:el.dataset.k||null,p_limit:30});UI.hubPosts=(UI.hubPosts||[]).concat(r);
+    el.innerHTML=r.length?r.map(HUB.postCard).join(''):'<p class="small muted">No posts yet.</p>';hydrateCoats();HUB.paint()}catch(e){el.innerHTML=`<p class="small muted">${esc(e.message)}</p>`}},
+  async openProfile(pid){if(pid===HUB.me()){closeSheet();UI.tab='club';UI.hubTab='profile';render();return}
+    try{const p=await HUB.call('hd_hub_profile_get',{p_target:pid});UI.hubProfOpen=pid;openSheet(HUB.profileHTML(p,false));HUB.paint()}catch(e){HUB.err(e)}},
+  // ---------- a dog from the club: photo, stats, genetics, bloodline, hunting and breeding record ----------
+  dogSheet(id,tab='overview'){const d=UI.remote[id]||S.dogs.find(x=>x.id===id);if(!d)return;const c=HUB.ctx[id]||{},mine=!UI.remote[id]||c.owner===HUB.me(),r=HUB.rec(d),h=HUB.hist(d);
+    const tabs=[['overview','Overview'],['genetics','Genetics'],['bloodline','Bloodline'],['hunting','Hunting'],['breeding','Breeding']];let body='';
+    if(tab==='overview')body=`${HUB.badges(d,true)}<h3>All stats <span class="small muted">faded = genetic potential</span></h3>${statBars(d)}`;
+    if(tab==='genetics'){try{body=PAPERS.t_genetics(d)}catch(e){body='<p class="small muted">Genetics not available.</p>'}try{body+=mixSection(d)}catch(e){}}
+    if(tab==='bloodline')body=`<div class="small" style="margin-bottom:6px"><b>${esc(HUB.line(d)||'No recorded line')}</b> · ${esc(HUB.tier(d))} · Generation ${d.gen||0}</div>${HUB.tree(UI.remote[id]?(d.ped||HUB.rootPed(d)):HUB.rootPed(d))}`;
+    if(tab==='hunting')body=`<div class="hubrecord">${[['Hunts',h.n],['Successful',h.ok],['Catches',h.c],['Bays',h.bays],['Largest hog',h.big?h.big+' lb':'—'],['Bay score',HUB.stat(d,'bay')],['Catch score',HUB.stat(d,'catch')]].map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')}</div>${(r.aw||[]).length?`<h3>Awards</h3>${r.aw.slice(0,10).map(a=>`<div class="small">🏅 ${esc(a.t||'')}</div>`).join('')}`:''}`;
+    if(tab==='breeding')body=(r.br||[]).length?r.br.slice(-20).reverse().map(e=>`<div class="small">🐶 Day ${e.day}: ${esc(e.a)} × ${esc(e.b)}${(e.pups||[]).length?` · ${e.pups.length} pups`:''}</div>`).join(''):'<p class="small muted">No litters on record yet.</p>';
+    let act='';if(!mine){act=`<button class="btn sm" data-act="hubReq" data-id="${id}">${d.sex==='F'?'OFFER BREEDING':'REQUEST BREEDING'}</button>${c.owner?`<button class="btn sm ghost" data-act="hubMsg" data-id="${c.owner}">Message owner</button><button class="btn sm ghost" data-act="hubProfile" data-id="${c.owner}">${esc(c.ranch||'Owner')}</button>`:''}<button class="btn sm ghost" data-act="hubSaveDog" data-id="${id}">🔖 Save dog</button>${S.dogs.length?`<button class="btn sm ghost" data-act="onCompare" data-id="${id}">Compare</button>`:''}`}
+    else act=`<button class="btn sm ghost" data-act="hubCompose" data-k="showcase" data-id="${d.id}">⭐ Showcase</button>${d.sex==='M'&&isAdult(d)?`<button class="btn sm ghost" data-act="hubStudForm" data-id="${d.id}">List as stud</button>`:''}`;
+    if(UI.remote[id])UI.cmpRemote={d,actions:''};
+    openSheet(`<div class="small muted">${esc(c.ranch||d.fromRanch||S.name)} · <span class="num">${esc(d.viewKey?(HUB.orig[id]&&HUB.orig[id].id)||'':d.id)}</span></div><h2 style="margin:2px 0">${esc(d.name)} <span class="${d.sex==='M'?'sexM':'sexF'}">${d.sex==='M'?'♂':'♀'}</span></h2>
+      <div class="small muted">${esc(HUB.bname(d))} · ${esc(coatName(d))} · ${ageStr(d.age)} · Generation ${d.gen||0}</div>
+      <div class="dcard" style="padding:0;border-width:0 0 4px;--rc:var(${RAR[rarTier(d)][1]})">${HUB.art(d,340)}</div>
+      <div class="row" style="margin:6px 0">${rarTag(d)}<span class="tag">⭐ ${esc(HUB.tier(d))}</span><span class="tag">${esc(HUB.gq(d))} genetics</span>${d.packAlpha?'<span class="tag">👑 Pack alpha</span>':''}</div>
+      <div class="row" style="margin:6px 0;flex-wrap:wrap">${act}</div>
+      <div class="hubnav small">${tabs.map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="hubDogTab" data-id="${id}" data-k="${k}">${l}</button>`).join('')}</div><div class="hubdogtab">${body}</div>`)},
+  // ---------- breeding requests ----------
+  readyF(){return S.dogs.filter(z=>z.sex==='F'&&isAdult(z)&&z.health>=40&&!z.cool&&!S.preg.some(p=>p.dam===z.id)&&!z.guest)},
+  readyM(){return S.dogs.filter(z=>z.sex==='M'&&isAdult(z)&&z.health>=40&&!z.guest)},
+  reqForm(id){const x=UI.remote[id],c=HUB.ctx[id]||{};if(!x)return;if(!c.owner)return toast('This dog has no owner on record.');if(c.owner===HUB.me())return toast('That is your own dog.');
+    const role=x.sex==='M'?'dam':'sire',mine=role==='dam'?HUB.readyF():HUB.readyM(),L=c.listing&&(UI.hubStuds||[]).find(s=>s.id==c.listing),fee=L?L.price:Math.round(dogValue(x)*.25/50)*50||500;
+    UI.hubReq={id,role};
+    openSheet(`<h2>${role==='dam'?'REQUEST TO BREED':'OFFER BREEDING'}</h2>
+      <div class="hubpair"><div>${dogArt(x,150)}<b>${esc(x.name)} ${x.sex==='M'?'♂':'♀'}</b><span>${esc(HUB.bname(x))}</span><span class="muted">${esc(c.ranch||'')}</span></div><div class="hubx">×</div><div id="hubReqMine">${mine[0]?`${dogArt(mine[0],150)}<b>${esc(mine[0].name)}</b><span>${esc(HUB.bname(mine[0]))}</span>`:'<span class="muted">No ready dog</span>'}</div></div>
+      <label class="small">${role==='dam'?'Your female':'Your stud'}<select id="hubReqDog" data-hubchg="hubReqPrev" style="width:100%">${mine.map(z=>`<option value="${z.id}">${esc(z.name)} — ${esc(HUB.bname(z))}, gen ${z.gen||0}</option>`).join('')}</select></label>
+      ${mine.length?'':`<p class="small muted">${role==='dam'?'You need a grown female who is healthy, rested and not expecting.':'You need a grown, healthy male.'}</p>`}
+      <h3>Potential genetics</h3><div id="hubReqPrev" class="small muted">Pick a dog to see the estimate.</div>
+      <div class="row" style="margin-top:8px"><label class="small">${role==='dam'?'Stud fee you offer':'Stud fee you ask'} $<input type="number" id="hubReqFee" min="0" value="${fee}" style="width:110px"></label></div>
+      <textarea id="hubReqMsg" maxlength="300" rows="2" placeholder="Message (optional)" style="width:100%;margin-top:6px"></textarea>
+      <button class="btn big" data-act="hubReqSend" style="margin-top:8px" ${mine.length?'':'disabled'}>SEND BREEDING REQUEST</button>
+      <p class="small muted">The owner is notified and can accept, decline or counter. Nothing is bred until you both confirm the contract.</p>`);
+    HUB.reqPrev()},
+  // estimated inherited traits from a few trial pups made by the real genetics (nothing is kept)
+  estimate(sire,dam){let pups=[];try{pups=previewLitter(sire,dam,6)}catch(e){return null}if(!pups.length)return null;
+    const rng=k=>{const v=pups.map(p=>p.pot[k]);return[Math.min(...v),Math.max(...v)]},coats=[...new Set(pups.map(p=>{try{return coatName(p)}catch(e){return''}}).filter(Boolean))];
+    const tr=HUB_TRAITS.filter(([k])=>pups.reduce((s,p)=>s+p.pot[k],0)/pups.length>=70).map(t=>t[1]);let br='';try{br=breedName(pups[0])}catch(e){}
+    return{br,coats,tr,rows:STATS.map(([k,l])=>[l,...rng(k)])}},
+  estHTML(E){if(!E)return'<span class="muted">No estimate.</span>';return`<div><b>${esc(E.br)}</b>${E.tr.length?` · likely ${E.tr.map(esc).join(', ').toLowerCase()}`:''}</div><div class="muted">Coats: ${E.coats.slice(0,5).map(esc).join(', ')}</div>
+    <table class="small" style="margin-top:4px">${E.rows.map(([l,a,b])=>`<tr><td>${l}</td><td class="num">${a}–${b} potential</td></tr>`).join('')}</table><div class="muted">An estimate from the parents' genes. The real litter can come out better or worse.</div>`},
+  reqPrev(){const q=UI.hubReq;if(!q)return;const x=UI.remote[q.id],sel=document.getElementById('hubReqDog'),m=sel&&S.dogs.find(d=>d.id===sel.value),el=document.getElementById('hubReqPrev'),mi=document.getElementById('hubReqMine');if(!x||!m||!el)return;
+    if(mi)mi.innerHTML=`${dogArt(m,150)}<b>${esc(m.name)}</b><span>${esc(HUB.bname(m))}</span>`;hydrateCoats();el.innerHTML=HUB.estHTML(q.role==='dam'?HUB.estimate(x,m):HUB.estimate(m,x))},
+  async reqSend(){const q=UI.hubReq;if(!q)return;const x=UI.remote[q.id],c=HUB.ctx[q.id]||{},m=S.dogs.find(d=>d.id===(document.getElementById('hubReqDog')||{}).value),fee=Math.max(0,Math.round(+document.getElementById('hubReqFee').value||0)),msg=document.getElementById('hubReqMsg').value;
+    if(!x||!m)return;if(HUB.bad(msg))return toast('Keep it clean.');const o=HUB.orig[q.id];
+    try{await HUB.call('hd_hub_breed_request',{p_role:q.role,p_to:c.owner,p_listing:q.role==='dam'&&c.listing?+c.listing:null,p_post:c.post?+c.post:null,p_sire:q.role==='dam'?o:HUB.lean(m),p_dam:q.role==='dam'?HUB.lean(m):o,p_fee:fee,p_msg:msg,p_ranch:S.name});
+      closeSheet();toast('Breeding request sent.');addLog(`Sent a breeding request: ${q.role==='dam'?m.name+' × '+x.name:x.name+' × '+m.name} (${c.ranch}).`);save();UI.hubTab='breeding';if(UI.tab==='club')render()}catch(e){HUB.err(e)}},
+  async respond(id,a){let fee=null;if(a==='counter'){const b=(UI.hubBreeds||[]).find(x=>x.id==id);const v=prompt('Your counter offer (stud fee $):',b?b.fee:'');if(v===null)return;fee=Math.max(0,Math.round(+v||0))}
+    if(a==='decline'&&!confirm('Decline this breeding request?'))return;
+    try{const r=await HUB.call('hd_hub_breed_respond',{p_id:+id,p_action:a,p_fee:fee});toast(a==='accept'?'Accepted. Now confirm the contract.':a==='decline'?'Declined.':'Counter offer sent.');if(a==='accept')HUB.contract(r);HUB.fill()}catch(e){HUB.err(e)}},
+  contract(b){b=typeof b==='object'?b:(UI.hubBreeds||[]).find(x=>x.id==b);if(!b)return;const me=HUB.me(),iSire=b.sire_owner===me,s=HUB.view(b.sire,'CS'+b.id,b.sire_ranch,{owner:b.sire_owner,ranch:b.sire_ranch}),d=HUB.view(b.dam,'CD'+b.id,b.dam_ranch,{owner:b.dam_owner,ranch:b.dam_ranch});
+    const E=HUB.estimate(s,d),myOk=iSire?b.sire_ok:b.dam_ok,dam=!iSire&&S.dogs.find(z=>z.id===b.dam.id);
+    openSheet(`<h2>📜 Breeding contract</h2><div class="hubcontract">
+      <div class="spread"><span>Stud owner</span><b>${esc(b.sire_ranch)}</b></div><div class="spread"><span>Stud</span><b>${esc(s.name)} · ${esc(HUB.bname(s))} · gen ${s.gen||0}</b></div>
+      <div class="spread"><span>Female's owner</span><b>${esc(b.dam_ranch)}</b></div><div class="spread"><span>Female</span><b>${esc(d.name)} · ${esc(HUB.bname(d))} · gen ${d.gen||0}</b></div>
+      <div class="spread"><span>Breeding fee</span><b>${fmt(b.fee)}</b></div><div class="spread"><span>Expected litter</span><b>2–8 pups, due 2 days after breeding</b></div>
+      <div class="spread"><span>Pups belong to</span><b>${esc(b.dam_ranch)}</b></div></div>
+      <h3>Genetics and estimated traits</h3><div class="small">${HUB.estHTML(E)}</div>
+      <p class="small muted">The game's genetics decide the real litter; no pup, coat or stat is guaranteed. The fee is paid when the female is bred.</p>
+      <div class="small">Confirmed: ${b.sire_ok?'✅':'⏳'} ${esc(b.sire_ranch)} · ${b.dam_ok?'✅':'⏳'} ${esc(b.dam_ranch)}</div>
+      ${b.status==='agreed'&&!myOk?`<button class="btn big" data-act="hubConfirm" data-id="${b.id}" style="margin-top:8px">CONFIRM CONTRACT</button>`:''}
+      ${b.status==='confirmed'&&!iSire?`<button class="btn big" data-act="hubClaim" data-id="${b.id}" style="margin-top:8px" ${dam?'':'disabled'}>Breed ${esc(d.name)} now (${fmt(b.fee)})</button>`:''}`)},
+  async confirm(id){try{const r=await HUB.call('hd_hub_breed_confirm',{p_id:+id});closeSheet();if(r.status==='confirmed'&&r.dam_owner===HUB.me()){await HUB.claim(r)}else toast(r.status==='confirmed'?'Contract confirmed. The female\'s owner can breed her now.':'Confirmed. Waiting on the other player.');HUB.fill()}catch(e){HUB.err(e)}},
+  // the female's owner breeds her: the stud comes from the contract and the existing breeding makes the pups
+  async claim(b,silent){b=typeof b==='object'?b:(UI.hubBreeds||[]).find(x=>x.id==b);if(!b)return false;const dam=S.dogs.find(z=>z.id===b.dam.id);const fail=m=>{if(!silent)toast(m);return false};
+    if(!dam)return fail(`${b.dam.name} is not in your kennel.`);if(!isAdult(dam)||dam.health<40||dam.cool||S.preg.some(p=>p.dam===dam.id))return fail(`${dam.name} is not ready to breed (needs to be grown, healthy, rested and not expecting).`);
+    if(S.money<b.fee)return fail(`You need ${fmt(b.fee)} for the stud fee.`);if(typeof whelpSlots==='function'&&S.preg.length>=whelpSlots())return fail('All your whelping pens are full.');
+    try{const r=await HUB.call('hd_hub_breed_claim',{p_id:b.id});const sire=importDog(r.sire,r.sire_ranch);S.money-=r.fee;S.preg.push({dam:dam.id,sireSnap:sire,due:S.day+2,hub:r.id});dam.cool=6;
+      try{PAPERS.arch(sire,'STUD SERVICE',`Stud from ${r.sire_ranch}`);if(S.arch&&S.arch[sire.id]&&r.sire.ped)S.arch[sire.id].ped=r.sire.ped}catch(e){}
+      HUB.st().claimed[r.id]=1;gainXP(25);addLog(`Bred ${dam.name} to ${sire.name} of ${r.sire_ranch} under a breeding contract (${fmt(r.fee)}). Pups due day ${S.day+2}.`);save();closeSheet();toast(`${dam.name} is bred to ${sire.name}! Pups due day ${S.day+2}.`);render();return true}catch(e){return fail(e.message)}},
+  async cancel(id){if(!confirm('Call off this breeding?'))return;try{await HUB.call('hd_hub_breed_cancel',{p_id:+id});toast('Called off.');HUB.fill()}catch(e){HUB.err(e)}},
+  // keeps both kennels in step with the contracts: auto-breed confirmed ones, report litters, and record the stud's litters
+  async syncBreeds(B,quiet){const me=HUB.me(),h=HUB.st();B=B||(await HUB.call('hd_hub_breeds'))||[];
+    for(const b of B){if(b.status==='confirmed'&&b.dam_owner===me&&!h.claimed[b.id]){await HUB.claim(b,true)}
+      if(b.status==='bred'&&b.dam_owner===me){const L=h.litters.find(l=>l.hub===b.id&&!l.reported);if(L)await HUB.report(L)}
+      if(b.status==='born'&&b.sire_owner===me&&!h.born[b.id]){h.born[b.id]=1;const stud=S.dogs.find(d=>d.id===b.sire.id),pups=(b.litter&&b.litter.pups||[]);
+        if(stud){const rr=HUB.rec(stud);(rr.br=rr.br||[]).push({k:'hub'+b.id,day:S.day,a:stud.name,b:`${b.dam.name} (${b.dam_ranch})`,pups:pups.map(p=>p.name),disc:[],remote:1});if(rr.br.length>60)rr.br.shift()}
+        h.history.unshift({id:b.id,day:S.day,role:'sire',sire:b.sire.name,dam:b.dam.name,ranch:b.dam_ranch,pups:pups.map(p=>({id:p.id,name:p.name,sex:p.sex}))});if(h.history.length>60)h.history.length=60;
+        S.st.litters=(S.st.litters||0);addLog(`🐶 ${b.dam.name} × ${stud?stud.name:b.sire.name}: ${pups.length} pups were born at ${b.dam_ranch} (your stud).`);if(!quiet)toast(`Your stud ${b.sire.name} sired ${pups.length} pups at ${b.dam_ranch}.`)}}
+    save()},
+  async report(L){try{const pups=L.pups.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean).map(p=>({id:p.id,name:p.name,sex:p.sex,coat:(()=>{try{return coatName(p)}catch(e){return''}})(),breed:HUB.bname(p),gen:p.gen,rar:rarTier(p)}));
+    await HUB.call('hd_hub_breed_born',{p_id:L.hub,p_litter:{pups,ranch:S.name,day:L.day}});L.reported=true;save()}catch(e){console.warn('hub litter',e)}},
+  // a litter was born: remember it for "New Litter" posts, and tell the stud's owner about contract litters
+  births(before,ids){const h=HUB.st();for(const p of before){if(S.preg.includes(p))continue;const dam=S.dogs.find(d=>d.id===p.dam),sire=p.sireSnap||{};
+      const pups=S.dogs.filter(d=>!ids.has(d.id)&&d.parents&&d.parents[1]&&d.parents[1].id===p.dam&&d.parents[0]&&d.parents[0].id===sire.id);if(!pups.length)continue;
+      const L={id:'LIT-'+S.day+'-'+(p.dam||'').slice(-5),day:S.day,n:pups.length,pups:pups.map(d=>d.id),sire:{id:sire.id,name:sire.name,breed:sire.breed,ranch:sire.fromRanch||S.name},dam:{id:p.dam,name:dam?dam.name:'',breed:dam?dam.breed:''},hub:p.hub||null};
+      h.litters.unshift(L);if(h.litters.length>40)h.litters.length=40;
+      if(p.hub&&dam){const rr=HUB.rec(dam);(rr.br=rr.br||[]).push({k:'hub'+p.hub,day:S.day,a:sire.name,b:dam.name,pups:pups.map(x=>x.name),disc:[],remote:1});if(rr.br.length>60)rr.br.shift()}
+      if(p.hub){h.history.unshift({id:p.hub,day:S.day,role:'dam',sire:sire.name,dam:L.dam.name,ranch:sire.fromRanch,pups:pups.map(x=>({id:x.id,name:x.name,sex:x.sex}))});if(!inClaude&&S.online)HUB.report(L)}}},
+});
+
+Object.assign(HUB,{
+  // ---------- composing posts ----------
+  litterTraits(pups){const a=k=>pups.reduce((s,p)=>s+(p.pot[k]||0),0)/Math.max(1,pups.length);const t=HUB_TRAITS.filter(([k])=>a(k)>=70).map(x=>x[1]);
+    const kg=pups.reduce((s,p)=>s+(p.kg||0),0)/Math.max(1,pups.length);if(kg>=34)t.push('Large frame');try{if(pups.reduce((s,p)=>s+bayScore({...p,stats:p.pot}),0)/pups.length>=70)t.push('Excellent baying')}catch(e){}return t},
+  huntData(){const h=UI.hunt;if(!h||!h.result||h.phase==='sim')return null;const r=h.result,sm=h.summary||{},S2=h.sim,tg=S2&&S2.target,fm=s=>`${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,'0')}`;
+    const ids=S2?S2.dogs.map(g=>g.id):[],dogs=ids.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean);
+    const hog=h.hog&&r.found?{w:h.hog.w,name:h.hog.name,key:(tg&&tg.key)||h.hogKey||'boar',seed:(tg&&tg.seed)||1,sex:(tg&&tg.sex)||'M'}:null;
+    return{area:h.area&&h.area.name,win:!!r.win,found:!!r.found,hog,time:fm(sm.time||0),grade:h.hxGrade?h.hxGrade.L:null,trophy:hog&&hog.w>=250?(hog.w>=350?'Giant boar':'Trophy hog'):null,
+      perf:(sm.dogs||[]).map(p=>({name:p.name,role:p.role,note:p.note})).slice(0,8),dogs,player:S.name}},
+  compose(k,id){k=k||'showcase';const h=HUB.st(),ad=S.dogs.filter(d=>!d.guest);UI.hubComp={k,id};let f='',title='';
+    const pick=(list,sel,lab)=>`<label class="small">${lab}<select id="hcDog" style="width:100%">${list.map(d=>`<option value="${d.id}" ${d.id===sel?'selected':''}>${esc(d.name)} — ${esc(HUB.bname(d))}, gen ${d.gen||0}</option>`).join('')}</select></label>`;
+    if(k==='hunt'){const H=HUB.huntData();if(!H)return toast('Finish a hunt first, then post it from the results.');UI.hubComp.hunt=H;title=H.win&&H.hog?`${H.hog.w>=250?'🏆':'🔥'} ${H.hog.w} lb ${H.hog.name.toUpperCase()} in ${H.area}`:`🔥 ${String(H.area||'Hunt').toUpperCase()} HUNT`;
+      f=`<div class="panel small">${esc(H.area||'')} · ${H.win?'Caught':H.found?'Got away':'No hog'}${H.hog?` · ${H.hog.w} lb ${esc(H.hog.name)}`:''} · ${H.time} · ${H.dogs.map(d=>esc(d.name)).join(', ')}${H.grade?` · grade ${H.grade}`:''}</div>`}
+    if(k==='showcase'){const list=ad;if(!list.length)return toast('You have no dogs to show.');f=pick(list,id,'Dog')+`<label class="small"><input type="checkbox" id="hcTree" checked> Show the bloodline</label>`;title='DOG SHOWCASE'}
+    if(k==='alpha'){const list=ad.filter(d=>HUB.isAD(d));if(!list.length)return toast('Certify an Alpha Dog first (Alpha Dogs tab).');f=pick(list,id,'Alpha Dog');title='👑 ALPHA DOG'}
+    if(k==='litter'){const L=h.litters.filter(l=>l.pups.some(x=>S.dogs.some(d=>d.id===x)));if(!L.length)return toast('No litters in your kennel to post yet.');
+      f=`<label class="small">Litter<select id="hcLit" style="width:100%">${L.map(l=>`<option value="${l.id}" ${l.id===id?'selected':''}>${esc(l.dam.name)} × ${esc(l.sire.name)} — day ${l.day}, ${l.n} pups</option>`).join('')}</select></label>`;title='🐶 NEW LITTER'}
+    if(k==='request'){const fs=ad.filter(d=>d.sex==='F'&&isAdult(d)),ms=ad.filter(d=>d.sex==='M'&&isAdult(d));if(!fs.length&&!ms.length)return toast('You need a grown dog to post a breeding request.');
+      f=`<div class="seg" style="margin:4px 0"><button class="${UI.hubWant!=='female'?'on':''}" data-act="hubWant" data-k="stud">Looking for a stud</button><button class="${UI.hubWant==='female'?'on':''}" data-act="hubWant" data-k="female">Looking for a female</button></div>
+        ${pick(UI.hubWant==='female'?ms:fs,id,UI.hubWant==='female'?'Your stud':'Your female')}
+        <input type="text" id="hcBreeds" maxlength="120" placeholder="Breeds wanted (e.g. Catahoula, Plott Hound, Black Mouth Cur)" style="width:100%;margin-top:6px">
+        <div class="hubchips" style="margin:6px 0">${['High scent','High stamina','Strong baying','Good catch genetics','Speed','Power','Smart','Biddable','Large frame'].map(t=>`<label class="small"><input type="checkbox" class="hcTr" value="${t}"> ${t}</label>`).join(' ')}</div>
+        <label class="small">Budget $<input type="number" id="hcBudget" min="0" style="width:110px"></label>`;title=UI.hubWant==='female'?'🔥 LOOKING FOR A FEMALE':'🔥 LOOKING FOR A STUD'}
+    if(k==='announce'){f='<p class="small muted">Club leaders can post announcements for their club.</p>';title='📢 CLUB ANNOUNCEMENT'}
+    const kinds=[['hunt','🔥 Hunt'],['showcase','⭐ Showcase'],['alpha','👑 Alpha Dog'],['litter','🐶 Litter'],['request','📣 Request'],['announce','📢 Announcement']];
+    openSheet(`<h2>New post</h2><div class="hubchips">${kinds.map(([x,l])=>`<button class="${k===x?'on':''}" data-act="hubCompose" data-k="${x}">${l}</button>`).join('')}</div>
+      <p class="small muted">Studs are posted from the Studs tab (LIST DOG AS STUD).</p>${f}
+      <input type="text" id="hcTitle" maxlength="80" value="${esc(title)}" placeholder="Title" style="width:100%;margin-top:8px">
+      <textarea id="hcBody" maxlength="1000" rows="3" placeholder="${k==='hunt'?'These dogs put in work tonight 🔥':'Say something about it'}" style="width:100%;margin-top:6px"></textarea>
+      <button class="btn big" data-act="hubPostSend" style="margin-top:8px">POST</button>`)},
+  async postSend(){const C=UI.hubComp;if(!C)return;const k=C.k,title=(document.getElementById('hcTitle').value||'').trim(),body=(document.getElementById('hcBody').value||'').trim();
+    if(HUB.bad(title)||HUB.bad(body))return toast('Keep it clean: the Hunting Club does not allow that language.');if(title.length<2)return toast('Give it a title.');
+    let kind=k,data={};const dog=()=>S.dogs.find(d=>d.id===(document.getElementById('hcDog')||{}).value);
+    if(k==='hunt'){const H=C.hunt;kind=H.hog&&H.hog.w>=250&&H.win?'trophy':'hunt';data={hunt:{...H,dogs:undefined},dogs:H.dogs.slice(0,6).map(HUB.lean)}}
+    if(k==='showcase'||k==='alpha'){const d=dog();if(!d)return;data={dogs:[HUB.lean(d)],showTree:k==='alpha'||!!(document.getElementById('hcTree')||{}).checked}}
+    if(k==='litter'){const L=HUB.st().litters.find(l=>l.id===document.getElementById('hcLit').value);if(!L)return;const pups=L.pups.map(id=>S.dogs.find(d=>d.id===id)).filter(Boolean),dam=S.dogs.find(d=>d.id===L.dam.id);
+      data={dogs:[...pups.slice(0,8).map(HUB.lean),...(dam?[HUB.lean(dam)]:[])],litter:{n:L.n,m:pups.filter(p=>p.sex==='M').length,f:pups.filter(p=>p.sex==='F').length,gen:pups[0]?pups[0].gen:0,traits:HUB.litterTraits(pups),sire:L.sire,dam:L.dam,ids:pups.map(p=>p.id)}};L.posted=true}
+    if(k==='request'){const d=dog();if(!d)return;const want=UI.hubWant==='female'?'female':'stud',br=(document.getElementById('hcBreeds').value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,6);
+      if(br.some(HUB.bad))return toast('Keep it clean.');data={dogs:[HUB.lean(d)],req:{want,breeds:br,traits:[...document.querySelectorAll('.hcTr:checked')].map(e=>e.value),budget:Math.max(0,+document.getElementById('hcBudget').value||0)}}}
+    try{await HUB.call('hd_hub_post',{p_kind:kind,p_title:title,p_body:body,p_data:data,p_ranch:S.name,p_club:HUB.myClub()});closeSheet();toast('Posted to the Hunting Club.');TRACK.ev&&TRACK.ev('hub_post',{kind});
+      save();UI.tab='club';UI.hubTab='feed';UI.hubMode='all';UI.hubKind=null;render()}catch(e){HUB.err(e)}},
+  // ---------- list a stud ----------
+  studForm(id,listing){const ms=S.dogs.filter(d=>d.sex==='M'&&isAdult(d)&&!d.guest);if(!ms.length)return toast('You need a grown male to stand at stud.');const L=listing&&(UI.hubStuds||[]).find(x=>x.id==listing),I=(L&&L.info)||{};
+    const d=L?null:(S.dogs.find(x=>x.id===id)||ms[0]);UI.hubStudL=L?L.id:null;
+    openSheet(`<h2>${L?'Edit stud listing':'LIST DOG AS STUD'}</h2>${L?`<p><b>${esc(L.dog.name)}</b></p>`:`<label class="small">Dog<select id="hsDog" data-hubchg="hubStudPrev" style="width:100%">${ms.map(x=>`<option value="${x.id}" ${x===d?'selected':''}>${esc(x.name)} — ${esc(HUB.bname(x))}, gen ${x.gen||0}</option>`).join('')}</select></label><div id="hsPrev"></div>`}
+      <div class="row" style="margin-top:6px"><label class="small">Stud fee $<input type="number" id="hsFee" min="1" value="${L?L.price:Math.max(100,Math.round(dogValue(d)*.25/50)*50)}" style="width:110px"></label>
+        <label class="small">Availability<select id="hsAvail"><option value="open" ${I.avail!=='paused'?'selected':''}>Available</option><option value="paused" ${I.avail==='paused'?'selected':''}>Not booking</option></select></label>
+        <label class="small">Bookings at once<input type="number" id="hsSlots" min="1" max="10" value="${I.slots||3}" style="width:60px"></label></div>
+      <input type="text" id="hsReq" maxlength="200" value="${esc(I.req||'')}" placeholder="Breeding requirements (e.g. healthy, grown, gen 2+)" style="width:100%;margin-top:6px">
+      <input type="text" id="hsLoc" maxlength="60" value="${esc(I.loc||'')}" placeholder="Breeding location (e.g. Atchafalaya, LA)" style="width:100%;margin-top:6px">
+      <textarea id="hsDesc" maxlength="500" rows="3" placeholder="Description" style="width:100%;margin-top:6px">${esc(I.desc||'')}</textarea>
+      ${L?'':'<label class="small"><input type="checkbox" id="hsPost" checked> Also post him to the feed</label>'}
+      <p class="small muted">${L?'':'Photos, genetics, bloodline, generation, hunting and breeding stats come straight from his record. '}He stays in your kennel: players book a breeding, and you approve each request.</p>
+      <button class="btn big" data-act="hubStudSend">${L?'Save':'LIST AT STUD'}</button>`);HUB.studPrev()},
+  studPrev(){const el=document.getElementById('hsPrev'),d=S.dogs.find(x=>x.id===(document.getElementById('hsDog')||{}).value);if(!el||!d)return;const h=HUB.hist(d);
+    el.innerHTML=`<div class="hubmedia">${HUB.art(d,300)}</div><div class="small"><b>${esc(HUB.bname(d))}</b> · Gen ${d.gen||0} · ⭐ ${esc(HUB.tier(d))} · ${esc(HUB.gq(d))} genetics · ${h.n} hunts (${h.ok} successful) · ${h.br} litters</div>${HUB.badges(d)}`;hydrateCoats()},
+  async studSend(){const g=i=>document.getElementById(i),info={avail:g('hsAvail').value,slots:+g('hsSlots').value||3,req:g('hsReq').value,loc:g('hsLoc').value,desc:g('hsDesc').value},fee=Math.round(+g('hsFee').value||0);
+    if([info.req,info.loc,info.desc].some(HUB.bad))return toast('Keep it clean.');if(fee<1)return toast('Set a stud fee.');
+    try{if(UI.hubStudL){await HUB.call('hd_hub_stud_update',{p_id:UI.hubStudL,p_price:fee,p_info:info});closeSheet();toast('Stud listing saved.');HUB.fill();return}
+      const d=S.dogs.find(x=>x.id===g('hsDog').value);if(!d)return;const lid=await HUB.call('hd_hub_list_stud',{p_dog:HUB.lean(d),p_price:fee,p_ranch:S.name,p_info:info});
+      if(g('hsPost')&&g('hsPost').checked)await HUB.studPost(lid,d,fee,info).catch(e=>console.warn('stud post',e));
+      addLog(`${d.name} is standing at stud in the Hunting Club for ${fmt(fee)}.`);save();closeSheet();toast(`${d.name} is listed at stud.`);UI.od={};UI.tab='club';UI.hubTab='studs';render()}catch(e){HUB.err(e)}},
+  async studPost(lid,d,fee,info){d=d||S.dogs.find(x=>x.id===((UI.hubStuds||[]).find(s=>s.id==lid)||{dog:{}}).dog.id);const L=(UI.hubStuds||[]).find(s=>s.id==lid);if(!d&&L)d=L.dog;if(!d)return;
+    fee=fee||(L&&L.price);info=info||(L&&L.info)||{};
+    await HUB.call('hd_hub_post',{p_kind:'stud',p_title:`${String(d.name).toUpperCase()} AT STUD`,p_body:info.desc||'',p_data:{dogs:[d.stats&&S.dogs.includes(d)?HUB.lean(d):d],listing:lid,fee,avail:info.avail,showTree:true},p_ranch:S.name,p_club:HUB.myClub()})},
+  // ---------- comments ----------
+  async comments(id){try{const C=await HUB.call('hd_hub_comments',{p_post:+id});UI.hubCmtPost=+id;UI.hubReplyTo=null;const top=C.filter(c=>!c.parent_id),kids=pid=>C.filter(c=>c.parent_id===pid);
+    const one=(c,r)=>`<div class="hubcmt ${r?'reply':''}"><div><button class="linkbtn" data-act="hubProfile" data-id="${c.player_id}"><b>${esc(c.ranch)}</b></button> <span class="small muted">${HUB.ago(c.at)}</span></div><div>${esc(c.body)}</div>
+      <div class="small"><button class="linkbtn" data-act="hubReply" data-id="${c.id}" data-r="${esc(c.ranch)}">Reply</button>${c.player_id!==HUB.me()?` · <button class="linkbtn" data-act="hubReportCmt" data-id="${c.id}">Report</button>`:''}</div></div>`;
+    openSheet(`<h2>Comments</h2><div class="hubcmts">${top.map(c=>one(c)+kids(c.id).map(k=>one(k,1)).join('')).join('')||'<p class="small muted">No comments yet. Start the conversation.</p>'}</div>
+      <div id="hubReplyLab" class="small muted"></div><div class="row" style="margin-top:6px"><input type="text" id="hubCmt" maxlength="500" placeholder="Add a comment" style="flex:1;min-width:0"><button class="btn sm" data-act="hubCmtSend">Send</button></div>`)}catch(e){HUB.err(e)}},
+  async cmtSend(){const el=document.getElementById('hubCmt'),v=(el&&el.value||'').trim();if(!v)return;if(HUB.bad(v))return toast('Keep it clean.');
+    try{await HUB.call('hd_hub_comment',{p_post:UI.hubCmtPost,p_parent:UI.hubReplyTo,p_body:v,p_ranch:S.name});const p=(UI.hubPosts||[]).find(x=>x.id===UI.hubCmtPost);if(p)p.comments++;HUB.comments(UI.hubCmtPost)}catch(e){HUB.err(e)}},
+  // ---------- notifications and messages ----------
+  async notifSheet(){try{const r=await HUB.notifs();const ic={like:'❤️',comment:'💬',reply:'↩️',follow:'➕',req_stud:'🧬',req_female:'🧬',req_ok:'✅',req_no:'❌',req_counter:'💱',contract:'📜',bred:'🐕',litter:'🐶',stud_new:'🧬',msg:'✉️'};
+    openSheet(`<h2>Notifications</h2>${(r.list||[]).map(n=>`<button class="hubnotif ${n.read?'':'new'}" data-act="hubNotifGo" data-p="${n.post_id||''}" data-r="${n.req_id||''}" data-a="${n.actor||''}" data-k="${n.kind}"><span>${ic[n.kind]||'🔔'}</span><div><div>${esc(n.txt)}</div><div class="small muted">${HUB.ago(n.at)}</div></div></button>`).join('')||'<p class="small muted">Nothing yet. Likes, comments, follows and breeding requests show up here.</p>'}`);
+    await HUB.call('hd_hub_notifs_read');UI.hubNot={...r,unread:0};const b=document.querySelectorAll('.hubhead .hubicon');if(b[1])b[1].innerHTML='🔔'}catch(e){HUB.err(e)}},
+  async notifGo(d){closeSheet();if(d.r){UI.tab='club';UI.hubTab='breeding';render();return}if(d.p)return HUB.openPost(+d.p);if(d.a)return HUB.openProfile(d.a)},
+  async openPost(id){try{const p=await HUB.call('hd_hub_get_post',{p_id:+id});UI.hubPosts=(UI.hubPosts||[]).filter(x=>x.id!==p.id).concat([p]);openSheet(HUB.postCard(p));HUB.paint()}catch(e){HUB.err(e)}},
+  async inbox(){try{const r=await HUB.call('hd_hub_msgs',{p_with:null});openSheet(`<h2>Messages</h2>${r.map(m=>`<button class="hubnotif ${m.unread?'new':''}" data-act="hubMsg" data-id="${m.with}"><span>✉️</span><div><b>${esc(m.ranch)}</b>${m.unread?` <span class="tag">${m.unread} new</span>`:''}<div class="small muted">${esc(m.body)} · ${HUB.ago(m.at)}</div></div></button>`).join('')||'<p class="small muted">No messages yet. Message a player from their profile or one of their dogs.</p>'}`)}catch(e){HUB.err(e)}},
+  async thread(pid){try{const r=await HUB.call('hd_hub_msgs',{p_with:pid});UI.hubThread=pid;
+    openSheet(`<h2>Messages</h2><div class="hubthread" id="hubThread">${r.map(m=>`<div class="hubmsg ${m.mine?'mine':''}"><div>${esc(m.body)}</div><span class="small muted">${m.mine?'You':esc(m.ranch)} · ${HUB.ago(m.at)}</span></div>`).join('')||'<p class="small muted">Say hello.</p>'}</div>
+      <div class="row" style="margin-top:6px"><input type="text" id="hubMsgIn" maxlength="500" placeholder="Message" style="flex:1;min-width:0"><button class="btn sm" data-act="hubMsgSend">Send</button></div>`);const t=document.getElementById('hubThread');if(t)t.scrollTop=t.scrollHeight;HUB.notifs().catch(()=>{})}catch(e){HUB.err(e)}},
+  async msgSend(){const el=document.getElementById('hubMsgIn'),v=(el&&el.value||'').trim();if(!v)return;if(HUB.bad(v))return toast('Keep it clean.');try{await HUB.call('hd_hub_msg_send',{p_to:UI.hubThread,p_body:v,p_ranch:S.name});HUB.thread(UI.hubThread)}catch(e){HUB.err(e)}},
+  menu(id,pid){const mine=pid===HUB.me();openSheet(`<h2>Post</h2><div class="row" style="flex-direction:column;align-items:stretch;gap:6px">${mine?`<button class="btn ghost" data-act="hubDelPost" data-id="${id}">Delete post</button>`:`<button class="btn ghost" data-act="hubReportPost" data-id="${id}">Report post</button><button class="btn ghost" data-act="hubReportPlayer" data-id="${pid}">Report player</button><button class="btn ghost" data-act="hubBlock" data-id="${pid}" data-k="mute" data-on="1">Mute player</button><button class="btn ghost" data-act="hubBlock" data-id="${pid}" data-k="block" data-on="1">Block player</button><button class="btn ghost" data-act="hubProfile" data-id="${pid}">View profile</button>`}<button class="btn ghost" data-act="hubShare" data-id="${id}">Share</button></div>`)},
+  async share(id){try{const n=await HUB.call('hd_hub_share',{p_post:+id});const url=`${SITE_URL}/?post=${id}`;const p=(UI.hubPosts||[]).find(x=>x.id==id);if(p)p.shares=n;
+    if(navigator.share){navigator.share({title:p?p.title:'Hunting Club post',url}).catch(()=>{})}else{try{await navigator.clipboard.writeText(url);toast('Link copied.')}catch(e){toast(url)}}S.st.shares=(S.st.shares||0)+1;HUB.fill()}catch(e){HUB.err(e)}},
+  async reportX(post,cmt,target){const why=prompt('What is wrong with it? (spam, abuse, cheating…)','');if(why===null)return;if(HUB.bad(why))return toast('Keep it clean.');try{await HUB.call('hd_hub_report',{p_post:post?+post:null,p_comment:cmt?+cmt:null,p_target:target||null,p_reason:why});closeSheet();toast('Thanks. We hide anything reported by three players.')}catch(e){HUB.err(e)}},
+});
+// ---------- hooks into the rest of the game ----------
+leanDog=(o=>d=>{const x=o(d);try{x.ped=HUB.rootPed(d);if(HUB.isAD(d))x.alphaDog=HUB.st().alpha[d.id]||d.alphaDog}catch(e){}return x})(leanDog);
+SCREENS.club=()=>HUB.screen();
+{const o=endDay;endDay=function(){const before=S.preg.slice(),ids=new Set(S.dogs.map(d=>d.id));const r=o.apply(this,arguments);try{HUB.births(before,ids)}catch(e){console.warn('hub births',e)}return r}}
+{const o=syncOnline;syncOnline=async function(){const r=await o.apply(this,arguments);try{if(S.online&&!inClaude){await HUB.publish(false);await HUB.syncBreeds(null,false)}}catch(e){console.warn('hub sync',e)}return r}}
+{const o=huntPlay;huntPlay=function(){let html=o.apply(this,arguments);try{const h=UI.hunt;if(!inClaude&&h&&h.phase!=='sim'&&h.result&&!h.practice&&!h.rabbit&&!h.coon&&!h.blood)html=html.replace('<button class="btn" data-act="hagain">','<button class="btn alt" data-act="hubCompose" data-k="hunt">📣 POST HUNT</button><button class="btn" data-act="hagain">')}catch(e){}return html}}
+{const o=dogCard;dogCard=function(d){const h=o.apply(this,arguments);try{if(HUB.isAD(d))return h.replace('<div class="badges">','<div class="badges"><span class="tag" style="background:#c9a227;color:#1b1406">👑 Alpha Dog</span>')}catch(e){}return h}}
+{const o=dogProfile;dogProfile=function(id){const r=o.apply(this,arguments);try{const d=S.dogs.find(x=>x.id===id),el=document.getElementById('sheetInner');if(d&&el&&!inClaude){const c=HUB.alphaCheck(d);
+  el.insertAdjacentHTML('beforeend',`<div class="panel small" style="margin-top:10px"><b>🤝 Hunting Club</b> ${HUB.isAD(d)?'· 👑 Certified Alpha Dog':''}<div class="row" style="margin-top:6px;flex-wrap:wrap"><button class="btn sm ghost" data-act="hubCompose" data-k="showcase" data-id="${d.id}">⭐ Showcase</button><button class="btn sm ghost" data-act="hubTreeMine" data-id="${d.id}">🌳 Bloodline</button>${d.sex==='M'&&isAdult(d)?`<button class="btn sm ghost" data-act="hubStudForm" data-id="${d.id}">🧬 List as stud</button>`:''}${!HUB.isAD(d)&&isAdult(d)?`<button class="btn sm ghost" data-act="hubNominate" data-id="${d.id}" ${c.ok?'':'disabled'}>👑 Nominate Alpha Dog (${c.pts}/${c.need})</button>`:''}</div></div>`)}}catch(e){console.warn('hub profile',e)}return r}}
+// deep link: ?post=123 opens that post
+setTimeout(()=>{try{const m=location.search.match(/[?&]post=(\d+)/);if(m&&!inClaude){UI.tab='club';UI.hubTab='feed';render();HUB.openPost(+m[1])}}catch(e){}},1500);
+document.addEventListener('change',e=>{const k=e.target&&e.target.dataset&&e.target.dataset.hubchg;if(k&&A[k])A[k](e.target.dataset,e.target)});
+{const css=document.createElement('style');css.textContent=`
+.hubhead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.hubicon{position:relative;font-size:18px;padding:4px 10px}.hubicon i{position:absolute;top:-6px;right:-6px;background:#d6331f;color:#fff;font:700 11px/18px system-ui;min-width:18px;height:18px;border-radius:9px;font-style:normal;padding:0 4px}
+.hubnav{display:flex;gap:4px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.hubnav::-webkit-scrollbar{display:none}
+.hubnav button{flex:none;background:var(--panel3,#2a2520);color:var(--ink,#eee);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:6px 12px;font:600 13px var(--display,system-ui);letter-spacing:.02em}
+.hubnav button.on{background:var(--blaze,#e0661f);color:#fff;border-color:transparent}
+.hubchips{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}.hubchips button{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--ink,#eee);border-radius:999px;padding:4px 10px;font-size:12px}.hubchips button.on{background:rgba(224,102,31,.18);border-color:var(--blaze,#e0661f)}
+.hubchips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.hubchips.scroll button{flex:none}
+.hubquick{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px}.hubquick .btn{flex:none}
+.hubpost{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.18)),var(--panel,#1f1b17);border:1px solid rgba(255,255,255,.07);border-top:3px solid var(--kc);border-radius:12px;margin:0 0 14px;overflow:hidden;animation:hubIn .35s ease both;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+@keyframes hubIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hubpost header{display:flex;align-items:center;gap:10px;padding:10px 12px 4px}.hubwho{flex:1;min-width:0}.hubwho .linkbtn{font-size:15px}
+.hubkind{font:700 11px var(--display,system-ui);text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--kc);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.hubmore{padding:2px 8px}.hubtitle{margin:4px 12px 2px;font:800 20px/1.15 var(--display,system-ui);letter-spacing:.01em;text-transform:uppercase}.hubbody{margin:4px 12px 8px;white-space:pre-wrap}
+.hubpost>.hubstats,.hubpost>.hubfacts,.hubpost>.hubrecord,.hubpost>.hubfee,.hubpost>.hubdoghead,.hubpost>.row,.hubpost>.hubreq,.hubpost>.hubdet,.hubpost>.small,.hubpost>.hubhunt{margin-left:12px;margin-right:12px}
+.hubpost footer{display:flex;border-top:1px solid rgba(255,255,255,.07);margin-top:10px}.hubpost footer button{flex:1;background:none;border:0;color:var(--ink,#eee);padding:10px 4px;font:600 13px system-ui;transition:transform .15s}
+.hubpost footer button:active{transform:scale(.92)}.hubpost footer button.on{color:#ff6b5a}
+.hubav{border-radius:50%;overflow:hidden;background:radial-gradient(circle,#3a3128,#16120e);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 2px rgba(201,162,39,.5)}.hubav canvas,.hubav img,.hubav svg{max-width:100%;max-height:100%;object-fit:contain}
+.hubmedia{background:radial-gradient(ellipse at 50% 70%,#3b3326,#14110d);display:flex;justify-content:center;cursor:pointer;margin:6px 0}.hubart{position:relative;display:flex;justify-content:center;width:100%}
+.hubcrown{position:absolute;top:8px;left:8px;background:#c9a227;color:#1b1406;font:800 11px var(--display,system-ui);letter-spacing:.08em;padding:3px 8px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.hubthumbs{display:flex;gap:6px;overflow-x:auto;padding:4px 12px}.hubthumbs button{flex:none;width:118px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--ink,#eee);padding:4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
+.hubstats{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:6px 0}.hubst{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;text-align:center;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#aaa);padding:3px 0}
+.hubst b{display:block;font:800 16px var(--display,system-ui);color:var(--ink,#fff)}.hubstats.big .hubst b{font-size:19px}
+.hubfacts,.hubrecord{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;margin:6px 0}.hubfacts div,.hubrecord div{background:rgba(0,0,0,.25);border-radius:6px;padding:5px 7px}.hubfacts span,.hubrecord span{display:block;font-size:10px;text-transform:uppercase;color:var(--muted,#aaa)}
+.hubhunt{margin:6px 0}.hubhogwrap{position:relative;background:linear-gradient(180deg,#2c3a24,#141a10);border-radius:8px;overflow:hidden;display:flex;justify-content:center}.hubhog{width:100%;max-width:420px;height:auto}
+.hubhogw{position:absolute;right:10px;bottom:8px;font:800 26px var(--display,system-ui);color:#fff;text-shadow:0 2px 6px #000}
+.hubfee{display:flex;align-items:baseline;gap:8px;margin:8px 0;flex-wrap:wrap}.hubfee b{font:800 24px var(--display,system-ui);color:var(--gold,#c9a227)}.hubfee em{font:700 11px system-ui;font-style:normal;color:#4cc27a;letter-spacing:.06em}
+.hubdet summary{cursor:pointer;font-weight:600;padding:4px 0}.hubdet{margin:6px 0}
+.hubtree{overflow-x:auto;padding:4px 0}.hubtl{font:700 10px system-ui;text-transform:uppercase;letter-spacing:.08em;color:var(--muted,#aaa);margin:4px 0 2px;text-align:center}
+.hubtr{display:grid;gap:4px;min-width:min(100%,560px)}.hubtn{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px;text-align:center;font-size:10.5px;line-height:1.25;overflow:hidden}
+.hubtn b{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hubtn span{display:block;color:var(--muted,#aaa);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hubtn.root{border-color:var(--gold,#c9a227);background:rgba(201,162,39,.12)}.hubtn.sire{border-left:3px solid #4a8fd4}.hubtn.dam{border-left:3px solid #d46a9a}.hubtn.none{opacity:.35}.hubarrow{text-align:center;color:var(--gold,#c9a227);font-weight:800}
+.hubstud,.hubbreed{background:var(--panel,#1f1b17);border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:12px;animation:hubIn .35s ease both}.hubstudbody{padding:10px 12px}.hubprice{font:800 22px var(--display,system-ui);color:var(--gold,#c9a227)}
+.hubbreed{padding:10px 12px}.hubpair{display:flex;align-items:center;gap:6px}.hubpair>button,.hubpair>div:not(.hubx){flex:1;min-width:0;background:none;border:0;color:var(--ink,#eee);display:flex;flex-direction:column;align-items:center;font-size:12px;text-align:center}.hubx{font:800 22px system-ui;color:var(--gold,#c9a227)}
+.hubcta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(90deg,rgba(201,162,39,.15),transparent)}
+.hubpups{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}.hubpup{background:rgba(0,0,0,.25);border-radius:8px;padding:6px}.hubpup>button{background:none;border:0;width:100%;display:flex;justify-content:center}
+.hubpupact{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.hubpupact .btn{font-size:10.5px;padding:3px 6px}
+.hubalpha{display:flex;gap:10px;align-items:flex-start}.hubalpha.cert{border:1px solid var(--gold,#c9a227);box-shadow:0 0 0 1px rgba(201,162,39,.3)}.hubalphaart{width:150px;flex:none;cursor:pointer}
+.hubfilters{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.hubfilters label{display:flex;gap:4px;align-items:center}
+.hubprof .hubprofhead{display:flex;gap:12px;align-items:center}.hubrep{display:inline-block;margin:4px 0;padding:2px 10px;border-radius:999px;background:var(--rc);color:#fff;font:700 12px system-ui}
+.hubprofstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}.hubprofstats div{background:rgba(0,0,0,.25);border-radius:8px;text-align:center;padding:6px 2px}.hubprofstats b{display:block;font:800 18px var(--display,system-ui)}.hubprofstats span{font-size:10px;text-transform:uppercase;color:var(--muted,#aaa)}
+.hubach{display:flex;flex-wrap:wrap;gap:6px}.hubach span{background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.4);border-radius:999px;padding:3px 10px;font-size:12px}
+.hubcmt{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}.hubcmt.reply{margin-left:22px;border-left:2px solid rgba(255,255,255,.12);padding-left:8px}
+.hubnotif{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.06);color:var(--ink,#eee);padding:8px 2px}.hubnotif.new{background:rgba(224,102,31,.1)}.hubnotif>span{font-size:20px}
+.hubthread{max-height:50vh;overflow:auto}.hubmsg{max-width:80%;margin:4px 0;padding:6px 10px;border-radius:12px;background:var(--panel3,#2a2520)}.hubmsg.mine{margin-left:auto;background:rgba(224,102,31,.25)}
+.hubcontract{background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 22px,transparent 22px 23px),#221d17;border:1px solid rgba(201,162,39,.45);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.hubfab{position:fixed;right:16px;bottom:84px;z-index:20;background:var(--blaze,#e0661f);color:#fff;border:0;border-radius:999px;padding:12px 18px;font:800 15px var(--display,system-ui);box-shadow:0 6px 16px rgba(0,0,0,.45)}
+.hubrow{margin-bottom:6px}.hubreq{background:rgba(138,63,160,.12);border-radius:8px;padding:8px;margin:6px 0}
+@media (prefers-reduced-motion:reduce){.hubpost,.hubstud,.hubbreed{animation:none}}`;document.head.appendChild(css)}
+const HUB_ACTIONS={
+  hubTab:d=>{UI.hubTab=d.k;render()},hubMode:d=>{UI.hubMode=d.k;HUB.fill();document.querySelectorAll('[data-act="hubMode"]').forEach(b=>b.classList.toggle('on',b.dataset.k===d.k))},
+  hubKindF:d=>{UI.hubKind=d.k||null;HUB.fill()},hubRefresh:()=>{UI.hubRes=null;HUB.fill()},
+  hubLike:async(d,el)=>{const p=(UI.hubPosts||[]).find(x=>x.id==d.id);const on=!(p?p.liked:el.classList.contains('on'));try{const n=await HUB.call('hd_hub_like',{p_post:+d.id,p_on:on});if(p){p.liked=on;p.likes=n}
+    document.querySelectorAll(`[data-act="hubLike"][data-id="${d.id}"]`).forEach(b=>{b.classList.toggle('on',on);b.innerHTML=`❤️ <span>${n}</span>`})}catch(e){HUB.err(e)}},
+  hubCmts:d=>HUB.comments(d.id),hubCmtSend:()=>HUB.cmtSend(),hubReply:d=>{UI.hubReplyTo=+d.id;const l=document.getElementById('hubReplyLab');if(l)l.textContent='Replying to '+d.r;const i=document.getElementById('hubCmt');if(i)i.focus()},
+  hubShare:d=>HUB.share(d.id),
+  hubSavePost:async d=>{const p=(UI.hubPosts||[]).find(x=>x.id==d.id);const on=!(p&&p.saved);try{await HUB.call('hd_hub_save',{p_kind:'post',p_ref:String(d.id),p_data:{title:p?p.title:''},p_on:on});if(p)p.saved=on;
+    document.querySelectorAll(`[data-act="hubSavePost"][data-id="${d.id}"]`).forEach(b=>{b.classList.toggle('on',on);b.textContent='🔖 '+(on?'Saved':'Save')})}catch(e){HUB.err(e)}},
+  hubSaveStud:async d=>{const x=(UI.hubStuds||[]).find(s=>s.id==d.id);const on=!(x&&x.saved);try{await HUB.call('hd_hub_save',{p_kind:'stud',p_ref:String(d.id),p_data:x?{name:x.dog.name,ranch:x.ranch,price:x.price,dog:x.dog,seller:x.seller}:{},p_on:on});if(x)x.saved=on;toast(on?'Stud saved.':'Removed from saved.');HUB.fill()}catch(e){HUB.err(e)}},
+  hubSaveDog:async d=>{const x=UI.remote[d.id],c=HUB.ctx[d.id]||{};if(!x)return;try{await HUB.call('hd_hub_save',{p_kind:'dog',p_ref:(c.owner||'')+':'+((HUB.orig[d.id]||{}).id||x.name),p_data:{dog:HUB.orig[d.id],ranch:c.ranch,owner:c.owner},p_on:true});toast(`${x.name} saved.`)}catch(e){HUB.err(e)}},
+  hubSaved:async()=>{try{const r=await HUB.call('hd_hub_saved');const dogs=r.filter(x=>(x.kind==='dog'||x.kind==='stud')&&x.data&&HUB.ok(x.data.dog)).map((x,i)=>({x,d:x.data&&x.data.dog?HUB.view(x.data.dog,'SV'+i,x.data.ranch,{owner:x.data.owner||x.data.seller,ranch:x.data.ranch,listing:x.kind==='stud'?+x.ref:null}):null})).filter(o=>o.d);
+    openSheet(`<h2>🔖 Saved</h2><h3>Dogs and studs</h3>${dogs.length?`<div class="grid">${dogs.map(o=>`<div><div class="small" style="font-weight:700">${o.x.kind==='stud'?'Stud · ':''}${esc(o.x.data.ranch||'')}</div>${dogCard(o.d,'hubDog')}</div>`).join('')}</div>`:'<p class="small muted">None saved.</p>'}
+      <h3>Posts</h3>${r.filter(x=>x.kind==='post').map(x=>`<button class="hubnotif" data-act="hubOpenPost" data-id="${x.ref}"><span>📌</span><div>${esc((x.data&&x.data.title)||'Post #'+x.ref)}</div></button>`).join('')||'<p class="small muted">None saved.</p>'}`)}catch(e){HUB.err(e)}},
+  hubOpenPost:d=>HUB.openPost(d.id),
+  hubMenu:d=>HUB.menu(d.id,d.pid),hubDelPost:async d=>{if(!confirm('Delete this post?'))return;try{await HUB.call('hd_hub_delete_post',{p_id:+d.id});closeSheet();HUB.fill()}catch(e){HUB.err(e)}},
+  hubReportPost:d=>HUB.reportX(d.id,null,null),hubReportCmt:d=>HUB.reportX(UI.hubCmtPost,d.id,null),hubReportPlayer:d=>HUB.reportX(null,null,d.id),
+  hubBlock:async d=>{const on=d.on==='1';if(on&&d.k==='block'&&!confirm('Block this player? You will not see each other\'s posts, messages or requests.'))return;
+    try{await HUB.call('hd_hub_block',{p_target:d.id,p_kind:d.k,p_on:on});closeSheet();toast(on?(d.k==='block'?'Blocked.':'Muted: you will not see their posts.'):(d.k==='block'?'Unblocked.':'Unmuted.'));HUB.fill()}catch(e){HUB.err(e)}},
+  hubFollow:async d=>{try{await HUB.call('hd_hub_follow',{p_kind:'player',p_target:d.id,p_on:d.on==='1'});toast(d.on==='1'?'Following.':'Unfollowed.');HUB.openProfile(d.id)}catch(e){HUB.err(e)}},
+  hubFollowClub:async d=>{try{await HUB.call('hd_hub_follow',{p_kind:'club',p_target:String(d.id),p_on:d.on==='1'});UI.hubRes=null;toast(d.on==='1'?'Following the club.':'Unfollowed.');HUB.fill()}catch(e){HUB.err(e)}},
+  hubProfile:d=>HUB.openProfile(d.id),hubProfTab:d=>{UI.hubProfTab=d.k;if(d.pid===HUB.me()){closeSheet();UI.hubTab='profile';HUB.fill()}else HUB.openProfile(d.pid)},
+  hubMsg:d=>HUB.thread(d.id),hubMsgSend:()=>HUB.msgSend(),hubInbox:()=>HUB.inbox(),hubNotifs:()=>HUB.notifSheet(),hubNotifGo:d=>HUB.notifGo(d),
+  hubDog:d=>{if(UI.remote[d.id])HUB.dogSheet(d.id);else if(S.dogs.some(x=>x.id===d.id))dogProfile(d.id)},hubDogTab:d=>HUB.dogSheet(d.id,d.k),
+  hubTree:d=>{const x=UI.remote[d.id];if(x)openSheet(`<h2>🌳 ${esc(x.name)}</h2><div class="small muted">${esc(HUB.line(x))} · ${esc(HUB.tier(x))} · Generation ${x.gen||0}</div>${HUB.tree(x.ped||HUB.rootPed(x))}<button class="btn sm ghost" data-act="hubDog" data-id="${d.id}" style="margin-top:8px">View dog</button>`)},
+  hubTreeMine:d=>{const x=S.dogs.find(z=>z.id===d.id);if(x)openSheet(`<h2>🌳 ${esc(x.name)}</h2><div class="small muted">${esc(HUB.line(x))} · ${esc(HUB.tier(x))} · Generation ${x.gen||0}</div>${HUB.tree(HUB.rootPed(x))}<button class="btn sm ghost" data-act="hubCompose" data-k="showcase" data-id="${x.id}" style="margin-top:8px">⭐ Showcase with bloodline</button>`)},
+  hubReq:d=>HUB.reqForm(d.id),hubReqPrev:()=>HUB.reqPrev(),hubReqSend:()=>HUB.reqSend(),
+  hubResp:d=>HUB.respond(d.id,d.a),hubContract:d=>HUB.contract(d.id),hubConfirm:d=>HUB.confirm(d.id),hubClaim:d=>HUB.claim(d.id),hubCancel:d=>HUB.cancel(d.id),
+  hubStudForm:d=>HUB.studForm(d.id),hubStudPrev:()=>HUB.studPrev(),hubStudSend:()=>HUB.studSend(),hubStudEdit:d=>HUB.studForm(null,d.id),
+  hubStudPost:async d=>{try{await HUB.studPost(+d.id);toast('Posted to the feed.')}catch(e){HUB.err(e)}},
+  hubCompose:d=>{if(inClaude)return toast('The Hunting Club runs on the public website.');HUB.compose(d.k,d.id)},hubPostSend:()=>HUB.postSend(),hubWant:d=>{UI.hubWant=d.k;HUB.compose('request',UI.hubComp&&UI.hubComp.id)},
+  hubLitterPost:d=>HUB.compose('litter',d.id),
+  hubPup:d=>{const p=S.dogs.find(x=>x.id===d.id);if(!p)return;if(d.a==='keep'){HUB.st().kept[p.id]=1;save();toast(`${p.name} stays in your kennel.`);HUB.fill();return}
+    if(d.a==='sell')return A.sellOnline?A.sellOnline({id:p.id}):toast('Sell from the dog\'s profile.');if(d.a==='show')return HUB.compose('showcase',p.id);
+    if(d.a==='breed'){if(!isAdult(p))return toast(`${p.name} can be listed for breeding once grown (12 months).`);if(p.sex==='M')return HUB.studForm(p.id);UI.hubWant='stud';return HUB.compose('request',p.id)}},
+  hubNominate:d=>{const x=S.dogs.find(z=>z.id===d.id);if(!x)return;const c=HUB.alphaCheck(x);if(!c.ok)return toast(`${x.name} does not meet the Alpha Dog requirements yet (${c.pts}/${c.need}).`);
+    HUB.st().alpha[x.id]={day:S.day,pts:c.pts};addLog(`👑 ${x.name} was certified an Alpha Dog of the Hunting Club.`);save();HUB.publish(true).catch(()=>{});toast(`👑 ${x.name} is a certified Alpha Dog!`);closeSheet();UI.tab='club';UI.hubTab='alpha';render()},
+  hubAvatar:d=>{HUB.st().avatar=d.id;save();HUB.publish(true).then(()=>toast('Profile picture updated.')).catch(e=>HUB.err(e))},
+  hubBio:()=>{const v=prompt('Your Hunting Club bio (up to 200 letters)',HUB.st().bio||'');if(v===null)return;if(HUB.bad(v))return toast('Keep it clean.');HUB.st().bio=v.slice(0,200);save();HUB.publish(true).then(()=>HUB.fill()).catch(e=>HUB.err(e))},
+  hubSearch:()=>{UI.hubQ=(document.getElementById('hubQ').value||'').trim();UI.hubRes=null;HUB.fill()},
+  hubFilter:()=>{HUB.readFilters();HUB.fill()},hubFilterClear:()=>{UI.hubF={};HUB.fill()}
+};
+Object.assign(A,HUB_ACTIONS);
+
+
+
+
+
 Object.assign(A,H3D_ACTIONS,PK_ACTIONS,MIX_ACTIONS,BK_ACTIONS,PT_ACTIONS,CV_ACTIONS,ON_ACTIONS,HX_ACTIONS,KL_ACTIONS,KY_ACTIONS,CREW_ACTIONS,WK_ACTIONS,IH_ACTIONS,R21_ACTIONS,PAPER_ACTIONS,R2_ACTIONS,REAL_ACTIONS,BADGE_ACTIONS,ONLINE_ACTIONS,ACCOUNT_ACTIONS,LAND_ACTIONS,ADMIN_ACTIONS,WORLD_ACTIONS,PRACTICE_ACTIONS,RABBIT_ACTIONS,COON_ACTIONS,HORSE_ACTIONS,JOB_ACTIONS,HOG_ACTIONS,PUP_ACTIONS,GOAL_ACTIONS,SHARE_ACTIONS,APP_ACTIONS,VEH_ACTIONS,FAIR_ACTIONS,CLUB_ACTIONS,MKT_ACTIONS,COOP_ACTIONS,CAREER_ACTIONS,TRIP_ACTIONS,SEASON_ACTIONS,TCAM_ACTIONS,TRK_ACTIONS,TIE_ACTIONS,NIGHT_ACTIONS,CMD_ACTIONS,BAYT_ACTIONS,HOGAI_ACTIONS,BT_ACTIONS,REPLAY_ACTIONS);R21.wrapLate();checkAdmin().then(a=>{if(a)render()});S.dogs=S.dogs.filter(d=>!d.guest);setTimeout(()=>{if(S.online)syncOnline()},2500);
 // once the game is up, pull the remaining master pictures into the cache while nothing else is going on
 setTimeout(()=>{const urls=[...new Set((document.documentElement.innerHTML.match(/assets\/masters\/[\w.-]+\.webp/g)||[]))];let i=0;const next=()=>{if(i>=urls.length)return;const im=new Image();im.crossOrigin='anonymous';im.onload=im.onerror=()=>setTimeout(next,150);im.src=assetSrc(urls[i++])};(window.requestIdleCallback||setTimeout)(next)},5000);
