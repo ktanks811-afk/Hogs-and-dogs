@@ -1,0 +1,33 @@
+name: Release check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Scripts parse and the game boots
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Playwright lives only in tools/check so the site itself stays a plain static deploy on Vercel
+      - name: Install Playwright and Chromium
+        working-directory: tools/check
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Run the release check
+        run: node tools/check/release-check.mjs
